@@ -16,6 +16,9 @@ class StubDefinitionRepo implements ProviderConnectivity.JobDefinitionRepository
 	): Promise<ProviderConnectivity.ProviderJobDefinition | null> {
 		return this.store.get(id) ?? null;
 	}
+	async findFor(): Promise<ProviderConnectivity.ProviderJobDefinition | null> {
+		return null;
+	}
 	async listForProject(): Promise<readonly ProviderConnectivity.ProviderJobDefinition[]> {
 		return [...this.store.values()];
 	}
