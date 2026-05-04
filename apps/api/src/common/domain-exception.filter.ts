@@ -26,6 +26,7 @@ const TITLE_BY_STATUS: Record<number, string> = {
 	404: 'Not Found',
 	409: 'Conflict',
 	422: 'Unprocessable Entity',
+	429: 'Too Many Requests',
 	500: 'Internal Server Error',
 };
 
@@ -52,15 +53,14 @@ export class DomainExceptionFilter implements ExceptionFilter {
 		if (exception instanceof HttpException) {
 			const status = exception.getStatus();
 			const response = exception.getResponse();
-			const body =
-				typeof response === 'object' && response !== null
-					? (response as Record<string, unknown>)
-					: { detail: String(response) };
+			const detail = this.detailFromHttpException(response);
+			const code = this.codeFromHttpException(response, status);
 			res.status(status).json({
 				type: 'about:blank',
 				title: TITLE_BY_STATUS[status] ?? 'Error',
 				status,
-				...body,
+				code,
+				detail,
 			});
 			return;
 		}
@@ -74,7 +74,42 @@ export class DomainExceptionFilter implements ExceptionFilter {
 			detail: 'An unexpected error occurred',
 		});
 	}
+
+	/**
+	 * Normalize the body that comes out of NestJS HttpException / Express
+	 * body-parser into the RFC 7807 shape the rest of the API uses. When the
+	 * underlying response object exposes a `message`/`error`/`statusCode`
+	 * triple (the default Express shape), we map it instead of spreading it.
+	 */
+	private detailFromHttpException(response: unknown): string {
+		if (typeof response === 'string') return response;
+		if (typeof response === 'object' && response !== null) {
+			const obj = response as { message?: unknown; detail?: unknown };
+			if (typeof obj.detail === 'string') return obj.detail;
+			if (Array.isArray(obj.message)) return obj.message.join('; ');
+			if (typeof obj.message === 'string') return obj.message;
+		}
+		return 'HTTP error';
+	}
+
+	private codeFromHttpException(response: unknown, status: number): string {
+		if (typeof response === 'object' && response !== null) {
+			const obj = response as { code?: unknown };
+			if (typeof obj.code === 'string') return obj.code;
+		}
+		return CODE_BY_STATUS[status] ?? 'HTTP_ERROR';
+	}
 }
+
+const CODE_BY_STATUS: Record<number, string> = {
+	400: 'BAD_REQUEST',
+	401: 'UNAUTHORIZED',
+	403: 'FORBIDDEN',
+	404: 'NOT_FOUND',
+	409: 'CONFLICT',
+	422: 'INVARIANT_VIOLATION',
+	429: 'TOO_MANY_REQUESTS',
+};
 
 // Re-export domain error symbols so the filter is the single source of truth
 // for HTTP mapping. Anyone wanting to throw an error from a controller can use

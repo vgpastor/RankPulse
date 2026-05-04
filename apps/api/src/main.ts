@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import helmet from 'helmet';
 import { AppModule } from './app.module.js';
 import { buildCompositionRoot } from './composition/composition-root.js';
 import { loadEnv } from './config/env.js';
@@ -14,6 +15,26 @@ async function bootstrap(): Promise<void> {
 		{
 			logger: env.NODE_ENV === 'production' ? ['log', 'warn', 'error'] : ['debug', 'log', 'warn', 'error'],
 		},
+	);
+
+	app.use(
+		helmet({
+			// Swagger UI loads its assets from a CDN, so we relax CSP only for
+			// /docs. The HTML we serve already names a single trusted CDN host.
+			contentSecurityPolicy: env.OPENAPI_ENABLED
+				? {
+						directives: {
+							defaultSrc: ["'self'"],
+							scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+							styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+							imgSrc: ["'self'", 'data:', 'https://cdn.jsdelivr.net'],
+							connectSrc: ["'self'"],
+							fontSrc: ["'self'", 'https://cdn.jsdelivr.net'],
+						},
+					}
+				: undefined,
+			crossOriginResourcePolicy: { policy: 'cross-origin' },
+		}),
 	);
 
 	app.setGlobalPrefix('api/v1', {

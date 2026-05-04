@@ -2,8 +2,9 @@ import { Body, Controller, Get, Inject, Param, Post, Query } from '@nestjs/commo
 import type { RankTracking as RTUseCases } from '@rankpulse/application';
 import { RankTrackingContracts } from '@rankpulse/contracts';
 import type { IdentityAccess, ProjectManagement, RankTracking } from '@rankpulse/domain';
-import { ForbiddenError, NotFoundError } from '@rankpulse/shared';
+import { NotFoundError } from '@rankpulse/shared';
 import type { AuthPrincipal } from '../../common/auth/jwt.service.js';
+import { OrgMembership } from '../../common/auth/org-membership.guard.js';
 import { Principal } from '../../common/auth/principal.decorator.js';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe.js';
 import { Tokens } from '../../composition/tokens.js';
@@ -12,6 +13,8 @@ type StartTrackingKeywordRequest = RankTrackingContracts.StartTrackingKeywordReq
 
 @Controller()
 export class RankTrackingController {
+	private readonly orgMembership: OrgMembership;
+
 	constructor(
 		@Inject(Tokens.StartTrackingKeyword)
 		private readonly startTracking: RTUseCases.StartTrackingKeywordUseCase,
@@ -21,8 +24,10 @@ export class RankTrackingController {
 		@Inject(Tokens.RankingObservationRepository)
 		private readonly obsRepo: RankTracking.RankingObservationRepository,
 		@Inject(Tokens.ProjectRepository) private readonly projects: ProjectManagement.ProjectRepository,
-		@Inject(Tokens.MembershipRepository) private readonly memberships: IdentityAccess.MembershipRepository,
-	) {}
+		@Inject(Tokens.MembershipRepository) memberships: IdentityAccess.MembershipRepository,
+	) {
+		this.orgMembership = new OrgMembership(memberships);
+	}
 
 	@Post('rank-tracking/keywords')
 	async start(
@@ -34,7 +39,7 @@ export class RankTrackingController {
 		if (!project) {
 			throw new NotFoundError(`Project ${body.projectId} not found`);
 		}
-		await this.assertMember(principal, project.organizationId);
+		await this.orgMembership.require(principal, project.organizationId);
 		return this.startTracking.execute({
 			organizationId: project.organizationId,
 			projectId: body.projectId,
@@ -55,7 +60,7 @@ export class RankTrackingController {
 		if (!project) {
 			throw new NotFoundError(`Project ${projectId} not found`);
 		}
-		await this.assertMember(principal, project.organizationId);
+		await this.orgMembership.require(principal, project.organizationId);
 		const observations = await this.obsRepo.listLatestForProject(project.id);
 		return observations.map((o) => ({
 			trackedKeywordId: o.trackedKeywordId,
@@ -85,19 +90,9 @@ export class RankTrackingController {
 		if (!project) {
 			throw new NotFoundError(`Project ${tracked.projectId} not found`);
 		}
-		await this.assertMember(principal, project.organizationId);
+		await this.orgMembership.require(principal, project.organizationId);
 		const to = q.to ? new Date(q.to) : new Date();
 		const from = q.from ? new Date(q.from) : new Date(to.getTime() - 90 * 24 * 60 * 60 * 1000);
 		return this.queryHistory.execute({ trackedKeywordId: id, from, to });
-	}
-
-	private async assertMember(principal: AuthPrincipal, orgId: string): Promise<void> {
-		const m = await this.memberships.findActiveFor(
-			orgId as IdentityAccess.OrganizationId,
-			principal.userId as IdentityAccess.UserId,
-		);
-		if (!m) {
-			throw new ForbiddenError('Not a member of this organization');
-		}
 	}
 }

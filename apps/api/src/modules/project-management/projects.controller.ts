@@ -7,9 +7,10 @@ type CreateProjectRequest = ProjectManagementContracts.CreateProjectRequest;
 type AddCompetitorRequest = ProjectManagementContracts.AddCompetitorRequest;
 type ImportKeywordsRequest = ProjectManagementContracts.ImportKeywordsRequest;
 type ProjectDto = ProjectManagementContracts.ProjectDto;
-import { ForbiddenError, NotFoundError } from '@rankpulse/shared';
+import { NotFoundError } from '@rankpulse/shared';
 import { z } from 'zod';
 import type { AuthPrincipal } from '../../common/auth/jwt.service.js';
+import { OrgMembership } from '../../common/auth/org-membership.guard.js';
 import { Principal } from '../../common/auth/principal.decorator.js';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe.js';
 import { Tokens } from '../../composition/tokens.js';
@@ -30,6 +31,8 @@ const AddLocationBody = z.object({
 
 @Controller('projects')
 export class ProjectsController {
+	private readonly orgMembership: OrgMembership;
+
 	constructor(
 		@Inject(Tokens.CreateProject) private readonly create: PMUseCases.CreateProjectUseCase,
 		@Inject(Tokens.AddDomainToProject) private readonly addDomain: PMUseCases.AddDomainToProjectUseCase,
@@ -40,15 +43,17 @@ export class ProjectsController {
 		@Inject(Tokens.CompetitorRepository) private readonly competitors: ProjectManagement.CompetitorRepository,
 		@Inject(Tokens.KeywordListRepository)
 		private readonly keywordLists: ProjectManagement.KeywordListRepository,
-		@Inject(Tokens.MembershipRepository) private readonly memberships: IdentityAccess.MembershipRepository,
-	) {}
+		@Inject(Tokens.MembershipRepository) memberships: IdentityAccess.MembershipRepository,
+	) {
+		this.orgMembership = new OrgMembership(memberships);
+	}
 
 	@Post()
 	async createProject(
 		@Principal() principal: AuthPrincipal,
 		@Body(new ZodValidationPipe(ProjectManagementContracts.CreateProjectRequest)) body: CreateProjectRequest,
 	): Promise<ProjectDto> {
-		await this.assertMember(principal, body.organizationId);
+		await this.orgMembership.require(principal, body.organizationId);
 		const { projectId } = await this.create.execute(body);
 		return this.toDto(projectId);
 	}
@@ -58,7 +63,7 @@ export class ProjectsController {
 		@Principal() principal: AuthPrincipal,
 		@Query(new ZodValidationPipe(ListQuery)) q: z.infer<typeof ListQuery>,
 	): Promise<ProjectDto[]> {
-		await this.assertMember(principal, q.organizationId);
+		await this.orgMembership.require(principal, q.organizationId);
 		const list = await this.projects.listForOrganization(q.organizationId as IdentityAccess.OrganizationId);
 		return list.map((p) => this.serialize(p));
 	}
@@ -66,7 +71,7 @@ export class ProjectsController {
 	@Get(':id')
 	async getProject(@Principal() principal: AuthPrincipal, @Param('id') id: string): Promise<ProjectDto> {
 		const project = await this.loadProject(id);
-		await this.assertMember(principal, project.organizationId);
+		await this.orgMembership.require(principal, project.organizationId);
 		return this.serialize(project);
 	}
 
@@ -77,7 +82,7 @@ export class ProjectsController {
 		@Body(new ZodValidationPipe(AddDomainBody)) body: z.infer<typeof AddDomainBody>,
 	): Promise<ProjectDto> {
 		const project = await this.loadProject(id);
-		await this.assertMember(principal, project.organizationId);
+		await this.orgMembership.require(principal, project.organizationId);
 		await this.addDomain.execute({ projectId: id, domain: body.domain, kind: body.kind });
 		return this.toDto(id);
 	}
@@ -89,7 +94,7 @@ export class ProjectsController {
 		@Body(new ZodValidationPipe(AddLocationBody)) body: z.infer<typeof AddLocationBody>,
 	): Promise<ProjectDto> {
 		const project = await this.loadProject(id);
-		await this.assertMember(principal, project.organizationId);
+		await this.orgMembership.require(principal, project.organizationId);
 		await this.addLocation.execute({ projectId: id, country: body.country, language: body.language });
 		return this.toDto(id);
 	}
@@ -101,7 +106,7 @@ export class ProjectsController {
 		@Body(new ZodValidationPipe(ProjectManagementContracts.AddCompetitorRequest)) body: AddCompetitorRequest,
 	): Promise<{ competitorId: string }> {
 		const project = await this.loadProject(id);
-		await this.assertMember(principal, project.organizationId);
+		await this.orgMembership.require(principal, project.organizationId);
 		return this.addCompetitor.execute({ projectId: id, ...body });
 	}
 
@@ -111,7 +116,7 @@ export class ProjectsController {
 		@Param('id') id: string,
 	): Promise<{ id: string; domain: string; label: string; createdAt: string }[]> {
 		const project = await this.loadProject(id);
-		await this.assertMember(principal, project.organizationId);
+		await this.orgMembership.require(principal, project.organizationId);
 		const list = await this.competitors.listForProject(id as ProjectManagement.ProjectId);
 		return list.map((c) => ({
 			id: c.id,
@@ -129,7 +134,7 @@ export class ProjectsController {
 		body: ImportKeywordsRequest,
 	): Promise<{ keywordListId: string; added: number }> {
 		const project = await this.loadProject(id);
-		await this.assertMember(principal, project.organizationId);
+		await this.orgMembership.require(principal, project.organizationId);
 		return this.importKeywords.execute({
 			projectId: id,
 			keywordListId: body.keywordListId,
@@ -146,7 +151,7 @@ export class ProjectsController {
 		{ id: string; name: string; keywords: { id: string; phrase: string; tags: readonly string[] }[] }[]
 	> {
 		const project = await this.loadProject(id);
-		await this.assertMember(principal, project.organizationId);
+		await this.orgMembership.require(principal, project.organizationId);
 		const lists = await this.keywordLists.listForProject(id as ProjectManagement.ProjectId);
 		return lists.map((l) => ({
 			id: l.id,
@@ -161,16 +166,6 @@ export class ProjectsController {
 			throw new NotFoundError(`Project ${id} not found`);
 		}
 		return project;
-	}
-
-	private async assertMember(principal: AuthPrincipal, orgId: string): Promise<void> {
-		const membership = await this.memberships.findActiveFor(
-			orgId as IdentityAccess.OrganizationId,
-			principal.userId as IdentityAccess.UserId,
-		);
-		if (!membership) {
-			throw new ForbiddenError('Not a member of this organization');
-		}
 	}
 
 	private async toDto(projectId: string): Promise<ProjectDto> {

@@ -2,6 +2,7 @@ import { type DynamicModule, Module } from '@nestjs/common';
 import type { Provider } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { Reflector } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard.js';
 import type { JwtService } from './common/auth/jwt.service.js';
 import { DomainExceptionFilter } from './common/domain-exception.filter.js';
@@ -20,6 +21,14 @@ import { OpenApiModule } from './openapi/openapi.module.js';
 export class AppModule {
 	static forRoot(compositionProviders: Provider[], env: AppEnv): DynamicModule {
 		const imports = [
+			ThrottlerModule.forRoot({
+				throttlers: [
+					// Default lax throttle for the whole API; auth routes opt into a
+					// stricter limit via the @Throttle decorator at the controller.
+					{ name: 'default', ttl: 60_000, limit: 240 },
+					{ name: 'auth', ttl: 60_000, limit: 20 },
+				],
+			}),
 			HealthModule,
 			IdentityAccessModule,
 			ProjectManagementModule,
@@ -42,6 +51,12 @@ export class AppModule {
 					provide: APP_GUARD,
 					inject: [Tokens.JwtService, Reflector],
 					useFactory: (jwt: JwtService, reflector: Reflector) => new JwtAuthGuard(jwt, reflector),
+				},
+				// ThrottlerGuard runs after the auth guard so that a bad-token loop
+				// also gets rate-limited.
+				{
+					provide: APP_GUARD,
+					useClass: ThrottlerGuard,
 				},
 			],
 			exports: [...compositionProviders.map((p) => ('provide' in p ? p.provide : p))],

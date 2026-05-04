@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, Inject, Post, UsePipes } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { IdentityAccess as IAUseCases } from '@rankpulse/application';
 import { IdentityAccessContracts } from '@rankpulse/contracts';
 import type { IdentityAccess } from '@rankpulse/domain';
@@ -31,6 +32,7 @@ export class AuthController {
 	) {}
 
 	@Public()
+	@Throttle({ auth: { ttl: 60_000, limit: 20 } })
 	@Post('auth/register')
 	@HttpCode(201)
 	@UsePipes(new ZodValidationPipe(IdentityAccessContracts.RegisterOrganizationRequest))
@@ -39,6 +41,7 @@ export class AuthController {
 	}
 
 	@Public()
+	@Throttle({ auth: { ttl: 60_000, limit: 20 } })
 	@Post('auth/login')
 	@HttpCode(200)
 	@UsePipes(new ZodValidationPipe(IdentityAccessContracts.LoginRequest))
