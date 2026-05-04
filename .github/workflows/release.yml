@@ -61,8 +61,11 @@ jobs:
           tags: ${{ steps.tags.outputs.tags }}
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+          # NOTE: pass the BARE host. The SDK (packages/sdk/src/client.ts)
+          # appends `/api/v1` itself via `apiPrefix` — including it here would
+          # cause a double prefix and every call would 404.
           build-args: |
-            VITE_API_BASE_URL=${{ vars.PUBLIC_API_BASE_URL || 'https://rankpulse.ingenierosweb.co/api/v1' }}
+            VITE_API_BASE_URL=${{ vars.PUBLIC_API_BASE_URL || 'https://rankpulse.ingenierosweb.co' }}
 
   deploy:
     name: Deploy to srv07
@@ -95,7 +98,4 @@ jobs:
             echo ">>> Restarting stack"
             docker compose --env-file .env.local -f docker-compose.prod.yml up -d --remove-orphans
             echo ">>> Pruning old images"
-            docker image prune -f --filter "until=168h"
-            echo ">>> Health check (with retry — api takes a few seconds to come up)"
-            for attempt in 1 2 3 4 5 6 7 8 9 10; do
-              if curl --fail --silent --show-error --max-ti
+            docker image prune -f --filter "un
