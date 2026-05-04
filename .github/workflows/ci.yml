@@ -11,14 +11,14 @@ concurrency:
 
 jobs:
   build:
-    name: Lint, typecheck, test
+    name: Lint, typecheck, test, build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      # `packageManager` in package.json (`pnpm@9.12.0`) tells corepack which
+      # pnpm to install. Don't pin a version here so the two cannot drift.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9.12.0
 
       - uses: actions/setup-node@v4
         with:
@@ -36,3 +36,6 @@ jobs:
 
       - name: Unit tests
         run: pnpm test:unit
+
+      - name: Build (api + worker + web)
+        run: pnpm build
