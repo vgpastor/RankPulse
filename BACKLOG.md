@@ -136,81 +136,68 @@ manipulación del módulo.
 
 ---
 
-## 🟡 Pendiente para devs (no bloqueante para uso normal)
+## 🔴 Gaps de UI (alta prioridad — bloquean el uso self-service del panel)
 
-### 5. Runtime via `tsx` en producción (deuda técnica conocida)
-Los Dockerfiles usan `tsx` (transpilación on-the-fly) en lugar de un build
-TypeScript a `dist/`. Funciona, pero:
-- Penaliza arranque (~1-2 s extra de transpile)
-- Aumenta tamaño de imagen (~30-50 MB de devDependencies)
-- Posible fricción con `@nestjs/swagger` y `design:paramtypes` (ya hay un
-  workaround try/catch en `apps/api/src/main.ts`)
+Detectados al hacer el bootstrap de la org PatrolTech con 11 proyectos. La API
+soporta todos estos flujos, pero la SPA aún no los expone — requiriendo
+scripting via `curl`/SDK para cualquier setup más allá de "registrarse y crear
+un proyecto vacío".
 
-**Tarea:** introducir multi-stage build en cada Dockerfile:
-1. Stage `build`: `pnpm install --frozen-lockfile` + `tsc -p tsconfig.build.json`
-   en cada paquete + en cada app.
-2. Stage `runtime`: `node:20-bookworm-slim` con `pnpm install --prod
-   --frozen-lockfile` + `COPY --from=build /workspace/dist`.
+### A1. Añadir competidor a un proyecto
+- **API:** `POST /projects/:id/competitors`
+- **SDK:** `api.projects.addCompetitor(...)` ya existe.
+- **Falta:** botón "Add competitor" + formulario en `project-detail.page.tsx`
+  (al lado de la lista que ya pinta).
+- **Workaround actual:** vía API.
 
-Cuando esté listo, el `try/catch` alrededor de `SwaggerModule.createDocument`
-en `main.ts` puede simplificarse: con `tsc` como pipeline el problema de
-`design:paramtypes` desaparece.
+### A2. Importar lista de keywords (bulk)
+- **API:** `POST /projects/:id/keywords` (acepta hasta 2000 phrases en un POST)
+- **SDK:** `api.projects.importKeywords(...)` existe.
+- **Falta:** un drawer en `project-detail.page.tsx` con textarea que parsee
+  una keyword por línea (con tags opcionales tipo `keyword #ES #core`).
+- **Workaround actual:** vía API.
 
-**Estado:** documentado. **No bloqueante.**
+### A3. Programar fetch SERP recurrente
+- **API:** `POST /providers/:id/endpoints/:eid/schedule`
+- **SDK:** `api.providers.schedule(...)` existe.
+- **Falta:** UI para configurar cron + params por (proyecto, keyword).
+  Idealmente, tras hacer track-keyword desde la UI, el form preguntase
+  "¿programar fetch semanal? sí/no" y lo creara automáticamente.
+- **Workaround actual:** vía API. Sin UI, los schedules son invisibles para
+  el operador y no se pueden pausar/des-schedule.
 
----
+### A4. Disparar un fetch one-off (manual)
+- **API:** **NO EXISTE** endpoint para esto. La única forma de trigger es
+  esperar al cron de un schedule existente (mín. 1 minuto si se usa `* * * * *`).
+- **Falta:** `POST /providers/:id/endpoints/:eid/run-now` que llame a
+  `JobScheduler.enqueueOnce(definition, runId)` (el método ya existe en el
+  adapter BullMQ, solo falta exponerlo).
+  Luego un botón "Run now" en cada keyword/schedule.
+- **Workaround actual:** ninguno limpio. Para el bootstrap inicial usé
+  schedules con cron weekly que NO se ejecutan hasta el siguiente lunes 06:00
+  UTC — los datos no aparecen hasta entonces.
 
-### 6. CI workflow en Node 20 — deprecación en septiembre 2026
-**Síntoma:** GHA muestra warning:
-> Node.js 20 actions are deprecated. Forced to Node 24 by June 2 2026, removed
-> September 16 2026.
+### A5. Añadir domain o location extra a un proyecto
+- **API:** `POST /projects/:id/domains` y `/projects/:id/locations`
+- **SDK:** ambos existen.
+- **Falta:** botones "+ Add domain" / "+ Add location" en `project-detail.page.tsx`.
+- **Workaround actual:** crear el proyecto con todo de inicio, o vía API.
 
-**Tarea:** revisar las actions usadas (`actions/checkout@v4`, `docker/login-action@v3`,
-`docker/setup-buildx-action@v3`, `docker/build-push-action@v6`, `appleboy/ssh-action@v1.2.0`)
-y bumpar a la versión que soporte Node 24 cuando esté disponible. Setear
-`FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` mientras tanto si queremos pre-empt.
+### A6. GSC property linking + performance viewer
+- **API:** `POST /gsc/properties`, `GET /gsc/projects/:id/properties`,
+  `GET /gsc/properties/:id/performance`
+- **Falta:** páginas `gsc-properties.page.tsx` y `gsc-performance.page.tsx`.
+- **Workaround actual:** GSC no operativo en absoluto vía UI.
 
-**Estado:** **no bloqueante hasta junio 2026**.
+### A7. Histórico de keyword (chart)
+- **API:** `GET /rank-tracking/keywords/:id/history`
+- **Falta:** clic en una fila de rankings → drawer/página con line chart
+  mostrando `position` vs `observedAt` (recharts ya está disponible para web,
+  está en otros proyectos del stack).
 
----
+### A8. Vista de schedules y job runs
+- **API:** falta — solo hay POST schedule, no GET/DELETE.
+- **Falta:** todo. Sin esto el operador no sabe qué fetches están programados
+  ni sus runs pasados.
 
-### 7. Test de `docker compose build` end-to-end no está en CI
-El bug de `config-typescript`/`config-biome` se descubrió en producción porque
-no había un job que ejecutase `docker compose build` en CI antes del deploy.
-
-**Tarea:** añadir un job en `.github/workflows/ci.yml`:
-```yaml
-- name: Verify Dockerfiles build
-  run: docker compose -f docker-compose.dev.yml --profile full build
-```
-para detectar este tipo de errores antes de tocar producción.
-
-**Estado:** **no bloqueante** pero altamente recomendado. Cualquier PR que
-toque las dependencias de un workspace package podría volver a romperlo.
-
----
-
-### 8. Despliegue via SSH como `root`
-El `SRV07_USER` actual del workflow es `root`. Funciona, pero el blast radius
-de un PAT comprometido o un commit malicioso al workflow es máximo (acceso
-total al servidor).
-
-**Tarea:** crear usuario `rankpulse-deploy` en srv07 con:
-- Pertenencia al grupo `docker` (sin sudo)
-- Acceso solo a `/var/www/vhosts/ingenierosweb.co/rankpulse.ingenierosweb.co/app/`
-- Rotar la SSH key (la actual está en KeePass como `RankPulse GHA Deploy SSH Key`)
-
-Después actualizar el GitHub Secret `SRV07_USER` y eliminar la deploy key del
-authorized_keys de root.
-
-**Estado:** **no bloqueante**. Buenas prácticas.
-
----
-
-### 9. GHCR retention policy
-Cada push a main publica `:sha-<commit>` y `:latest` para 3 imágenes. Sin
-política de retención, el packages tab de GHCR va a acumular cientos de tags.
-
-**Tarea:** añadir un workflow programado que llame a la GitHub Packages API
-para borrar versiones más antiguas de N días (p.ej. 30 días, manteniendo
-las últimas 10 sí o sí). Plantilla
+### A9. Bootstrap UX: po
