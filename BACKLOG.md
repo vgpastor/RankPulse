@@ -73,7 +73,52 @@ y bind a `127.0.0.1` en lugar de `0.0.0.0`.
 
 ---
 
-### 4. ACME `No order found for account ID` en Let's Encrypt
+### 4. Bundle hash colision entre builds con distinto `VITE_API_BASE_URL`
+**Síntoma:** El primer despliegue en producción funcionó. Tras un cambio de la
+GitHub variable `PUBLIC_API_BASE_URL` (rebuild → distinto contenido), el
+nuevo bundle se sirvió bajo el **mismo filename hashed** que el anterior
+(`index-BJUOfFdE.js`). Como nginx envía `Cache-Control: max-age=31536000,
+immutable` para `/assets/*`, los navegadores que ya habían cacheado la
+versión vieja no volvieron a pedirla — y como el contenido del filename era
+distinto (con la URL incorrecta), las llamadas iban a
+`https://.../api/v1/api/v1/auth/login` y devolvían 404 → la SPA mostraba
+"Email o contraseña inválidos".
+
+El problema raíz: **Vite hashea el chunk basándose en su contenido, pero la
+sustitución de `import.meta.env.VITE_API_BASE_URL` ocurre antes del hashing**;
+sin embargo, en algún punto del flujo (cache de Buildx con `cache-from gha`
++ `mode=max`) el hash terminó siendo el mismo aun con contenido distinto.
+
+**Workaround inmediato:** hard refresh (Ctrl+Shift+R) o ventana incógnito.
+
+**Tarea para devs (importante):**
+1. Cambiar `apps/web/vite.config.ts` para incluir un sufijo de versión por
+   build:
+   ```ts
+   build: {
+     rollupOptions: {
+       output: {
+         entryFileNames: `assets/[name]-${process.env.BUILD_VERSION ?? '[hash]'}.js`,
+         chunkFileNames: `assets/[name]-${process.env.BUILD_VERSION ?? '[hash]'}.js`,
+         assetFileNames: `assets/[name]-${process.env.BUILD_VERSION ?? '[hash]'}.[ext]`,
+       },
+     },
+   },
+   ```
+   Y exportar `BUILD_VERSION=${{ github.sha }}` en el step de build de
+   `release.yml`. Así cada commit produce un filename único garantizado.
+2. **Alternativa más segura:** servir `/index.html` con
+   `Cache-Control: no-cache` (Plesk → "Apache & nginx Settings" →
+   additional directives). El HTML siempre se re-pide, los assets cacheados
+   son seguros porque el HTML referencia la versión correcta.
+
+**Estado:** ✅ producción tiene el bundle correcto; aplica para evitar la
+trampa la próxima vez. **No bloqueante** ahora pero alta prioridad antes del
+siguiente cambio de env var.
+
+---
+
+### 5. ACME `No order found for account ID` en Let's Encrypt
 **Síntoma:** Plesk LE CLI fallaba con
 `Type: urn:ietf:params:acme:error:malformed Status: 404 Detail: No order found for account ID …`
 incluso después de borrar accounts.
@@ -168,63 +213,4 @@ política de retención, el packages tab de GHCR va a acumular cientos de tags.
 
 **Tarea:** añadir un workflow programado que llame a la GitHub Packages API
 para borrar versiones más antiguas de N días (p.ej. 30 días, manteniendo
-las últimas 10 sí o sí). Plantilla:
-```yaml
-- uses: actions/delete-package-versions@v5
-  with:
-    package-name: rankpulse-api
-    package-type: container
-    min-versions-to-keep: 10
-    delete-only-untagged-versions: false
-```
-
-**Estado:** **no bloqueante** los primeros meses.
-
----
-
-### 10. Health check de readyz no llega al worker
-`GET /readyz` solo verifica conexión a la base de datos. El worker tiene su
-propio loop BullMQ que puede caerse silenciosamente si Redis se desconecta.
-
-**Tarea:** añadir un endpoint `/readyz` también en el worker (o exportar
-métricas Prometheus que un Plesk healthcheck externo pueda consumir).
-Mientras tanto, monitorización manual via `docker logs rankpulse-worker`.
-
-**Estado:** **no bloqueante** en single-instance. Bloqueante si se llega a
-multi-replica.
-
----
-
-### 11. CORS solo permite `https://rankpulse.ingenierosweb.co`
-Hardcoded en `.env.local` como `PUBLIC_WEB_ORIGIN`. Cuando se quiera servir
-el SPA desde un CDN (p.ej. Cloudflare Pages) o un dominio propio del cliente,
-hay que parametrizar mejor.
-
-**Tarea:** soportar lista comma-separated en `CORS_ORIGINS` (ya hay código
-para ello en `apps/api/src/main.ts`) y exponer una variable separada de
-`PUBLIC_WEB_ORIGIN`.
-
-**Estado:** **no bloqueante** mientras vivamos en una sola URL.
-
----
-
-## 🟢 Pendiente del usuario (Víctor) — no devs
-
-- **GSC service account JSON.** Subir a
-  `/var/www/vhosts/ingenierosweb.co/rankpulse.ingenierosweb.co/app/config/gsc-service-account.json`
-  el JSON de `claude-access@ingenierosweb.iam.gserviceaccount.com` para
-  activar el provider GSC.
-- **SMTP.** Si quieres alertas por email, rellenar `SMTP_*` en `.env.local` y
-  reiniciar el stack.
-- **Backup de Postgres.** No hay todavía. Cuando empiece a haber datos
-  reales, montar un cron que `pg_dump` a un volumen externo + cloudflare R2.
-- **Backlinks API de DataForSEO.** Requiere subscription de $100/mo. No
-  necesario para v1 — GSC + Ahrefs Free cubren los referring domains.
-
----
-
-## Cómo se actualiza esto
-
-Cuando tú o un dev arregla una de las entradas `🟡`, marcad como ✅ y mueve a
-la sección de "resueltos". El `BACKLOG.md` vive en el repo así que cualquier
-PR puede tocarlo.
+las últimas 10 sí o sí). Plantilla
