@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1.7
-FROM node:20-bookworm-slim
+FROM node:24-bookworm-slim
 ENV PNPM_HOME=/pnpm
 ENV PATH="$PNPM_HOME:$PATH"
 ENV NODE_ENV=production
-RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
+RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 WORKDIR /workspace
 
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json ./
