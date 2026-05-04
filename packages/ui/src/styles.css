@@ -1,0 +1,34 @@
+/* Design system tokens. Plain CSS so consumers without Tailwind can also import. */
+
+:root {
+	--rp-bg: 0 0% 100%;
+	--rp-fg: 222 47% 11%;
+	--rp-muted: 215 16% 47%;
+	--rp-card: 0 0% 100%;
+	--rp-border: 214 32% 91%;
+	--rp-input: 214 32% 91%;
+	--rp-primary: 222 47% 24%;
+	--rp-primary-fg: 210 40% 98%;
+	--rp-accent: 217 91% 60%;
+	--rp-accent-fg: 210 40% 98%;
+	--rp-destructive: 0 72% 51%;
+	--rp-destructive-fg: 210 40% 98%;
+	--rp-ring: 217 91% 60%;
+	--rp-radius: 0.5rem;
+}
+
+.dark {
+	--rp-bg: 222 47% 7%;
+	--rp-fg: 210 40% 98%;
+	--rp-muted: 215 20% 65%;
+	--rp-card: 222 47% 9%;
+	--rp-border: 215 28% 17%;
+	--rp-input: 215 28% 17%;
+	--rp-primary: 210 40% 98%;
+	--rp-primary-fg: 222 47% 11%;
+	--rp-accent: 217 91% 60%;
+	--rp-accent-fg: 210 40% 98%;
+	--rp-destructive: 0 63% 40%;
+	--rp-destructive-fg: 210 40% 98%;
+	--rp-ring: 217 91% 60%;
+}

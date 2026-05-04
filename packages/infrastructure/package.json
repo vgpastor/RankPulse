@@ -1,0 +1,42 @@
+{
+	"name": "@rankpulse/infrastructure",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./persistence/drizzle": "./src/persistence/drizzle/index.ts",
+		"./persistence/in-memory": "./src/persistence/in-memory/index.ts",
+		"./crypto": "./src/crypto/index.ts",
+		"./events": "./src/events/index.ts",
+		"./queue": "./src/queue/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test:unit": "vitest run --passWithNoTests",
+		"test": "vitest run --passWithNoTests",
+		"db:generate": "drizzle-kit generate",
+		"db:migrate": "drizzle-kit migrate",
+		"db:push": "drizzle-kit push",
+		"clean": "rm -rf dist .turbo *.tsbuildinfo"
+	},
+	"dependencies": {
+		"@rankpulse/domain": "workspace:*",
+		"@rankpulse/shared": "workspace:*",
+		"argon2": "0.44.0",
+		"bullmq": "5.76.5",
+		"drizzle-orm": "0.36.4",
+		"ioredis": "5.10.1",
+		"libsodium-wrappers": "0.7.15",
+		"postgres": "3.4.9"
+	},
+	"devDependencies": {
+		"@types/libsodium-wrappers": "0.7.14",
+		"@types/node": "24.12.2",
+		"drizzle-kit": "0.31.5",
+		"typescript": "5.6.3",
+		"vitest": "2.1.4"
+	}
+}

@@ -10,10 +10,10 @@
 		"url": "https://github.com/vgpastor/rankpulse.git"
 	},
 	"engines": {
-		"node": ">=20.11.0",
-		"pnpm": ">=9.0.0"
+		"node": ">=24.0.0",
+		"pnpm": ">=10.0.0"
 	},
-	"packageManager": "pnpm@9.12.0",
+	"packageManager": "pnpm@10.33.2",
 	"scripts": {
 		"build": "turbo run build --filter=*",
 		"test": "turbo run test --filter=*",
@@ -27,10 +27,20 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
-		"@types/node": "20.16.11",
+		"@types/node": "24.12.2",
 		"turbo": "2.2.3",
 		"typescript": "5.6.3",
-		"vitest": "2.1.4",
-		"tsx": "4.19.2"
+		"vitest": "2.1.4"
+	},
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"@nestjs/core",
+			"@scarf/scarf",
+			"@swc/core",
+			"argon2",
+			"esbuild",
+			"libsodium",
+			"libsodium-wrappers"
+		]
 	}
 }
