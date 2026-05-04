@@ -10,12 +10,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  smoke:
+    name: Smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trivial
+        run: echo "hello from CI"
+
   build:
     name: Lint, typecheck, test, build
+    needs: smoke
     runs-on: ubuntu-latest
     env:
-      # Newer corepack ships with strict mode that rejects packageManager
-      # entries lacking a signature hash. Disable so `pnpm@9.12.0` is accepted.
       COREPACK_ENABLE_STRICT: '0'
       COREPACK_DEFAULT_TO_LATEST: '0'
     steps:
