@@ -25,10 +25,7 @@ class RecordingScheduler implements ProviderConnectivity.JobScheduler {
 	readonly enqueueOnceCalls: { definitionId: string; runId: string }[] = [];
 	async register(): Promise<void> {}
 	async unregister(): Promise<void> {}
-	async enqueueOnce(
-		definition: ProviderConnectivity.ProviderJobDefinition,
-		runId: string,
-	): Promise<void> {
+	async enqueueOnce(definition: ProviderConnectivity.ProviderJobDefinition, runId: string): Promise<void> {
 		this.enqueueOnceCalls.push({ definitionId: definition.id, runId });
 	}
 }

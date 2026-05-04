@@ -1,4 +1,4 @@
-import { type ProviderConnectivity } from '@rankpulse/domain';
+import type { ProviderConnectivity } from '@rankpulse/domain';
 import { type IdGenerator, NotFoundError } from '@rankpulse/shared';
 
 export interface TriggerJobDefinitionRunCommand {
