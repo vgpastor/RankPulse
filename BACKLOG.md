@@ -136,68 +136,73 @@ manipulación del módulo.
 
 ---
 
-## 🔴 Gaps de UI (alta prioridad — bloquean el uso self-service del panel)
+### 6. BullMQ jobId con ':' en `enqueueOnce`
+**Síntoma:** todas las llamadas a `POST /providers/:id/job-definitions/:defId/run-now`
+devolvían 500 con `Error: Custom Id cannot contain :`.
 
-Detectados al hacer el bootstrap de la org PatrolTech con 11 proyectos. La API
-soporta todos estos flujos, pero la SPA aún no los expone — requiriendo
-scripting via `curl`/SDK para cualquier setup más allá de "registrarse y crear
-un proyecto vacío".
+**Causa:** mismo bug que el commit aabcfeb del smoke-test, esta vez en
+`packages/infrastructure/src/queue/bullmq-job-scheduler.ts:55` —
+`jobId: \`manual:${runId}\``. BullMQ usa `:` como separador interno de Redis
+y rechaza IDs custom que lo contengan.
 
-### A1. Añadir competidor a un proyecto
-- **API:** `POST /projects/:id/competitors`
-- **SDK:** `api.projects.addCompetitor(...)` ya existe.
-- **Falta:** botón "Add competitor" + formulario en `project-detail.page.tsx`
-  (al lado de la lista que ya pinta).
-- **Workaround actual:** vía API.
+**Fix aplicado** en commit `e88603d`: `manual:` → `manual-`.
 
-### A2. Importar lista de keywords (bulk)
-- **API:** `POST /projects/:id/keywords` (acepta hasta 2000 phrases en un POST)
-- **SDK:** `api.projects.importKeywords(...)` existe.
-- **Falta:** un drawer en `project-detail.page.tsx` con textarea que parsee
-  una keyword por línea (con tags opcionales tipo `keyword #ES #core`).
-- **Workaround actual:** vía API.
+**Tarea futura:** añadir un test de integración en
+`packages/infrastructure/src/queue/bullmq-job-scheduler.spec.ts` que
+ejercite `enqueueOnce` real contra Redis Testcontainer para que no se
+escape un tercer caso del mismo bug.
 
-### A3. Programar fetch SERP recurrente
-- **API:** `POST /providers/:id/endpoints/:eid/schedule`
-- **SDK:** `api.providers.schedule(...)` existe.
-- **Falta:** UI para configurar cron + params por (proyecto, keyword).
-  Idealmente, tras hacer track-keyword desde la UI, el form preguntase
-  "¿programar fetch semanal? sí/no" y lo creara automáticamente.
-- **Workaround actual:** vía API. Sin UI, los schedules son invisibles para
-  el operador y no se pueden pausar/des-schedule.
+**Estado:** ✅ resuelto. **No bloqueante.**
 
-### A4. Disparar un fetch one-off (manual)
-- **API:** **NO EXISTE** endpoint para esto. La única forma de trigger es
-  esperar al cron de un schedule existente (mín. 1 minuto si se usa `* * * * *`).
-- **Falta:** `POST /providers/:id/endpoints/:eid/run-now` que llame a
-  `JobScheduler.enqueueOnce(definition, runId)` (el método ya existe en el
-  adapter BullMQ, solo falta exponerlo).
-  Luego un botón "Run now" en cada keyword/schedule.
-- **Workaround actual:** ninguno limpio. Para el bootstrap inicial usé
-  schedules con cron weekly que NO se ejecutan hasta el siguiente lunes 06:00
-  UTC — los datos no aparecen hasta entonces.
+---
 
-### A5. Añadir domain o location extra a un proyecto
-- **API:** `POST /projects/:id/domains` y `/projects/:id/locations`
-- **SDK:** ambos existen.
-- **Falta:** botones "+ Add domain" / "+ Add location" en `project-detail.page.tsx`.
-- **Workaround actual:** crear el proyecto con todo de inicio, o vía API.
+### 7. `ScheduleEndpointFetch` no valida la shape de `params` contra el endpoint
+**Síntoma:** scheduleé 34 fetches con `{phrase, country, language}` (los nombres
+"de negocio") y la API aceptó los 34 con 201. El worker, al procesar, falla
+con `Invalid params for serp-google-organic-live: keyword/locationCode/languageCode required`
+porque el provider DataForSEO espera otra forma.
 
-### A6. GSC property linking + performance viewer
-- **API:** `POST /gsc/properties`, `GET /gsc/projects/:id/properties`,
-  `GET /gsc/properties/:id/performance`
-- **Falta:** páginas `gsc-properties.page.tsx` y `gsc-performance.page.tsx`.
-- **Workaround actual:** GSC no operativo en absoluto vía UI.
+**Causa:** `ScheduleEndpointFetchUseCase` guarda `params: Record<string, unknown>` sin
+contraste contra el descriptor del endpoint. La validación cae en el worker en
+`time-of-fetch`, demasiado tarde — para entonces ya hay docenas de jobs encolados.
 
-### A7. Histórico de keyword (chart)
-- **API:** `GET /rank-tracking/keywords/:id/history`
-- **Falta:** clic en una fila de rankings → drawer/página con line chart
-  mostrando `position` vs `observedAt` (recharts ya está disponible para web,
-  está en otros proyectos del stack).
+**Workaround aplicado:** SQL `UPDATE provider_job_definitions SET params = jsonb_build_object(...)`
+para reescribir las 34 filas a la shape correcta (`keyword/locationCode/languageCode`).
 
-### A8. Vista de schedules y job runs
-- **API:** falta — solo hay POST schedule, no GET/DELETE.
-- **Falta:** todo. Sin esto el operador no sabe qué fetches están programados
-  ni sus runs pasados.
+**Tarea para devs (alta prioridad):**
+1. Que cada `EndpointDescriptor` exponga su `paramsSchema` (Zod).
+2. `ScheduleEndpointFetchUseCase` valida `params` contra ese schema antes de
+   guardar. Si falla, devuelve 400 con los errores Zod.
+3. Hacer lo mismo en `TriggerJobDefinitionRunUseCase` para casos de revaluación.
 
-### A9. Bootstrap UX: po
+**Estado:** ✅ workaround. Bug reproducible. **Bloquea cualquier scheduling vía API.**
+
+---
+
+### 8. `RegisterProviderCredential` no valida el formato del secret
+**Síntoma:** registré la credencial DataForSEO con `email:password` (separador
+`:`). La API aceptó 201. El worker falla luego con
+`DataForSEO credential must be "email|api_password"`.
+
+**Causa:** `RegisterProviderCredentialUseCase` guarda `plaintextSecret` cifrado
+sin pasarlo por el provider para validación.
+
+**Workaround aplicado:** registré una segunda credencial con el separador
+correcto y borré la antigua via SQL.
+
+**Tarea para devs:**
+- Cada `Provider` expone `validateCredentialPlaintext(plain: string): Result<void, Error>`.
+- `RegisterProviderCredentialUseCase` lo invoca antes de cifrar. Si falla, 400 con
+  el mensaje del provider.
+
+**Estado:** ✅ workaround. **Confunde al usuario** (la credencial parece OK hasta
+que el primer job falla).
+
+---
+
+### 9. `TrackedKeyword` y `JobDefinition` no se enlazan automáticamente
+**Síntoma:** creé los 33 `TrackedKeyword` vía `POST /rank-tracking/keywords` y
+luego los 34 `JobDefinition` vía `POST /providers/.../schedule`. El worker procesó
+los 34 SERPs OK pero NO grabó NINGUNA `RankingObservation`.
+
+**Causa:** `ProviderFetchProcessor` solo materializa la observación si
