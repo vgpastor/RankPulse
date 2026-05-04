@@ -11,6 +11,7 @@
 		"./project-management": "./src/project-management/index.ts",
 		"./provider-connectivity": "./src/provider-connectivity/index.ts",
 		"./rank-tracking": "./src/rank-tracking/index.ts",
+		"./search-console-insights": "./src/search-console-insights/index.ts",
 		"./shared-kernel": "./src/shared-kernel/index.ts"
 	},
 	"scripts": {

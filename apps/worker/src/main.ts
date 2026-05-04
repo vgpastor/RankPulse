@@ -1,6 +1,7 @@
 import {
 	ProviderConnectivity as ProviderConnectivityUseCases,
 	RankTracking as RankTrackingUseCases,
+	SearchConsoleInsights as SearchConsoleInsightsUseCases,
 } from '@rankpulse/application';
 import { Crypto, DrizzlePersistence, Events, Queue as QueueAdapters } from '@rankpulse/infrastructure';
 import { SystemClock, SystemIdGenerator } from '@rankpulse/shared';
@@ -23,6 +24,8 @@ async function bootstrap(): Promise<void> {
 	const apiUsageRepo = new DrizzlePersistence.DrizzleApiUsageRepository(drizzle.db);
 	const trackedKeywordRepo = new DrizzlePersistence.DrizzleTrackedKeywordRepository(drizzle.db);
 	const observationRepo = new DrizzlePersistence.DrizzleRankingObservationRepository(drizzle.db);
+	const gscPropertyRepo = new DrizzlePersistence.DrizzleGscPropertyRepository(drizzle.db);
+	const gscObservationRepo = new DrizzlePersistence.DrizzleGscPerformanceObservationRepository(drizzle.db);
 
 	const vault = new Crypto.LibsodiumCredentialVault(env.RANKPULSE_MASTER_KEY);
 	const eventPublisher = new Events.InMemoryEventPublisher();
@@ -47,6 +50,12 @@ async function bootstrap(): Promise<void> {
 		SystemIdGenerator,
 		eventPublisher,
 	);
+	const ingestGscRowsUseCase = new SearchConsoleInsightsUseCases.IngestGscRowsUseCase(
+		gscPropertyRepo,
+		gscObservationRepo,
+		SystemIdGenerator,
+		eventPublisher,
+	);
 
 	const processor = new ProviderFetchProcessor({
 		registry,
@@ -56,10 +65,12 @@ async function bootstrap(): Promise<void> {
 		rawPayloadRepo,
 		apiUsageRepo,
 		trackedKeywordRepo,
+		gscPropertyRepo,
 		vault,
 		resolveCredentialUseCase,
 		recordApiUsageUseCase,
 		recordRankingObservationUseCase,
+		ingestGscRowsUseCase,
 		clock: SystemClock,
 		ids: SystemIdGenerator,
 		logger,

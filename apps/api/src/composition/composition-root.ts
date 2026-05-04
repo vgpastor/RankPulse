@@ -4,10 +4,12 @@ import {
 	ProviderConnectivity as PCUseCases,
 	ProjectManagement as PMUseCases,
 	RankTracking as RTUseCases,
+	SearchConsoleInsights as SCIUseCases,
 } from '@rankpulse/application';
 import { Crypto, DrizzlePersistence, Events, Queue as QueueAdapters } from '@rankpulse/infrastructure';
 import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
+import { GscProvider } from '@rankpulse/provider-gsc';
 import { SystemClock, SystemIdGenerator } from '@rankpulse/shared';
 import { JwtService } from '../common/auth/jwt.service.js';
 import type { AppEnv } from '../config/env.js';
@@ -52,6 +54,8 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const apiUsageRepo = new DrizzlePersistence.DrizzleApiUsageRepository(drizzle.db);
 	const trackedKeywordRepo = new DrizzlePersistence.DrizzleTrackedKeywordRepository(drizzle.db);
 	const observationRepo = new DrizzlePersistence.DrizzleRankingObservationRepository(drizzle.db);
+	const gscPropertyRepo = new DrizzlePersistence.DrizzleGscPropertyRepository(drizzle.db);
+	const gscObservationRepo = new DrizzlePersistence.DrizzleGscPerformanceObservationRepository(drizzle.db);
 
 	const jobScheduler = new QueueAdapters.BullMqJobScheduler({
 		connection: { url: env.REDIS_URL },
@@ -59,6 +63,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 
 	const providerRegistry = new ProviderRegistry();
 	providerRegistry.register(new DataForSeoProvider());
+	providerRegistry.register(new GscProvider());
 
 	const registerOrganization = new IAUseCases.RegisterOrganizationUseCase(
 		orgRepo,
@@ -149,6 +154,20 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	);
 	const queryRankingHistory = new RTUseCases.QueryRankingHistoryUseCase(trackedKeywordRepo, observationRepo);
 
+	const linkGscProperty = new SCIUseCases.LinkGscPropertyUseCase(
+		gscPropertyRepo,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const ingestGscRows = new SCIUseCases.IngestGscRowsUseCase(
+		gscPropertyRepo,
+		gscObservationRepo,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const queryGscPerformance = new SCIUseCases.QueryGscPerformanceUseCase(gscPropertyRepo, gscObservationRepo);
+
 	const providers: Provider[] = [
 		value(Tokens.AppEnv, env),
 		value(Tokens.DrizzleClient, drizzle),
@@ -194,6 +213,12 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.StartTrackingKeyword, startTrackingKeyword),
 		value(Tokens.RecordRankingObservation, recordRankingObservation),
 		value(Tokens.QueryRankingHistory, queryRankingHistory),
+
+		value(Tokens.GscPropertyRepository, gscPropertyRepo),
+		value(Tokens.GscPerformanceObservationRepository, gscObservationRepo),
+		value(Tokens.LinkGscProperty, linkGscProperty),
+		value(Tokens.IngestGscRows, ingestGscRows),
+		value(Tokens.QueryGscPerformance, queryGscPerformance),
 	];
 
 	return {

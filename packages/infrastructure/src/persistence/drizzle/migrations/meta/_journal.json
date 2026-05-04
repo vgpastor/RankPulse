@@ -15,6 +15,13 @@
 			"when": 1777900647359,
 			"tag": "0001_furry_cardiac",
 			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "7",
+			"when": 1777902487981,
+			"tag": "0002_deep_blue_blade",
+			"breakpoints": true
 		}
 	]
 }

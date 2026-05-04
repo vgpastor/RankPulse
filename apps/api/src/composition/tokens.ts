@@ -62,6 +62,15 @@ export const Tokens = {
 	RecordRankingObservation: Symbol('RecordRankingObservationUseCase'),
 	QueryRankingHistory: Symbol('QueryRankingHistoryUseCase'),
 
+	// Search-Console-Insights ports
+	GscPropertyRepository: Symbol('GscPropertyRepository'),
+	GscPerformanceObservationRepository: Symbol('GscPerformanceObservationRepository'),
+
+	// Search-Console-Insights use cases
+	LinkGscProperty: Symbol('LinkGscPropertyUseCase'),
+	IngestGscRows: Symbol('IngestGscRowsUseCase'),
+	QueryGscPerformance: Symbol('QueryGscPerformanceUseCase'),
+
 	// Infrastructure handles
 	DrizzleClient: Symbol('DrizzleClient'),
 	JwtService: Symbol('JwtService'),

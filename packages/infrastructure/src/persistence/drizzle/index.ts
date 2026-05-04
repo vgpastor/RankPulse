@@ -22,3 +22,6 @@ export { DrizzleApiUsageRepository } from './repositories/provider-connectivity/
 
 export { DrizzleTrackedKeywordRepository } from './repositories/rank-tracking/tracked-keyword.repository.js';
 export { DrizzleRankingObservationRepository } from './repositories/rank-tracking/ranking-observation.repository.js';
+
+export { DrizzleGscPropertyRepository } from './repositories/search-console-insights/gsc-property.repository.js';
+export { DrizzleGscPerformanceObservationRepository } from './repositories/search-console-insights/gsc-performance-observation.repository.js';

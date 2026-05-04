@@ -1,11 +1,21 @@
 import type {
 	ProviderConnectivity as ProviderConnectivityUseCases,
 	RankTracking as RankTrackingUseCases,
+	SearchConsoleInsights as SearchConsoleInsightsUseCases,
 } from '@rankpulse/application';
-import { ProviderConnectivity, type RankTracking as RankTrackingDomain } from '@rankpulse/domain';
+import {
+	ProviderConnectivity,
+	type RankTracking as RankTrackingDomain,
+	type SearchConsoleInsights as SearchConsoleInsightsDomain,
+} from '@rankpulse/domain';
 import type { ProviderFetchJobData } from '@rankpulse/infrastructure/queue';
 import type { ProviderRegistry } from '@rankpulse/provider-core';
 import { type SerpLiveResponse, extractRankingForDomain } from '@rankpulse/provider-dataforseo';
+import {
+	type SearchAnalyticsParams,
+	type SearchAnalyticsResponse,
+	extractGscRows,
+} from '@rankpulse/provider-gsc';
 import { type Clock, type IdGenerator, NotFoundError } from '@rankpulse/shared';
 import type { Logger } from 'pino';
 
@@ -17,10 +27,12 @@ export interface ProviderFetchProcessorDeps {
 	rawPayloadRepo: ProviderConnectivity.RawPayloadRepository;
 	apiUsageRepo: ProviderConnectivity.ApiUsageRepository;
 	trackedKeywordRepo: RankTrackingDomain.TrackedKeywordRepository;
+	gscPropertyRepo: SearchConsoleInsightsDomain.GscPropertyRepository;
 	vault: ProviderConnectivity.CredentialVault;
 	resolveCredentialUseCase: ProviderConnectivityUseCases.ResolveProviderCredentialUseCase;
 	recordApiUsageUseCase: ProviderConnectivityUseCases.RecordApiUsageUseCase;
 	recordRankingObservationUseCase: RankTrackingUseCases.RecordRankingObservationUseCase;
+	ingestGscRowsUseCase: SearchConsoleInsightsUseCases.IngestGscRowsUseCase;
 	clock: Clock;
 	ids: IdGenerator;
 	logger: Logger;
@@ -142,6 +154,30 @@ export class ProviderFetchProcessor {
 					sourceProvider: definition.providerId.value,
 					rawPayloadId,
 				});
+			}
+
+			if (
+				definition.providerId.value === 'google-search-console' &&
+				definition.endpointId.value === 'gsc-search-analytics'
+			) {
+				const gscParams = definition.params as unknown as SearchAnalyticsParams & { gscPropertyId?: string };
+				if (!gscParams.gscPropertyId) {
+					this.deps.logger.warn(
+						{ defId: definition.id },
+						'gsc-search-analytics job missing gscPropertyId param; skipping ingest',
+					);
+				} else {
+					const rows = extractGscRows(fetchResult as SearchAnalyticsResponse, {
+						dimensions: gscParams.dimensions ?? ['date'],
+						startDate: gscParams.startDate,
+						endDate: gscParams.endDate,
+					});
+					await this.deps.ingestGscRowsUseCase.execute({
+						gscPropertyId: gscParams.gscPropertyId,
+						rawPayloadId,
+						rows,
+					});
+				}
 			}
 
 			run.complete(rawPayloadId, this.deps.clock.now());

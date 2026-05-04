@@ -20,6 +20,7 @@
 		"@rankpulse/infrastructure": "workspace:*",
 		"@rankpulse/provider-core": "workspace:*",
 		"@rankpulse/provider-dataforseo": "workspace:*",
+		"@rankpulse/provider-gsc": "workspace:*",
 		"@rankpulse/shared": "workspace:*",
 		"bullmq": "5.25.6",
 		"ioredis": "5.4.1",

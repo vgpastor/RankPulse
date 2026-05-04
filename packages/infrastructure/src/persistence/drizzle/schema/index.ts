@@ -5,6 +5,7 @@ import { sql } from 'drizzle-orm';
 import {
 	bigint,
 	boolean,
+	doublePrecision,
 	index,
 	integer,
 	jsonb,
@@ -396,6 +397,56 @@ export const rankingObservations = pgTable(
 	}),
 );
 
+// ---- search-console-insights ----
+
+export const gscProperties = pgTable(
+	'gsc_properties',
+	{
+		id: uuid('id').primaryKey(),
+		organizationId: uuid('organization_id')
+			.notNull()
+			.references(() => organizations.id, { onDelete: 'cascade' }),
+		projectId: uuid('project_id')
+			.notNull()
+			.references(() => projects.id, { onDelete: 'cascade' }),
+		siteUrl: text('site_url').notNull(),
+		propertyType: text('property_type').notNull(),
+		credentialId: uuid('credential_id').references(() => providerCredentials.id, { onDelete: 'set null' }),
+		linkedAt: timestamp('linked_at', { withTimezone: true }).notNull().defaultNow(),
+		unlinkedAt: timestamp('unlinked_at', { withTimezone: true }),
+	},
+	(t) => ({
+		uniqueByProjectSite: uniqueIndex('gsc_properties_project_site_unique').on(t.projectId, t.siteUrl),
+		projectIdx: index('gsc_properties_project_idx').on(t.projectId),
+	}),
+);
+
+/**
+ * GSC search-analytics rows. Promoted to a Timescale hypertable when the
+ * extension is available (see migration 0003).
+ */
+export const gscObservations = pgTable(
+	'gsc_observations',
+	{
+		observedAt: timestamp('observed_at', { withTimezone: true }).notNull(),
+		gscPropertyId: uuid('gsc_property_id').notNull(),
+		projectId: uuid('project_id').notNull(),
+		query: text('query'),
+		page: text('page'),
+		country: text('country'),
+		device: text('device'),
+		clicks: integer('clicks').notNull(),
+		impressions: integer('impressions').notNull(),
+		ctr: doublePrecision('ctr').notNull(),
+		position: doublePrecision('position').notNull(),
+		rawPayloadId: uuid('raw_payload_id'),
+	},
+	(t) => ({
+		propertyIdx: index('gsc_observations_property_idx').on(t.gscPropertyId, t.observedAt),
+		projectIdx: index('gsc_observations_project_idx').on(t.projectId, t.observedAt),
+	}),
+);
+
 export type OrganizationRow = typeof organizations.$inferSelect;
 export type UserRow = typeof users.$inferSelect;
 export type MembershipRow = typeof memberships.$inferSelect;
@@ -414,3 +465,5 @@ export type RawPayloadRow = typeof rawPayloads.$inferSelect;
 export type ApiUsageEntryRow = typeof apiUsageEntries.$inferSelect;
 export type TrackedKeywordRow = typeof trackedKeywords.$inferSelect;
 export type RankingObservationRow = typeof rankingObservations.$inferSelect;
+export type GscPropertyRow = typeof gscProperties.$inferSelect;
+export type GscObservationRow = typeof gscObservations.$inferSelect;
