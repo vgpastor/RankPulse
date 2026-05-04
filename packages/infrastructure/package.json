@@ -27,7 +27,7 @@
 		"@rankpulse/shared": "workspace:*",
 		"argon2": "0.41.1",
 		"bullmq": "5.25.6",
-		"drizzle-orm": "0.36.4",
+		"drizzle-orm": "0.45.2",
 		"ioredis": "5.4.1",
 		"libsodium-wrappers": "0.7.15",
 		"postgres": "3.4.5"

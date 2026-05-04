@@ -27,7 +27,7 @@
 		"@rankpulse/provider-dataforseo": "workspace:*",
 		"@rankpulse/provider-gsc": "workspace:*",
 		"@rankpulse/shared": "workspace:*",
-		"drizzle-orm": "0.36.4",
+		"drizzle-orm": "0.45.2",
 		"helmet": "8.0.0",
 		"ioredis": "5.4.1",
 		"jose": "5.9.6",
