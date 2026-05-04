@@ -59,9 +59,27 @@ export const AppShell = ({ children }: AppShellProps) => {
 		<div className="min-h-screen bg-background">
 			<header className="border-b border-border bg-card/40">
 				<div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-					<Link to="/projects" className="font-semibold tracking-tight">
-						{t('common:appName')}
-					</Link>
+					<div className="flex items-center gap-6">
+						<Link to="/projects" className="font-semibold tracking-tight">
+							{t('common:appName')}
+						</Link>
+						<nav className="flex items-center gap-4 text-sm">
+							<Link
+								to="/projects"
+								className="text-muted-foreground hover:text-foreground"
+								activeProps={{ className: 'text-foreground font-medium' }}
+							>
+								{t('projects:title')}
+							</Link>
+							<Link
+								to="/credentials"
+								className="text-muted-foreground hover:text-foreground"
+								activeProps={{ className: 'text-foreground font-medium' }}
+							>
+								{t('credentials:title')}
+							</Link>
+						</nav>
+					</div>
 					<div className="flex items-center gap-3">
 						<span className="text-sm text-muted-foreground">{session.user.email}</span>
 						<Button variant="ghost" size="sm" onClick={toggleLang}>

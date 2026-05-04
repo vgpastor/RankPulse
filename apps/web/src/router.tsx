@@ -7,9 +7,11 @@ import {
 	redirect,
 } from '@tanstack/react-router';
 import { useAuthStore } from './lib/auth-store.js';
+import { CredentialsPage } from './pages/credentials.page.js';
 import { LoginPage } from './pages/login.page.js';
 import { ProjectDetailPage } from './pages/project-detail.page.js';
 import { ProjectsPage } from './pages/projects.page.js';
+import { RankingsPage } from './pages/rankings.page.js';
 import { RegisterPage } from './pages/register.page.js';
 
 const rootRoute: RootRoute = createRootRoute({
@@ -49,12 +51,26 @@ const projectDetailRoute = createRoute({
 	component: ProjectDetailPage,
 });
 
+const projectRankingsRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/rankings',
+	component: RankingsPage,
+});
+
+const credentialsRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/credentials',
+	component: CredentialsPage,
+});
+
 const routeTree = rootRoute.addChildren([
 	indexRoute,
 	loginRoute,
 	registerRoute,
 	projectsRoute,
 	projectDetailRoute,
+	projectRankingsRoute,
+	credentialsRoute,
 ]);
 
 export const router = new Router({

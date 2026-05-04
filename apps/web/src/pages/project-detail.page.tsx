@@ -1,6 +1,7 @@
-import { Badge, Card, CardContent, CardHeader, CardTitle, Spinner } from '@rankpulse/ui';
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Spinner } from '@rankpulse/ui';
 import { useQuery } from '@tanstack/react-query';
-import { useParams } from '@tanstack/react-router';
+import { Link, useParams } from '@tanstack/react-router';
+import { LineChart } from 'lucide-react';
 import { AppShell } from '../components/app-shell.js';
 import { api } from '../lib/api.js';
 
@@ -53,13 +54,21 @@ export const ProjectDetailPage = () => {
 						<h1 className="text-2xl font-semibold tracking-tight">{project.name}</h1>
 						<p className="text-sm text-muted-foreground">{project.primaryDomain}</p>
 					</div>
-					<Badge
-						variant={
-							project.kind === 'OWN' ? 'default' : project.kind === 'COMPETITOR' ? 'warning' : 'secondary'
-						}
-					>
-						{project.kind.toLowerCase()}
-					</Badge>
+					<div className="flex items-center gap-3">
+						<Link to="/projects/$id/rankings" params={{ id: project.id }}>
+							<Button variant="secondary" size="sm">
+								<LineChart size={14} />
+								Rankings
+							</Button>
+						</Link>
+						<Badge
+							variant={
+								project.kind === 'OWN' ? 'default' : project.kind === 'COMPETITOR' ? 'warning' : 'secondary'
+							}
+						>
+							{project.kind.toLowerCase()}
+						</Badge>
+					</div>
 				</header>
 
 				<div className="grid grid-cols-1 gap-4 md:grid-cols-2">

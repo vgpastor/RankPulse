@@ -17,7 +17,9 @@ const en = {
 		create: 'Create',
 		cancel: 'Cancel',
 		retry: 'Retry',
+		save: 'Save',
 		searchPlaceholder: 'Search…',
+		notRanked: 'Not ranked',
 	},
 	auth: {
 		loginTitle: 'Sign in to RankPulse',
@@ -40,6 +42,35 @@ const en = {
 		domainLabel: 'Primary domain',
 		domainHint: 'Bare domain, e.g. controlrondas.com',
 	},
+	credentials: {
+		title: 'Credentials',
+		subtitle:
+			'Connect your data providers. Credentials can target the org, a portfolio, a project or a specific domain.',
+		empty: 'No credentials yet',
+		emptyDescription: 'Add a DataForSEO credential to start collecting SERP data.',
+		add: 'Add credential',
+		provider: 'Provider',
+		scope: 'Scope',
+		scopeHelp: 'org / portfolio / project / domain',
+		label: 'Label',
+		secret: 'Secret',
+		secretDataForSeoHint: 'Format: email|api_password (DataForSEO Basic auth)',
+		registered: 'Credential registered',
+		lastFour: 'Ends in',
+	},
+	rankings: {
+		title: 'Rankings',
+		subtitle: 'Latest SERP positions across tracked keywords.',
+		empty: 'No observations yet',
+		emptyDescription: 'Track keywords and schedule a SERP fetch to see positions here.',
+		track: 'Track keyword',
+		phrase: 'Keyword',
+		country: 'Country',
+		language: 'Language',
+		device: 'Device',
+		position: 'Pos.',
+		observedAt: 'Observed',
+	},
 } as const;
 
 const es = {
@@ -57,7 +88,9 @@ const es = {
 		create: 'Crear',
 		cancel: 'Cancelar',
 		retry: 'Reintentar',
+		save: 'Guardar',
 		searchPlaceholder: 'Buscar…',
+		notRanked: 'Sin ranking',
 	},
 	auth: {
 		loginTitle: 'Entra en RankPulse',
@@ -80,6 +113,35 @@ const es = {
 		domainLabel: 'Dominio principal',
 		domainHint: 'Dominio sin protocolo, ej. controlrondas.com',
 	},
+	credentials: {
+		title: 'Credenciales',
+		subtitle:
+			'Conecta tus proveedores de datos. Cada credencial puede aplicarse a la organización, una cartera, un proyecto o un dominio.',
+		empty: 'Aún no hay credenciales',
+		emptyDescription: 'Añade una credencial de DataForSEO para empezar a recopilar datos SERP.',
+		add: 'Añadir credencial',
+		provider: 'Proveedor',
+		scope: 'Alcance',
+		scopeHelp: 'org / portfolio / project / domain',
+		label: 'Etiqueta',
+		secret: 'Secret',
+		secretDataForSeoHint: 'Formato: email|api_password (Basic auth de DataForSEO)',
+		registered: 'Credencial registrada',
+		lastFour: 'Termina en',
+	},
+	rankings: {
+		title: 'Rankings',
+		subtitle: 'Últimas posiciones SERP por keyword.',
+		empty: 'Sin observaciones aún',
+		emptyDescription: 'Trackea keywords y programa un fetch SERP para ver posiciones aquí.',
+		track: 'Trackear keyword',
+		phrase: 'Keyword',
+		country: 'País',
+		language: 'Idioma',
+		device: 'Dispositivo',
+		position: 'Pos.',
+		observedAt: 'Observado',
+	},
 } as const;
 
 void i18next
@@ -88,7 +150,7 @@ void i18next
 	.init({
 		fallbackLng: 'en',
 		supportedLngs: ['en', 'es'],
-		ns: ['common', 'auth', 'projects'],
+		ns: ['common', 'auth', 'projects', 'credentials', 'rankings'],
 		defaultNS: 'common',
 		resources: { en, es },
 		interpolation: { escapeValue: false },
