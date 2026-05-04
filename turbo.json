@@ -1,0 +1,31 @@
+{
+	"$schema": "https://turbo.build/schema.json",
+	"ui": "stream",
+	"globalDependencies": ["tsconfig.base.json", "biome.json"],
+	"tasks": {
+		"build": {
+			"dependsOn": ["^build"],
+			"outputs": ["dist/**", ".next/**", "build/**"]
+		},
+		"typecheck": {
+			"outputs": []
+		},
+		"test": {
+			"outputs": ["coverage/**"]
+		},
+		"test:unit": {
+			"outputs": ["coverage/**"]
+		},
+		"test:integration": {
+			"dependsOn": ["^build"],
+			"outputs": ["coverage/**"]
+		},
+		"clean": {
+			"cache": false
+		},
+		"dev": {
+			"cache": false,
+			"persistent": true
+		}
+	}
+}

@@ -1,0 +1,59 @@
+import { z } from 'zod';
+
+export const ProjectKindSchema = z.enum(['OWN', 'COMPETITOR', 'SIBLING']);
+export type ProjectKindDto = z.infer<typeof ProjectKindSchema>;
+
+export const LocationLanguageSchema = z.object({
+	country: z.string().regex(/^[A-Z]{2}$/),
+	language: z.string().regex(/^[a-z]{2}(?:-[A-Z]{2})?$/),
+});
+
+export const CreateProjectRequest = z.object({
+	organizationId: z.string().uuid(),
+	portfolioId: z.string().uuid().nullable().default(null),
+	name: z.string().min(2).max(80),
+	primaryDomain: z.string().min(3).max(253),
+	kind: ProjectKindSchema.optional(),
+	initialLocations: z.array(LocationLanguageSchema).optional(),
+});
+export type CreateProjectRequest = z.infer<typeof CreateProjectRequest>;
+
+export const ProjectDto = z.object({
+	id: z.string().uuid(),
+	organizationId: z.string().uuid(),
+	portfolioId: z.string().uuid().nullable(),
+	name: z.string(),
+	primaryDomain: z.string(),
+	kind: ProjectKindSchema,
+	domains: z.array(
+		z.object({
+			domain: z.string(),
+			kind: z.enum(['main', 'subdomain', 'alias']),
+		}),
+	),
+	locations: z.array(LocationLanguageSchema),
+	archivedAt: z.string().datetime().nullable(),
+	createdAt: z.string().datetime(),
+});
+export type ProjectDto = z.infer<typeof ProjectDto>;
+
+export const ImportKeywordsRequest = z.object({
+	keywordListId: z.string().uuid().optional(),
+	listName: z.string().min(1).max(80).optional(),
+	phrases: z
+		.array(
+			z.object({
+				phrase: z.string().min(1).max(200),
+				tags: z.array(z.string()).optional(),
+			}),
+		)
+		.min(1)
+		.max(2000),
+});
+export type ImportKeywordsRequest = z.infer<typeof ImportKeywordsRequest>;
+
+export const AddCompetitorRequest = z.object({
+	domain: z.string().min(3).max(253),
+	label: z.string().max(80).optional(),
+});
+export type AddCompetitorRequest = z.infer<typeof AddCompetitorRequest>;

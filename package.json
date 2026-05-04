@@ -1,0 +1,36 @@
+{
+	"name": "rankpulse",
+	"version": "0.0.0",
+	"private": true,
+	"license": "AGPL-3.0-or-later",
+	"description": "Open-source self-hosted SEO intelligence platform for multi-project, multi-domain, multi-country monitoring.",
+	"homepage": "https://github.com/vgpastor/rankpulse",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/vgpastor/rankpulse.git"
+	},
+	"engines": {
+		"node": ">=20.11.0",
+		"pnpm": ">=9.0.0"
+	},
+	"packageManager": "pnpm@9.12.0",
+	"scripts": {
+		"build": "turbo run build --filter=*",
+		"test": "turbo run test --filter=*",
+		"test:unit": "turbo run test:unit --filter=*",
+		"test:integration": "turbo run test:integration --filter=*",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"format": "biome format --write .",
+		"typecheck": "turbo run typecheck --filter=*",
+		"clean": "turbo run clean --filter=* && rm -rf node_modules"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "1.9.4",
+		"@types/node": "20.16.11",
+		"turbo": "2.2.3",
+		"typescript": "5.6.3",
+		"vitest": "2.1.4",
+		"tsx": "4.19.2"
+	}
+}

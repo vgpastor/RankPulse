@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+.nx/cache
+.nx/workspace-data
+*.log
+.DS_Store
+.env
+.env.local
+.env.*.local
+*.tsbuildinfo
+.vscode/
+.idea/
+.pnpm-store/

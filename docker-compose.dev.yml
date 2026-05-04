@@ -1,0 +1,34 @@
+services:
+  postgres:
+    image: timescale/timescaledb-ha:pg16
+    container_name: rankpulse-postgres
+    environment:
+      POSTGRES_USER: rankpulse
+      POSTGRES_PASSWORD: rankpulse
+      POSTGRES_DB: rankpulse
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/home/postgres/pgdata/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rankpulse -d rankpulse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: rankpulse-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
+  redisdata:
