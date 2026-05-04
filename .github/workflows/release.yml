@@ -97,5 +97,5 @@ jobs:
             docker compose --env-file .env.local -f docker-compose.prod.yml run --rm migrate
             echo ">>> Restarting stack"
             docker compose --env-file .env.local -f docker-compose.prod.yml up -d --remove-orphans
-            echo ">>> Pruning old images"
-            docker image prune -f --filter "un
+            echo ">>> Pruning old images (older than 7d)"
+            docker image prune
