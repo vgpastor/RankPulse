@@ -23,8 +23,10 @@ export class ProvidersController {
 		@Inject(Tokens.RegisterProviderCredential)
 		private readonly registerCred: PCUseCases.RegisterProviderCredentialUseCase,
 		@Inject(Tokens.ScheduleEndpointFetch) private readonly schedule: PCUseCases.ScheduleEndpointFetchUseCase,
-		@Inject(Tokens.TriggerJobDefinitionRun) private readonly triggerRun: PCUseCases.TriggerJobDefinitionRunUseCase,
-		@Inject(Tokens.JobDefinitionRepository) private readonly jobDefs: ProviderConnectivity.JobDefinitionRepository,
+		@Inject(Tokens.TriggerJobDefinitionRun)
+		private readonly triggerRun: PCUseCases.TriggerJobDefinitionRunUseCase,
+		@Inject(Tokens.JobDefinitionRepository)
+		private readonly jobDefs: ProviderConnectivity.JobDefinitionRepository,
 		@Inject(Tokens.MembershipRepository) memberships: IdentityAccess.MembershipRepository,
 		@Inject(Tokens.ProjectRepository) private readonly projects: ProjectManagement.ProjectRepository,
 	) {
