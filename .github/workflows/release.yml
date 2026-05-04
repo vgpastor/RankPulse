@@ -98,4 +98,8 @@ jobs:
             echo ">>> Restarting stack"
             docker compose --env-file .env.local -f docker-compose.prod.yml up -d --remove-orphans
             echo ">>> Pruning old images (older than 7d)"
-            docker image prune
+            docker image prune -f --filter until=168h
+            echo ">>> Health check (curl with retries)"
+            curl --fail --silent --show-error --max-time 5 --retry 10 --retry-delay 3 --retry-all-errors http://127.0.0.1:3200/healthz
+            echo ""
+            echo ">>> Deploy OK"
