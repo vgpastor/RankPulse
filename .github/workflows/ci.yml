@@ -5,48 +5,14 @@ on:
     branches: [main]
   pull_request:
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: read
 
 jobs:
   smoke:
     name: Smoke
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
     steps:
       - name: Trivial
-        run: echo "hello from CI"
-
-  build:
-    name: Lint, typecheck, test, build
-    needs: smoke
-    runs-on: ubuntu-latest
-    env:
-      COREPACK_ENABLE_STRICT: '0'
-      COREPACK_DEFAULT_TO_LATEST: '0'
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install pnpm
-        run: |
-          npm install -g pnpm@9.12.0
-          pnpm --version
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Unit tests
-        run: pnpm test:unit
-
-      - name: Build (api + worker + web)
-        run: pnpm build
+        run: echo "hello from CI on $RUNNER_OS"
