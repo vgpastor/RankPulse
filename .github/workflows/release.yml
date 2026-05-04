@@ -96,8 +96,6 @@ jobs:
             docker compose --env-file .env.local -f docker-compose.prod.yml up -d --remove-orphans
             echo ">>> Pruning old images"
             docker image prune -f --filter "until=168h"
-            echo ">>> Health check"
-            sleep 5
-            curl --fail --silent --show-error --max-time 15 http://127.0.0.1:3200/healthz
-            echo ""
-            echo ">>> Deploy OK"
+            echo ">>> Health check (with retry — api takes a few seconds to come up)"
+            for attempt in 1 2 3 4 5 6 7 8 9 10; do
+              if curl --fail --silent --show-error --max-ti
