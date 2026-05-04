@@ -1,0 +1,127 @@
+# RankPulse production stack.
+# Pulls pre-built images from GHCR. Build pipeline lives in
+# .github/workflows/release.yml.
+#
+# All services bind only to 127.0.0.1 — Plesk Nginx terminates TLS and
+# reverse-proxies into the api (port 3200) and the web SPA (port 3201).
+#
+# Secrets and tunables live in /opt/RankPulse/.env (chmod 600).
+
+services:
+  postgres:
+    image: timescale/timescaledb-ha:pg16
+    container_name: rankpulse-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rankpulse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-rankpulse}
+    volumes:
+      - pgdata:/home/postgres/pgdata/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rankpulse} -d ${POSTGRES_DB:-rankpulse}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+
+  redis:
+    image: redis:7-alpine
+    container_name: rankpulse-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks: [internal]
+
+  # One-shot service: applies all pending Drizzle migrations and exits.
+  # Invoked from CI via `docker compose run --rm migrate` before the API
+  # container restarts.
+  migrate:
+    image: ghcr.io/vgpastor/rankpulse-api:${IMAGE_TAG:-latest}
+    container_name: rankpulse-migrate
+    pull_policy: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-rankpulse}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-rankpulse}
+    working_dir: /workspace
+    entrypoint: ["pnpm", "--filter", "@rankpulse/infrastructure", "db:migrate"]
+    restart: "no"
+    networks: [internal]
+
+  api:
+    image: ghcr.io/vgpastor/rankpulse-api:${IMAGE_TAG:-latest}
+    container_name: rankpulse-api
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOST: 0.0.0.0
+      DATABASE_URL: postgres://${POSTGRES_USER:-rankpulse}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-rankpulse}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_TTL_SECONDS: "86400"
+      RANKPULSE_MASTER_KEY: ${RANKPULSE_MASTER_KEY:?RANKPULSE_MASTER_KEY is required}
+      OPENAPI_ENABLED: "true"
+      CORS_ORIGINS: ${PUBLIC_WEB_ORIGIN:-https://rankpulse.ingenierosweb.co}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:3200:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks: [internal]
+
+  worker:
+    image: ghcr.io/vgpastor/rankpulse-worker:${IMAGE_TAG:-latest}
+    container_name: rankpulse-worker
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-rankpulse}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-rankpulse}
+      REDIS_URL: redis://redis:6379
+      RANKPULSE_MASTER_KEY: ${RANKPULSE_MASTER_KEY}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    networks: [internal]
+
+  web:
+    image: ghcr.io/vgpastor/rankpulse-web:${IMAGE_TAG:-latest}
+    container_name: rankpulse-web
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:3201:80"
+    networks: [internal]
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  internal:
+    driver: bridge

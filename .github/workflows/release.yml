@@ -1,0 +1,103 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/rankpulse
+
+jobs:
+  build:
+    name: Build & push ${{ matrix.app }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - app: api
+            dockerfile: docker/api.Dockerfile
+          - app: worker
+            dockerfile: docker/worker.Dockerfile
+          - app: web
+            dockerfile: docker/web.Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tags
+        id: tags
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.app }}"
+          SHA_SHORT="${GITHUB_SHA::7}"
+          {
+            echo "image=${IMAGE}"
+            echo "tags=${IMAGE}:latest,${IMAGE}:sha-${SHA_SHORT},${IMAGE}:main"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+          build-args: |
+            VITE_API_BASE_URL=${{ vars.PUBLIC_API_BASE_URL || 'https://rankpulse.ingenierosweb.co/api/v1' }}
+
+  deploy:
+    name: Deploy to srv07
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Trigger remote deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SRV07_HOST }}
+          username: ${{ secrets.SRV07_USER }}
+          key: ${{ secrets.SRV07_SSH_KEY }}
+          port: 22
+          script_stop: true
+          envs: GITHUB_SHA
+          script: |
+            set -euo pipefail
+            APP_DIR=/var/www/vhosts/ingenierosweb.co/rankpulse.ingenierosweb.co/app
+            cd "${APP_DIR}"
+            echo ">>> Pulling latest main"
+            git fetch --quiet origin main
+            git reset --hard origin/main
+            echo ">>> Logging into GHCR"
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ secrets.GHCR_USER }} --password-stdin
+            echo ">>> Pulling images (sha-${GITHUB_SHA::7})"
+            docker compose --env-file .env.local -f docker-compose.prod.yml pull
+            echo ">>> Running migrations (one-shot)"
+            docker compose --env-file .env.local -f docker-compose.prod.yml run --rm migrate
+            echo ">>> Restarting stack"
+            docker compose --env-file .env.local -f docker-compose.prod.yml up -d --remove-orphans
+            echo ">>> Pruning old images"
+            docker image prune -f --filter "until=168h"
+            echo ">>> Health check"
+            sleep 5
+            curl --fail --silent --show-error --max-time 15 http://127.0.0.1:3200/healthz
+            echo ""
+            echo ">>> Deploy OK"
