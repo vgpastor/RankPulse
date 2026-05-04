@@ -16,8 +16,6 @@ COPY packages/shared/package.json ./packages/shared/package.json
 COPY packages/providers/core/package.json ./packages/providers/core/package.json
 COPY packages/providers/dataforseo/package.json ./packages/providers/dataforseo/package.json
 COPY packages/providers/google-search-console/package.json ./packages/providers/google-search-console/package.json
-COPY packages/config-typescript/package.json ./packages/config-typescript/package.json
-COPY packages/config-biome/package.json ./packages/config-biome/package.json
 
 RUN pnpm install --frozen-lockfile
 

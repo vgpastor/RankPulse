@@ -11,8 +11,6 @@ COPY apps/web/package.json ./apps/web/package.json
 COPY packages/contracts/package.json ./packages/contracts/package.json
 COPY packages/sdk/package.json ./packages/sdk/package.json
 COPY packages/ui/package.json ./packages/ui/package.json
-COPY packages/config-typescript/package.json ./packages/config-typescript/package.json
-COPY packages/config-biome/package.json ./packages/config-biome/package.json
 RUN pnpm fetch
 RUN pnpm install --frozen-lockfile --offline
 COPY packages ./packages
