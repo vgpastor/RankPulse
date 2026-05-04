@@ -13,6 +13,11 @@ jobs:
   build:
     name: Lint, typecheck, test, build
     runs-on: ubuntu-latest
+    env:
+      # Newer corepack ships with strict mode that rejects packageManager
+      # entries lacking a signature hash. Disable so `pnpm@9.12.0` is accepted.
+      COREPACK_ENABLE_STRICT: '0'
+      COREPACK_DEFAULT_TO_LATEST: '0'
     steps:
       - uses: actions/checkout@v4
 
@@ -20,10 +25,9 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Enable Corepack and pin pnpm
+      - name: Install pnpm
         run: |
-          corepack enable
-          corepack prepare pnpm@9.12.0 --activate
+          npm install -g pnpm@9.12.0
           pnpm --version
 
       - name: Install dependencies
