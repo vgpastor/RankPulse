@@ -5,7 +5,7 @@
 	"type": "module",
 	"main": "./src/main.ts",
 	"scripts": {
-		"start": "node --enable-source-maps dist/main.js",
+		"start": "tsx src/main.ts",
 		"dev": "tsx watch src/main.ts",
 		"build": "tsc -p tsconfig.build.json",
 		"typecheck": "tsc --noEmit",

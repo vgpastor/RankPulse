@@ -8,7 +8,9 @@ export interface ProviderFetchJobData {
 	runId?: string;
 }
 
-const queueNameFor = (providerId: string): string => `provider:${providerId}`;
+// BullMQ rejects queue names that contain ':' (it uses ':' internally as a key
+// separator inside Redis). Use '-' as the visible separator instead.
+const queueNameFor = (providerId: string): string => `provider-${providerId}`;
 
 export interface BullMqSchedulerOptions {
 	connection: ConnectionOptions;

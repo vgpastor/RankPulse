@@ -1,14 +1,13 @@
 # syntax=docker/dockerfile:1.7
-FROM node:20-bookworm-slim AS base
+FROM node:20-bookworm-slim
 ENV PNPM_HOME=/pnpm
 ENV PATH="$PNPM_HOME:$PATH"
+ENV NODE_ENV=production
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /workspace
 
-FROM base AS deps
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json ./
 COPY apps/worker/package.json ./apps/worker/package.json
-COPY apps/api/package.json ./apps/api/package.json
 COPY packages/application/package.json ./packages/application/package.json
 COPY packages/contracts/package.json ./packages/contracts/package.json
 COPY packages/domain/package.json ./packages/domain/package.json
@@ -16,22 +15,15 @@ COPY packages/infrastructure/package.json ./packages/infrastructure/package.json
 COPY packages/shared/package.json ./packages/shared/package.json
 COPY packages/providers/core/package.json ./packages/providers/core/package.json
 COPY packages/providers/dataforseo/package.json ./packages/providers/dataforseo/package.json
+COPY packages/providers/google-search-console/package.json ./packages/providers/google-search-console/package.json
 COPY packages/config-typescript/package.json ./packages/config-typescript/package.json
 COPY packages/config-biome/package.json ./packages/config-biome/package.json
-RUN pnpm fetch
-RUN pnpm install --frozen-lockfile --offline
 
-FROM deps AS build
-COPY tsconfig.base.json biome.json turbo.json ./
+RUN pnpm install --frozen-lockfile
+
+# Sources consumed directly via tsx — see api.Dockerfile for the same approach.
 COPY packages ./packages
 COPY apps/worker ./apps/worker
-RUN pnpm --filter @rankpulse/worker build
 
-FROM base AS runtime
-ENV NODE_ENV=production
-COPY --from=build /workspace/node_modules ./node_modules
-COPY --from=build /workspace/apps/worker/dist ./apps/worker/dist
-COPY --from=build /workspace/apps/worker/package.json ./apps/worker/package.json
-COPY --from=build /workspace/packages ./packages
 USER node
-CMD ["node", "--enable-source-maps", "apps/worker/dist/main.js"]
+CMD ["pnpm", "--filter", "@rankpulse/worker", "start"]
