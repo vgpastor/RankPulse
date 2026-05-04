@@ -11,7 +11,8 @@ const json = (status: number, body: unknown): Response =>
 describe('HttpClient', () => {
 	it('attaches Authorization header when a token is provided', async () => {
 		let capturedHeaders: Headers | undefined;
-		const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+		const fetchImpl = async (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+			void _input;
 			capturedHeaders = new Headers(init?.headers);
 			return json(200, { ok: true });
 		};
