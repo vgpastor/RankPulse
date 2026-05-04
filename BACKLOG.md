@@ -237,6 +237,65 @@ acceso DB directo.**
 
 ---
 
+### 11. No hay endpoint API para gestionar Portfolios
+**Síntoma:** la entidad `Portfolio` existe en `packages/domain/src/project-management/entities/portfolio.ts`
+y tiene su `PortfolioRepository`. `POST /projects` acepta `portfolioId` para
+asociar un proyecto. Las credenciales pueden tener `scope.type='portfolio'`.
+Pero NO hay endpoints HTTP para crear/listar/editar/borrar portfolios — la
+única forma de crearlos hoy es vía SQL directo a la tabla `portfolios`.
+
+**Tarea para devs (alta prioridad):**
+- `POST   /organizations/:orgId/portfolios` — crear portfolio (name, slug)
+- `GET    /organizations/:orgId/portfolios` — listar
+- `GET    /portfolios/:id` — detalle (con count de projects, domains)
+- `PATCH  /portfolios/:id` — rename
+- `DELETE /portfolios/:id` — borrar (CASCADE a projects o restringir si hay)
+
+**Workaround actual:** `INSERT INTO portfolios ...` por SQL.
+
+**Estado:** ❌ pendiente. **Bloquea modelar la jerarquía
+Org → Portfolio → Project que el dominio ya soporta.**
+
+---
+
+### 12. ACL `extractRankingForDomain` solo extrae una posición por SERP
+**Contexto del PRD:**
+> _every external request is deduplicated across projects, coalesced in-flight,
+> persisted, and served from cache when fresh. The same SERP query for ten
+> projects = one external API call._
+
+**Realidad actual:** una `SERPLiveResponse` tiene los top-30 dominios, pero el
+processor solo extrae la posición del **único** dominio que viene en
+`params.domain`. Si un proyecto tiene 5 dominios, hago 5 SERP fetches idénticos
+($0.0035 × 5 = $0.0175) cuando técnicamente con UNA llamada podría sacar las 5
+posiciones simultáneas ($0.0035 total, **5× más barato**).
+
+**Tarea para devs (alta prioridad — está en el PRD como objetivo):**
+1. Fork `extractRankingForDomain` → `extractRankingsForDomains(payload, domains[])`
+   que devuelve `Map<domain, SerpRankingExtraction>`.
+2. `ProviderFetchProcessor` mira las domain del proyecto (no `params.domain`),
+   itera y llama `recordRankingObservationUseCase` por cada domain match.
+3. `ScheduleEndpointFetchUseCase`: una sola def por (project, keyword, location, device),
+   sin domain en params (el processor lo coge del proyecto).
+4. Coalescing/cache: si el mismo (keyword, location, device) ya tiene un fetch
+   reciente en otro project, reutilizar la raw_payload + extraer para los
+   domains de los dos proyectos.
+
+**Estado:** ❌ pendiente. **Hoy gastamos N× lo necesario en DataForSEO.**
+
+---
+
+### 13. UI no soporta el concepto de Portfolio
+**Síntoma:** la nav del SPA tiene `Proyectos | Credenciales` pero no
+`Portfolios`. Cuando se cierre el item 11 (API), la UI también necesita:
+- Un selector de portfolio en el header (cambiar de "PatrolTech" a "RocStatus").
+- Un breadcrumb `Org / Portfolio / Project`.
+- En `ProjectsPage`: agrupar por portfolio o filtrar.
+
+**Estado:** ❌ pendiente.
+
+---
+
 ## 🔴 Gaps de UI (alta prioridad — bloquean el uso self-service del panel)
 
 Detectados al hacer el bootstrap de la org PatrolTech con 11 proyectos. La API
