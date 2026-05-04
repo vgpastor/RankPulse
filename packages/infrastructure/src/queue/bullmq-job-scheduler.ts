@@ -31,36 +31,38 @@ export class BullMqJobScheduler implements ProviderConnectivity.JobScheduler {
 
 	async register(definition: ProviderConnectivity.ProviderJobDefinition): Promise<void> {
 		if (!definition.enabled) {
-			await this.unregister(definition.id);
+			await this.unregister(definition);
 			return;
 		}
 		const queue = this.queueFor(definition.providerId.value);
 		const data: ProviderFetchJobData = { definitionId: definition.id };
 		await queue.add(PROVIDER_FETCH_JOB, data, {
-			jobId: definition.id,
-			repeat: { pattern: definition.cron.value },
+			repeat: this.repeatOptsFor(definition),
 			removeOnComplete: { count: 100 },
 			removeOnFail: { count: 500 },
 		});
 	}
 
-	async unregister(definitionId: string): Promise<void> {
-		await Promise.all(
-			[...this.queues.values()].map((q) =>
-				q.removeRepeatableByKey(definitionId).catch(() => {
-					// Repeatable key format differs across BullMQ versions; tolerate misses.
-				}),
-			),
-		);
+	async unregister(definition: ProviderConnectivity.ProviderJobDefinition): Promise<void> {
+		const queue = this.queueFor(definition.providerId.value);
+		await queue.removeRepeatable(PROVIDER_FETCH_JOB, this.repeatOptsFor(definition));
 	}
 
-	async enqueueOnce(definitionId: string, runId: string): Promise<void> {
-		// Used for manual replay from the admin UI; we don't know the provider
-		// here, so the API enqueues into the right queue itself by calling
-		// `getQueue(providerId).add(...)`. This default implementation is a
-		// no-op intentionally to keep the JobScheduler port minimal.
-		void definitionId;
-		void runId;
+	async enqueueOnce(definition: ProviderConnectivity.ProviderJobDefinition, runId: string): Promise<void> {
+		const queue = this.queueFor(definition.providerId.value);
+		const data: ProviderFetchJobData = { definitionId: definition.id, runId };
+		await queue.add(PROVIDER_FETCH_JOB, data, {
+			jobId: `manual:${runId}`,
+			removeOnComplete: { count: 100 },
+			removeOnFail: { count: 500 },
+		});
+	}
+
+	private repeatOptsFor(definition: ProviderConnectivity.ProviderJobDefinition): { pattern: string } {
+		// BullMQ identifies a repeatable by the hash of (name + opts). Pass only
+		// the cron pattern so register/unregister produce the same hash for the
+		// same definition.
+		return { pattern: definition.cron.value };
 	}
 
 	getQueue(providerId: string): Queue {

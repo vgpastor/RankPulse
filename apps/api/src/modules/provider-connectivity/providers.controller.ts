@@ -1,5 +1,4 @@
 import { Body, Controller, Get, Inject, Param, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { ProviderConnectivity as PCUseCases } from '@rankpulse/application';
 import { ProviderConnectivityContracts } from '@rankpulse/contracts';
 import { IdentityAccess, type ProjectManagement } from '@rankpulse/domain';
@@ -14,8 +13,6 @@ type RegisterCredentialRequest = ProviderConnectivityContracts.RegisterCredentia
 type ScheduleEndpointRequest = ProviderConnectivityContracts.ScheduleEndpointRequest;
 type ProviderDto = ProviderConnectivityContracts.ProviderDto;
 
-@ApiTags('provider-connectivity')
-@ApiBearerAuth()
 @Controller('providers')
 export class ProvidersController {
 	constructor(
@@ -28,7 +25,6 @@ export class ProvidersController {
 	) {}
 
 	@Get()
-	@ApiOperation({ summary: 'List active providers and their endpoint catalogue' })
 	listProviders(): ProviderDto[] {
 		return this.registry.list().map((p) => ({
 			id: p.id.value,
@@ -47,7 +43,6 @@ export class ProvidersController {
 	}
 
 	@Get(':providerId/endpoints')
-	@ApiOperation({ summary: 'List endpoints for a specific provider' })
 	listEndpoints(@Param('providerId') providerId: string): ProviderDto['endpoints'] {
 		const provider = this.registry.get(providerId);
 		return provider.discover().map((e) => ({
@@ -62,7 +57,6 @@ export class ProvidersController {
 	}
 
 	@Post(':providerId/credentials')
-	@ApiOperation({ summary: 'Register a new credential bound to an org / portfolio / project / domain scope' })
 	async addCredential(
 		@Principal() principal: AuthPrincipal,
 		@Param('providerId') providerId: string,
@@ -80,7 +74,6 @@ export class ProvidersController {
 	}
 
 	@Post(':providerId/endpoints/:endpointId/schedule')
-	@ApiOperation({ summary: 'Schedule a recurring fetch for the given (project, endpoint, params)' })
 	async scheduleEndpoint(
 		@Principal() principal: AuthPrincipal,
 		@Param('providerId') providerId: string,

@@ -1,5 +1,4 @@
 import { Body, Controller, Get, Inject, Param, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { RankTracking as RTUseCases } from '@rankpulse/application';
 import { RankTrackingContracts } from '@rankpulse/contracts';
 import type { IdentityAccess, ProjectManagement, RankTracking } from '@rankpulse/domain';
@@ -11,8 +10,6 @@ import { Tokens } from '../../composition/tokens.js';
 
 type StartTrackingKeywordRequest = RankTrackingContracts.StartTrackingKeywordRequest;
 
-@ApiTags('rank-tracking')
-@ApiBearerAuth()
 @Controller()
 export class RankTrackingController {
 	constructor(
@@ -28,7 +25,6 @@ export class RankTrackingController {
 	) {}
 
 	@Post('rank-tracking/keywords')
-	@ApiOperation({ summary: 'Start tracking a keyword for a (project, domain, location, device) tuple' })
 	async start(
 		@Principal() principal: AuthPrincipal,
 		@Body(new ZodValidationPipe(RankTrackingContracts.StartTrackingKeywordRequest))
@@ -51,7 +47,6 @@ export class RankTrackingController {
 	}
 
 	@Get('projects/:projectId/rankings')
-	@ApiOperation({ summary: 'List the latest ranking observations for a project' })
 	async listProjectRankings(
 		@Principal() principal: AuthPrincipal,
 		@Param('projectId') projectId: string,
@@ -76,7 +71,6 @@ export class RankTrackingController {
 	}
 
 	@Get('rank-tracking/keywords/:id/history')
-	@ApiOperation({ summary: 'Get observation history for a tracked keyword' })
 	async history(
 		@Principal() principal: AuthPrincipal,
 		@Param('id') id: string,

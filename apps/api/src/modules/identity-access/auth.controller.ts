@@ -1,5 +1,4 @@
 import { Body, Controller, Get, HttpCode, Inject, Post, UsePipes } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { IdentityAccess as IAUseCases } from '@rankpulse/application';
 import { IdentityAccessContracts } from '@rankpulse/contracts';
 import type { IdentityAccess } from '@rankpulse/domain';
@@ -21,7 +20,6 @@ interface LoginResponse {
 	user: { userId: string; email: string; name: string };
 }
 
-@ApiTags('identity-access')
 @Controller()
 export class AuthController {
 	constructor(
@@ -35,7 +33,6 @@ export class AuthController {
 	@Public()
 	@Post('auth/register')
 	@HttpCode(201)
-	@ApiOperation({ summary: 'Register a new organization with its owner user' })
 	@UsePipes(new ZodValidationPipe(IdentityAccessContracts.RegisterOrganizationRequest))
 	async register(@Body() body: RegisterOrganizationRequest): Promise<RegisterOrganizationResponse> {
 		return this.registerOrg.execute(body);
@@ -44,7 +41,6 @@ export class AuthController {
 	@Public()
 	@Post('auth/login')
 	@HttpCode(200)
-	@ApiOperation({ summary: 'Authenticate with email + password and receive a JWT' })
 	@UsePipes(new ZodValidationPipe(IdentityAccessContracts.LoginRequest))
 	async login(@Body() body: LoginRequest): Promise<LoginResponse> {
 		const user = await this.authenticate.execute(body);
@@ -57,8 +53,6 @@ export class AuthController {
 	}
 
 	@Get('me')
-	@ApiBearerAuth()
-	@ApiOperation({ summary: 'Return the authenticated user with active memberships' })
 	async me(@Principal() principal: AuthPrincipal): Promise<MeResponse> {
 		const user = await this.users.findById(principal.userId as IdentityAccess.UserId);
 		if (!user) {

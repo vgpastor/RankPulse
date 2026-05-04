@@ -21,7 +21,7 @@ COPY packages/config-biome/package.json ./packages/config-biome/package.json
 
 RUN pnpm install --frozen-lockfile
 
-# Sources consumed directly via tsx — see api.Dockerfile for the same approach.
+# Sources consumed directly via swc-node — see api.Dockerfile for rationale.
 COPY packages ./packages
 COPY apps/worker ./apps/worker
 

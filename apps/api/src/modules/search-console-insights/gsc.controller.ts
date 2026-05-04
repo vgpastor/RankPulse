@@ -1,5 +1,4 @@
 import { Body, Controller, Get, Inject, Param, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { SearchConsoleInsights as SCIUseCases } from '@rankpulse/application';
 import { SearchConsoleInsightsContracts } from '@rankpulse/contracts';
 import type { IdentityAccess, ProjectManagement, SearchConsoleInsights } from '@rankpulse/domain';
@@ -13,8 +12,6 @@ type LinkGscPropertyRequest = SearchConsoleInsightsContracts.LinkGscPropertyRequ
 type GscPropertyDto = SearchConsoleInsightsContracts.GscPropertyDto;
 type GscPerformanceQuery = SearchConsoleInsightsContracts.GscPerformanceQuery;
 
-@ApiTags('search-console-insights')
-@ApiBearerAuth()
 @Controller('gsc')
 export class GscController {
 	constructor(
@@ -28,7 +25,6 @@ export class GscController {
 	) {}
 
 	@Post('properties')
-	@ApiOperation({ summary: 'Link a GSC property (URL-prefix or domain) to a project' })
 	async link(
 		@Principal() principal: AuthPrincipal,
 		@Body(new ZodValidationPipe(SearchConsoleInsightsContracts.LinkGscPropertyRequest))
@@ -49,7 +45,6 @@ export class GscController {
 	}
 
 	@Get('projects/:projectId/properties')
-	@ApiOperation({ summary: 'List GSC properties linked to a project' })
 	async listForProject(
 		@Principal() principal: AuthPrincipal,
 		@Param('projectId') projectId: string,
@@ -64,7 +59,6 @@ export class GscController {
 	}
 
 	@Get('properties/:id/performance')
-	@ApiOperation({ summary: 'Query GSC performance rows for a linked property' })
 	async performance(
 		@Principal() principal: AuthPrincipal,
 		@Param('id') id: string,

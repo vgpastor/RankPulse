@@ -22,10 +22,9 @@ COPY packages/config-biome/package.json ./packages/config-biome/package.json
 
 RUN pnpm install --frozen-lockfile
 
-# Sources. Workspace packages are consumed directly from src/ via the entries
-# in their package.json `main`/`exports` (./src/index.ts). The runtime is
-# `tsx`, which transpiles on the fly — see the README technical-debt note for
-# the planned switch to a tsc-built dist/ pipeline.
+# Sources. Workspace packages are consumed directly from src/ (their main
+# fields point at ./src/index.ts) and Node loads them through swc-node, which
+# transpiles TypeScript on the fly and emits decorator metadata properly.
 COPY packages ./packages
 COPY apps/api ./apps/api
 

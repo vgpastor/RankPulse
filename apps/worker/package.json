@@ -5,8 +5,8 @@
 	"type": "module",
 	"main": "./src/main.ts",
 	"scripts": {
-		"start": "tsx src/main.ts",
-		"dev": "tsx watch src/main.ts",
+		"start": "node --import @swc-node/register/esm-register src/main.ts",
+		"dev": "node --import @swc-node/register/esm-register --watch src/main.ts",
 		"build": "tsc -p tsconfig.build.json",
 		"typecheck": "tsc --noEmit",
 		"test:unit": "vitest run --passWithNoTests",
@@ -28,8 +28,9 @@
 		"zod": "3.23.8"
 	},
 	"devDependencies": {
+		"@swc-node/register": "1.10.10",
+		"@swc/core": "1.13.3",
 		"@types/node": "20.16.11",
-		"tsx": "4.19.2",
 		"typescript": "5.6.3",
 		"vitest": "2.1.4"
 	}

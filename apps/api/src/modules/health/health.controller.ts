@@ -1,5 +1,4 @@
 import { Controller, Get, Inject } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { DrizzlePersistence } from '@rankpulse/infrastructure';
 import { sql } from 'drizzle-orm';
 import { Public } from '../../common/auth/jwt-auth.guard.js';
@@ -10,21 +9,18 @@ interface HealthStatus {
 	checks: Record<string, 'ok' | 'failing'>;
 }
 
-@ApiTags('health')
 @Controller()
 export class HealthController {
 	constructor(@Inject(Tokens.DrizzleClient) private readonly drizzle: DrizzlePersistence.DrizzleClient) {}
 
 	@Public()
 	@Get('healthz')
-	@ApiOperation({ summary: 'Liveness probe' })
 	healthz(): { status: 'ok' } {
 		return { status: 'ok' };
 	}
 
 	@Public()
 	@Get('readyz')
-	@ApiOperation({ summary: 'Readiness probe (verifies database connection)' })
 	async readyz(): Promise<HealthStatus> {
 		const checks: Record<string, 'ok' | 'failing'> = {};
 		try {

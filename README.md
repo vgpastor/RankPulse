@@ -54,11 +54,27 @@ See `docs/architecture.md` for the full bounded-context map, data model, and roa
 
 ```bash
 pnpm install
-docker compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d postgres redis
 cp .env.example .env
-pnpm typecheck
-pnpm test:unit
+# apply migrations
+pnpm --filter @rankpulse/infrastructure db:migrate
+# in three terminals:
+pnpm --filter @rankpulse/api dev
+pnpm --filter @rankpulse/worker dev
+pnpm --filter @rankpulse/web dev
 ```
+
+API on `http://localhost:3000`, OpenAPI JSON on `/openapi.json`, Swagger UI on `/docs`.
+
+The api/worker scripts use `node --import @swc-node/register/esm-register` so
+TypeScript is transpiled on the fly with full decorator-metadata support
+(needed by Nest's DI). `swc-node` reads `apps/api/.swcrc` and `apps/worker/.swcrc`.
+
+### Production
+
+`docker compose -f docker-compose.dev.yml --profile full up -d` builds the
+api, worker and web images and brings the whole stack online. The api/worker
+images run the same `pnpm start` (swc-node) used in dev.
 
 ## Contributing
 

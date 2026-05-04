@@ -1,5 +1,4 @@
 import { Body, Controller, Get, Inject, Param, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { ProjectManagement as PMUseCases } from '@rankpulse/application';
 import { ProjectManagementContracts } from '@rankpulse/contracts';
 import type { IdentityAccess, ProjectManagement } from '@rankpulse/domain';
@@ -29,8 +28,6 @@ const AddLocationBody = z.object({
 	language: z.string().regex(/^[a-z]{2}(?:-[A-Z]{2})?$/),
 });
 
-@ApiTags('project-management')
-@ApiBearerAuth()
 @Controller('projects')
 export class ProjectsController {
 	constructor(
@@ -47,7 +44,6 @@ export class ProjectsController {
 	) {}
 
 	@Post()
-	@ApiOperation({ summary: 'Create a new project in an organization' })
 	async createProject(
 		@Principal() principal: AuthPrincipal,
 		@Body(new ZodValidationPipe(ProjectManagementContracts.CreateProjectRequest)) body: CreateProjectRequest,
@@ -58,7 +54,6 @@ export class ProjectsController {
 	}
 
 	@Get()
-	@ApiOperation({ summary: 'List projects in an organization' })
 	async listProjects(
 		@Principal() principal: AuthPrincipal,
 		@Query(new ZodValidationPipe(ListQuery)) q: z.infer<typeof ListQuery>,
@@ -69,7 +64,6 @@ export class ProjectsController {
 	}
 
 	@Get(':id')
-	@ApiOperation({ summary: 'Get a single project by id' })
 	async getProject(@Principal() principal: AuthPrincipal, @Param('id') id: string): Promise<ProjectDto> {
 		const project = await this.loadProject(id);
 		await this.assertMember(principal, project.organizationId);
@@ -77,7 +71,6 @@ export class ProjectsController {
 	}
 
 	@Post(':id/domains')
-	@ApiOperation({ summary: 'Attach an extra domain to a project' })
 	async addDomainToProject(
 		@Principal() principal: AuthPrincipal,
 		@Param('id') id: string,
@@ -90,7 +83,6 @@ export class ProjectsController {
 	}
 
 	@Post(':id/locations')
-	@ApiOperation({ summary: 'Add a (country, language) location to a project' })
 	async addLocationToProject(
 		@Principal() principal: AuthPrincipal,
 		@Param('id') id: string,
@@ -103,7 +95,6 @@ export class ProjectsController {
 	}
 
 	@Post(':id/competitors')
-	@ApiOperation({ summary: 'Track a competitor for a project' })
 	async addCompetitorToProject(
 		@Principal() principal: AuthPrincipal,
 		@Param('id') id: string,
@@ -115,7 +106,6 @@ export class ProjectsController {
 	}
 
 	@Get(':id/competitors')
-	@ApiOperation({ summary: 'List competitors of a project' })
 	async listCompetitors(
 		@Principal() principal: AuthPrincipal,
 		@Param('id') id: string,
@@ -132,7 +122,6 @@ export class ProjectsController {
 	}
 
 	@Post(':id/keywords')
-	@ApiOperation({ summary: 'Import keywords (batch) into a project keyword list' })
 	async importKeywordsBatch(
 		@Principal() principal: AuthPrincipal,
 		@Param('id') id: string,
@@ -150,7 +139,6 @@ export class ProjectsController {
 	}
 
 	@Get(':id/keywords')
-	@ApiOperation({ summary: 'List keyword lists with their entries for a project' })
 	async listKeywordLists(
 		@Principal() principal: AuthPrincipal,
 		@Param('id') id: string,
