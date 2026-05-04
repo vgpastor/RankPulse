@@ -52,7 +52,7 @@ export class BullMqJobScheduler implements ProviderConnectivity.JobScheduler {
 		const queue = this.queueFor(definition.providerId.value);
 		const data: ProviderFetchJobData = { definitionId: definition.id, runId };
 		await queue.add(PROVIDER_FETCH_JOB, data, {
-			jobId: `manual:${runId}`,
+			jobId: `manual-${runId}`,
 			removeOnComplete: { count: 100 },
 			removeOnFail: { count: 500 },
 		});
