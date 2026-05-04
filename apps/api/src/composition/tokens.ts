@@ -51,6 +51,7 @@ export const Tokens = {
 	RegisterProviderCredential: Symbol('RegisterProviderCredentialUseCase'),
 	ResolveProviderCredential: Symbol('ResolveProviderCredentialUseCase'),
 	ScheduleEndpointFetch: Symbol('ScheduleEndpointFetchUseCase'),
+	TriggerJobDefinitionRun: Symbol('TriggerJobDefinitionRunUseCase'),
 	RecordApiUsage: Symbol('RecordApiUsageUseCase'),
 
 	// Rank-Tracking ports

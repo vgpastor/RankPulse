@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Inject, Param, Post } from '@nestjs/common';
 import type { ProviderConnectivity as PCUseCases } from '@rankpulse/application';
 import { ProviderConnectivityContracts } from '@rankpulse/contracts';
-import type { IdentityAccess, ProjectManagement } from '@rankpulse/domain';
+import type { IdentityAccess, ProjectManagement, ProviderConnectivity } from '@rankpulse/domain';
 import type { ProviderRegistry } from '@rankpulse/provider-core';
 import { NotFoundError } from '@rankpulse/shared';
 import type { AuthPrincipal } from '../../common/auth/jwt.service.js';
@@ -23,6 +23,8 @@ export class ProvidersController {
 		@Inject(Tokens.RegisterProviderCredential)
 		private readonly registerCred: PCUseCases.RegisterProviderCredentialUseCase,
 		@Inject(Tokens.ScheduleEndpointFetch) private readonly schedule: PCUseCases.ScheduleEndpointFetchUseCase,
+		@Inject(Tokens.TriggerJobDefinitionRun) private readonly triggerRun: PCUseCases.TriggerJobDefinitionRunUseCase,
+		@Inject(Tokens.JobDefinitionRepository) private readonly jobDefs: ProviderConnectivity.JobDefinitionRepository,
 		@Inject(Tokens.MembershipRepository) memberships: IdentityAccess.MembershipRepository,
 		@Inject(Tokens.ProjectRepository) private readonly projects: ProjectManagement.ProjectRepository,
 	) {
@@ -76,6 +78,31 @@ export class ProvidersController {
 			...body,
 			expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
 		});
+	}
+
+	@Post(':providerId/job-definitions/:definitionId/run-now')
+	async runNow(
+		@Principal() principal: AuthPrincipal,
+		@Param('providerId') providerId: string,
+		@Param('definitionId') definitionId: string,
+	): Promise<{ runId: string; definitionId: string }> {
+		const definition = await this.jobDefs.findById(
+			definitionId as ProviderConnectivity.ProviderJobDefinitionId,
+		);
+		if (!definition) {
+			throw new NotFoundError(`Job definition ${definitionId} not found`);
+		}
+		if (definition.providerId.value !== providerId) {
+			throw new NotFoundError(
+				`Job definition ${definitionId} does not belong to provider ${providerId}`,
+			);
+		}
+		const project = await this.projects.findById(definition.projectId);
+		if (!project) {
+			throw new NotFoundError(`Project ${definition.projectId} not found`);
+		}
+		await this.orgMembership.require(principal, project.organizationId);
+		return this.triggerRun.execute({ definitionId });
 	}
 
 	@Post(':providerId/endpoints/:endpointId/schedule')

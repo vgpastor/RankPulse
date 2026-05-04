@@ -125,6 +125,12 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		credentialVault,
 		SystemClock,
 	);
+	const triggerJobDefinitionRun = new PCUseCases.TriggerJobDefinitionRunUseCase(
+		jobDefRepo,
+		jobScheduler,
+		SystemIdGenerator,
+	);
+
 	const scheduleEndpointFetch = new PCUseCases.ScheduleEndpointFetchUseCase(
 		jobDefRepo,
 		jobScheduler,
@@ -206,6 +212,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.RegisterProviderCredential, registerCredential),
 		value(Tokens.ResolveProviderCredential, resolveCredential),
 		value(Tokens.ScheduleEndpointFetch, scheduleEndpointFetch),
+		value(Tokens.TriggerJobDefinitionRun, triggerJobDefinitionRun),
 		value(Tokens.RecordApiUsage, recordApiUsage),
 
 		value(Tokens.TrackedKeywordRepository, trackedKeywordRepo),
