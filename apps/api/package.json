@@ -14,10 +14,10 @@
 		"clean": "rm -rf dist .turbo *.tsbuildinfo"
 	},
 	"dependencies": {
-		"@asteasolutions/zod-to-openapi": "7.3.4",
-		"@nestjs/common": "10.4.22",
-		"@nestjs/core": "10.4.22",
-		"@nestjs/platform-express": "10.4.22",
+		"@asteasolutions/zod-to-openapi": "8.5.0",
+		"@nestjs/common": "11.1.19",
+		"@nestjs/core": "11.1.19",
+		"@nestjs/platform-express": "11.1.19",
 		"@nestjs/throttler": "6.5.0",
 		"@rankpulse/application": "workspace:*",
 		"@rankpulse/contracts": "workspace:*",
@@ -27,20 +27,20 @@
 		"@rankpulse/provider-dataforseo": "workspace:*",
 		"@rankpulse/provider-gsc": "workspace:*",
 		"@rankpulse/shared": "workspace:*",
-		"drizzle-orm": "0.36.4",
+		"drizzle-orm": "0.45.2",
 		"helmet": "8.1.0",
 		"ioredis": "5.10.1",
-		"jose": "5.10.0",
+		"jose": "6.2.3",
 		"reflect-metadata": "0.2.2",
 		"rxjs": "7.8.2",
-		"zod": "3.25.76"
+		"zod": "4.4.3"
 	},
 	"devDependencies": {
 		"@swc-node/register": "1.11.1",
 		"@swc/core": "1.15.33",
-		"@types/express": "4.17.23",
+		"@types/express": "5.0.6",
 		"@types/node": "24.12.2",
-		"typescript": "5.6.3",
-		"vitest": "2.1.4"
+		"typescript": "6.0.3",
+		"vitest": "4.1.5"
 	}
 }

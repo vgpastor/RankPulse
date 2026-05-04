@@ -1,13 +1,13 @@
 import { IdentityAccess } from '@rankpulse/domain';
 import { ConflictError, FakeClock, FixedIdGenerator, InvalidInputError, Uuid } from '@rankpulse/shared';
 import {
+	anEmail,
+	aPasswordHash,
 	FakePasswordHasher,
 	InMemoryMembershipRepository,
 	InMemoryOrganizationRepository,
 	InMemoryUserRepository,
 	RecordingEventPublisher,
-	aPasswordHash,
-	anEmail,
 } from '@rankpulse/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RegisterOrganizationUseCase } from './register-organization.use-case.js';

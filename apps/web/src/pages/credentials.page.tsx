@@ -117,13 +117,7 @@ const ProviderCard = ({ provider }: { provider: ProviderConnectivityContracts.Pr
 	</Card>
 );
 
-const NewCredentialForm = ({
-	organizationId,
-	onSaved,
-}: {
-	organizationId: string;
-	onSaved: () => void;
-}) => {
+const NewCredentialForm = ({ organizationId, onSaved }: { organizationId: string; onSaved: () => void }) => {
 	const { t } = useTranslation(['common', 'credentials']);
 	const queryClient = useQueryClient();
 	const [providerId, setProviderId] = useState('dataforseo');

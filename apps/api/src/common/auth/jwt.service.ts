@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { UnauthorizedError } from '@rankpulse/shared';
-import { type JWTPayload, SignJWT, jwtVerify } from 'jose';
+import { type JWTPayload, jwtVerify, SignJWT } from 'jose';
 
 export interface AuthPrincipal {
 	userId: string;

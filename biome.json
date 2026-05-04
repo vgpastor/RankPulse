@@ -1,12 +1,21 @@
 {
-	"$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.4.14/schema.json",
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
 		"useIgnoreFile": true
 	},
 	"files": {
-		"ignore": ["**/dist", "**/build", "**/.turbo", "**/coverage", "**/node_modules", "**/*.d.ts"]
+		"includes": [
+			"**",
+			"!**/dist",
+			"!**/build",
+			"!**/.turbo",
+			"!**/coverage",
+			"!**/node_modules",
+			"!**/*.d.ts",
+			"!apps/web/src/styles.css"
+		]
 	},
 	"formatter": {
 		"enabled": true,
@@ -46,7 +55,5 @@
 			"unsafeParameterDecoratorsEnabled": true
 		}
 	},
-	"organizeImports": {
-		"enabled": true
-	}
+	"assist": { "actions": { "source": { "organizeImports": "on" } } }
 }

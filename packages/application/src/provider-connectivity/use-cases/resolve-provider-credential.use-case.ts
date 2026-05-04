@@ -42,7 +42,7 @@ export class ResolveProviderCredentialUseCase {
 			const explicit = await this.credentials.findById(
 				cmd.overrideCredentialId as ProviderConnectivity.ProviderCredentialId,
 			);
-			if (!explicit || !explicit.isUsable(now)) {
+			if (!explicit?.isUsable(now)) {
 				throw new NotFoundError(`Override credential ${cmd.overrideCredentialId} is missing or not usable`);
 			}
 			return await this.materialize(explicit);

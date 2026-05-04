@@ -23,12 +23,7 @@ export class KeywordList extends AggregateRoot {
 		super();
 	}
 
-	static create(input: {
-		id: KeywordListId;
-		projectId: ProjectId;
-		name: string;
-		now: Date;
-	}): KeywordList {
+	static create(input: { id: KeywordListId; projectId: ProjectId; name: string; now: Date }): KeywordList {
 		const name = input.name.trim();
 		if (name.length < 1) {
 			throw new InvalidInputError('Keyword list name cannot be empty');

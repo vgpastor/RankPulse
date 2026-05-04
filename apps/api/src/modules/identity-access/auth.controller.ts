@@ -8,9 +8,10 @@ type RegisterOrganizationRequest = IdentityAccessContracts.RegisterOrganizationR
 type RegisterOrganizationResponse = IdentityAccessContracts.RegisterOrganizationResponse;
 type LoginRequest = IdentityAccessContracts.LoginRequest;
 type MeResponse = IdentityAccessContracts.MeResponse;
+
 import { NotFoundError } from '@rankpulse/shared';
-import { Public } from '../../common/auth/jwt-auth.guard.js';
 import type { AuthPrincipal, JwtService } from '../../common/auth/jwt.service.js';
+import { Public } from '../../common/auth/jwt-auth.guard.js';
 import { Principal } from '../../common/auth/principal.decorator.js';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe.js';
 import { Tokens } from '../../composition/tokens.js';

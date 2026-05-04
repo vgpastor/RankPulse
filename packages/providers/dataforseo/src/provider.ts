@@ -2,8 +2,8 @@ import { ProviderConnectivity } from '@rankpulse/domain';
 import type { EndpointDescriptor, FetchContext, Provider } from '@rankpulse/provider-core';
 import { InvalidInputError } from '@rankpulse/shared';
 import {
-	type SerpGoogleOrganicLiveParams,
 	fetchSerpGoogleOrganicLive,
+	type SerpGoogleOrganicLiveParams,
 	serpGoogleOrganicLiveDescriptor,
 } from './endpoints/serp-google-organic-live.js';
 import { DataForSeoHttp, type DataForSeoHttpOptions } from './http.js';

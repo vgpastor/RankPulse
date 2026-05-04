@@ -7,6 +7,7 @@ type CreateProjectRequest = ProjectManagementContracts.CreateProjectRequest;
 type AddCompetitorRequest = ProjectManagementContracts.AddCompetitorRequest;
 type ImportKeywordsRequest = ProjectManagementContracts.ImportKeywordsRequest;
 type ProjectDto = ProjectManagementContracts.ProjectDto;
+
 import { NotFoundError } from '@rankpulse/shared';
 import { z } from 'zod';
 import type { AuthPrincipal } from '../../common/auth/jwt.service.js';
