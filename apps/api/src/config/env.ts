@@ -15,6 +15,8 @@ const EnvSchema = z.object({
 		.int()
 		.min(60)
 		.default(60 * 60 * 24),
+	REDIS_URL: z.string().default('redis://localhost:6379'),
+	RANKPULSE_MASTER_KEY: z.string().min(16, 'RANKPULSE_MASTER_KEY must be at least 16 characters'),
 	CORS_ORIGINS: z.string().optional(),
 	OPENAPI_ENABLED: z
 		.string()

@@ -1,0 +1,109 @@
+import { Body, Controller, Get, Inject, Param, Post, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { RankTracking as RTUseCases } from '@rankpulse/application';
+import { RankTrackingContracts } from '@rankpulse/contracts';
+import type { IdentityAccess, ProjectManagement, RankTracking } from '@rankpulse/domain';
+import { ForbiddenError, NotFoundError } from '@rankpulse/shared';
+import type { AuthPrincipal } from '../../common/auth/jwt.service.js';
+import { Principal } from '../../common/auth/principal.decorator.js';
+import { ZodValidationPipe } from '../../common/zod-validation.pipe.js';
+import { Tokens } from '../../composition/tokens.js';
+
+type StartTrackingKeywordRequest = RankTrackingContracts.StartTrackingKeywordRequest;
+
+@ApiTags('rank-tracking')
+@ApiBearerAuth()
+@Controller()
+export class RankTrackingController {
+	constructor(
+		@Inject(Tokens.StartTrackingKeyword)
+		private readonly startTracking: RTUseCases.StartTrackingKeywordUseCase,
+		@Inject(Tokens.QueryRankingHistory) private readonly queryHistory: RTUseCases.QueryRankingHistoryUseCase,
+		@Inject(Tokens.TrackedKeywordRepository)
+		private readonly trackedRepo: RankTracking.TrackedKeywordRepository,
+		@Inject(Tokens.RankingObservationRepository)
+		private readonly obsRepo: RankTracking.RankingObservationRepository,
+		@Inject(Tokens.ProjectRepository) private readonly projects: ProjectManagement.ProjectRepository,
+		@Inject(Tokens.MembershipRepository) private readonly memberships: IdentityAccess.MembershipRepository,
+	) {}
+
+	@Post('rank-tracking/keywords')
+	@ApiOperation({ summary: 'Start tracking a keyword for a (project, domain, location, device) tuple' })
+	async start(
+		@Principal() principal: AuthPrincipal,
+		@Body(new ZodValidationPipe(RankTrackingContracts.StartTrackingKeywordRequest))
+		body: StartTrackingKeywordRequest,
+	): Promise<{ trackedKeywordId: string }> {
+		const project = await this.projects.findById(body.projectId as ProjectManagement.ProjectId);
+		if (!project) {
+			throw new NotFoundError(`Project ${body.projectId} not found`);
+		}
+		await this.assertMember(principal, project.organizationId);
+		return this.startTracking.execute({
+			organizationId: project.organizationId,
+			projectId: body.projectId,
+			domain: body.domain,
+			phrase: body.phrase,
+			country: body.country,
+			language: body.language,
+			device: body.device,
+		});
+	}
+
+	@Get('projects/:projectId/rankings')
+	@ApiOperation({ summary: 'List the latest ranking observations for a project' })
+	async listProjectRankings(
+		@Principal() principal: AuthPrincipal,
+		@Param('projectId') projectId: string,
+	): Promise<unknown[]> {
+		const project = await this.projects.findById(projectId as ProjectManagement.ProjectId);
+		if (!project) {
+			throw new NotFoundError(`Project ${projectId} not found`);
+		}
+		await this.assertMember(principal, project.organizationId);
+		const observations = await this.obsRepo.listLatestForProject(project.id);
+		return observations.map((o) => ({
+			trackedKeywordId: o.trackedKeywordId,
+			phrase: o.phrase,
+			domain: o.domain,
+			country: o.country,
+			language: o.language,
+			device: o.device,
+			position: o.position.value,
+			url: o.url,
+			observedAt: o.observedAt.toISOString(),
+		}));
+	}
+
+	@Get('rank-tracking/keywords/:id/history')
+	@ApiOperation({ summary: 'Get observation history for a tracked keyword' })
+	async history(
+		@Principal() principal: AuthPrincipal,
+		@Param('id') id: string,
+		@Query(new ZodValidationPipe(RankTrackingContracts.RankingHistoryQuery))
+		q: RankTrackingContracts.RankingHistoryQuery,
+	): Promise<RankTrackingContracts.RankingHistoryEntryDto[]> {
+		const tracked = await this.trackedRepo.findById(id as RankTracking.TrackedKeywordId);
+		if (!tracked) {
+			throw new NotFoundError(`Tracked keyword ${id} not found`);
+		}
+		const project = await this.projects.findById(tracked.projectId);
+		if (!project) {
+			throw new NotFoundError(`Project ${tracked.projectId} not found`);
+		}
+		await this.assertMember(principal, project.organizationId);
+		const to = q.to ? new Date(q.to) : new Date();
+		const from = q.from ? new Date(q.from) : new Date(to.getTime() - 90 * 24 * 60 * 60 * 1000);
+		return this.queryHistory.execute({ trackedKeywordId: id, from, to });
+	}
+
+	private async assertMember(principal: AuthPrincipal, orgId: string): Promise<void> {
+		const m = await this.memberships.findActiveFor(
+			orgId as IdentityAccess.OrganizationId,
+			principal.userId as IdentityAccess.UserId,
+		);
+		if (!m) {
+			throw new ForbiddenError('Not a member of this organization');
+		}
+	}
+}

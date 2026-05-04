@@ -1,6 +1,13 @@
 import type { Provider, ValueProvider } from '@nestjs/common';
-import { IdentityAccess as IAUseCases, ProjectManagement as PMUseCases } from '@rankpulse/application';
-import { Crypto, DrizzlePersistence, Events } from '@rankpulse/infrastructure';
+import {
+	IdentityAccess as IAUseCases,
+	ProviderConnectivity as PCUseCases,
+	ProjectManagement as PMUseCases,
+	RankTracking as RTUseCases,
+} from '@rankpulse/application';
+import { Crypto, DrizzlePersistence, Events, Queue as QueueAdapters } from '@rankpulse/infrastructure';
+import { ProviderRegistry } from '@rankpulse/provider-core';
+import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
 import { SystemClock, SystemIdGenerator } from '@rankpulse/shared';
 import { JwtService } from '../common/auth/jwt.service.js';
 import type { AppEnv } from '../config/env.js';
@@ -25,6 +32,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 
 	const passwordHasher = new Crypto.Argon2PasswordHasher();
 	const apiTokenGenerator = new Crypto.Sha256ApiTokenGenerator();
+	const credentialVault = new Crypto.LibsodiumCredentialVault(env.RANKPULSE_MASTER_KEY);
 	const eventPublisher = new Events.InMemoryEventPublisher();
 	const jwtService = new JwtService(env.JWT_SECRET, env.JWT_TTL_SECONDS);
 
@@ -36,6 +44,21 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const projectRepo = new DrizzlePersistence.DrizzleProjectRepository(drizzle.db);
 	const keywordListRepo = new DrizzlePersistence.DrizzleKeywordListRepository(drizzle.db);
 	const competitorRepo = new DrizzlePersistence.DrizzleCompetitorRepository(drizzle.db);
+
+	const credentialRepo = new DrizzlePersistence.DrizzleCredentialRepository(drizzle.db);
+	const jobDefRepo = new DrizzlePersistence.DrizzleJobDefinitionRepository(drizzle.db);
+	const jobRunRepo = new DrizzlePersistence.DrizzleJobRunRepository(drizzle.db);
+	const rawPayloadRepo = new DrizzlePersistence.DrizzleRawPayloadRepository(drizzle.db);
+	const apiUsageRepo = new DrizzlePersistence.DrizzleApiUsageRepository(drizzle.db);
+	const trackedKeywordRepo = new DrizzlePersistence.DrizzleTrackedKeywordRepository(drizzle.db);
+	const observationRepo = new DrizzlePersistence.DrizzleRankingObservationRepository(drizzle.db);
+
+	const jobScheduler = new QueueAdapters.BullMqJobScheduler({
+		connection: { url: env.REDIS_URL },
+	});
+
+	const providerRegistry = new ProviderRegistry();
+	providerRegistry.register(new DataForSeoProvider());
 
 	const registerOrganization = new IAUseCases.RegisterOrganizationUseCase(
 		orgRepo,
@@ -85,6 +108,47 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		eventPublisher,
 	);
 
+	const registerCredential = new PCUseCases.RegisterProviderCredentialUseCase(
+		credentialRepo,
+		credentialVault,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const resolveCredential = new PCUseCases.ResolveProviderCredentialUseCase(
+		credentialRepo,
+		credentialVault,
+		SystemClock,
+	);
+	const scheduleEndpointFetch = new PCUseCases.ScheduleEndpointFetchUseCase(
+		jobDefRepo,
+		jobScheduler,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const recordApiUsage = new PCUseCases.RecordApiUsageUseCase(
+		apiUsageRepo,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+
+	const startTrackingKeyword = new RTUseCases.StartTrackingKeywordUseCase(
+		trackedKeywordRepo,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const recordRankingObservation = new RTUseCases.RecordRankingObservationUseCase(
+		trackedKeywordRepo,
+		observationRepo,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const queryRankingHistory = new RTUseCases.QueryRankingHistoryUseCase(trackedKeywordRepo, observationRepo);
+
 	const providers: Provider[] = [
 		value(Tokens.AppEnv, env),
 		value(Tokens.DrizzleClient, drizzle),
@@ -111,10 +175,32 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.AddProjectLocation, addLocation),
 		value(Tokens.AddCompetitor, addCompetitor),
 		value(Tokens.ImportKeywords, importKeywords),
+
+		value(Tokens.CredentialRepository, credentialRepo),
+		value(Tokens.JobDefinitionRepository, jobDefRepo),
+		value(Tokens.JobRunRepository, jobRunRepo),
+		value(Tokens.RawPayloadRepository, rawPayloadRepo),
+		value(Tokens.ApiUsageRepository, apiUsageRepo),
+		value(Tokens.CredentialVault, credentialVault),
+		value(Tokens.JobScheduler, jobScheduler),
+		value(Tokens.ProviderRegistry, providerRegistry),
+		value(Tokens.RegisterProviderCredential, registerCredential),
+		value(Tokens.ResolveProviderCredential, resolveCredential),
+		value(Tokens.ScheduleEndpointFetch, scheduleEndpointFetch),
+		value(Tokens.RecordApiUsage, recordApiUsage),
+
+		value(Tokens.TrackedKeywordRepository, trackedKeywordRepo),
+		value(Tokens.RankingObservationRepository, observationRepo),
+		value(Tokens.StartTrackingKeyword, startTrackingKeyword),
+		value(Tokens.RecordRankingObservation, recordRankingObservation),
+		value(Tokens.QueryRankingHistory, queryRankingHistory),
 	];
 
 	return {
 		providers,
-		close: () => drizzle.close(),
+		close: async () => {
+			await jobScheduler.close();
+			await drizzle.close();
+		},
 	};
 }

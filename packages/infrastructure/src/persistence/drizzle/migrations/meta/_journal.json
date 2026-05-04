@@ -8,6 +8,13 @@
 			"when": 1777898790488,
 			"tag": "0000_cultured_firebrand",
 			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "7",
+			"when": 1777900647359,
+			"tag": "0001_furry_cardiac",
+			"breakpoints": true
 		}
 	]
 }

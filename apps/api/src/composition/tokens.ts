@@ -37,6 +37,31 @@ export const Tokens = {
 	AddCompetitor: Symbol('AddCompetitorUseCase'),
 	ImportKeywords: Symbol('ImportKeywordsUseCase'),
 
+	// Provider-Connectivity ports
+	CredentialRepository: Symbol('CredentialRepository'),
+	JobDefinitionRepository: Symbol('JobDefinitionRepository'),
+	JobRunRepository: Symbol('JobRunRepository'),
+	RawPayloadRepository: Symbol('RawPayloadRepository'),
+	ApiUsageRepository: Symbol('ApiUsageRepository'),
+	CredentialVault: Symbol('CredentialVault'),
+	JobScheduler: Symbol('JobScheduler'),
+	ProviderRegistry: Symbol('ProviderRegistry'),
+
+	// Provider-Connectivity use cases
+	RegisterProviderCredential: Symbol('RegisterProviderCredentialUseCase'),
+	ResolveProviderCredential: Symbol('ResolveProviderCredentialUseCase'),
+	ScheduleEndpointFetch: Symbol('ScheduleEndpointFetchUseCase'),
+	RecordApiUsage: Symbol('RecordApiUsageUseCase'),
+
+	// Rank-Tracking ports
+	TrackedKeywordRepository: Symbol('TrackedKeywordRepository'),
+	RankingObservationRepository: Symbol('RankingObservationRepository'),
+
+	// Rank-Tracking use cases
+	StartTrackingKeyword: Symbol('StartTrackingKeywordUseCase'),
+	RecordRankingObservation: Symbol('RecordRankingObservationUseCase'),
+	QueryRankingHistory: Symbol('QueryRankingHistoryUseCase'),
+
 	// Infrastructure handles
 	DrizzleClient: Symbol('DrizzleClient'),
 	JwtService: Symbol('JwtService'),

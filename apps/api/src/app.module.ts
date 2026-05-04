@@ -9,6 +9,8 @@ import { Tokens } from './composition/tokens.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { IdentityAccessModule } from './modules/identity-access/identity-access.module.js';
 import { ProjectManagementModule } from './modules/project-management/project-management.module.js';
+import { ProviderConnectivityModule } from './modules/provider-connectivity/provider-connectivity.module.js';
+import { RankTrackingModule } from './modules/rank-tracking/rank-tracking.module.js';
 
 @Module({})
 // biome-ignore lint/complexity/noStaticOnlyClass: NestJS modules are declared as classes so that decorators can attach metadata.
@@ -16,7 +18,13 @@ export class AppModule {
 	static forRoot(compositionProviders: Provider[]): DynamicModule {
 		return {
 			module: AppModule,
-			imports: [HealthModule, IdentityAccessModule, ProjectManagementModule],
+			imports: [
+				HealthModule,
+				IdentityAccessModule,
+				ProjectManagementModule,
+				ProviderConnectivityModule,
+				RankTrackingModule,
+			],
 			providers: [
 				...compositionProviders,
 				{

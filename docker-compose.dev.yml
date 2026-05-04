@@ -47,6 +47,7 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-dev-only-jwt-secret-change-me-please-min-32-chars}
       JWT_TTL_SECONDS: "86400"
+      RANKPULSE_MASTER_KEY: ${RANKPULSE_MASTER_KEY:-dev-only-master-key-change-me-min-16}
       OPENAPI_ENABLED: "true"
       CORS_ORIGINS: http://localhost:5173
     ports:
@@ -56,6 +57,24 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    profiles: ["full"]
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    container_name: rankpulse-worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://rankpulse:rankpulse@postgres:5432/rankpulse
+      REDIS_URL: redis://redis:6379
+      RANKPULSE_MASTER_KEY: ${RANKPULSE_MASTER_KEY:-dev-only-master-key-change-me-min-16}
+      WORKER_CONCURRENCY: "4"
     profiles: ["full"]
 
 volumes:
