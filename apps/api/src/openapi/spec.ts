@@ -1,4 +1,4 @@
-import { OpenAPIRegistry, OpenApiGeneratorV3, extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
+import { extendZodWithOpenApi, OpenAPIRegistry, OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi';
 import {
 	IdentityAccessContracts,
 	ProjectManagementContracts,
@@ -428,7 +428,7 @@ export function buildOpenApiDocument(): unknown {
 					'application/json': {
 						schema: z.object({
 							status: z.enum(['ok', 'degraded']),
-							checks: z.record(z.enum(['ok', 'failing'])),
+							checks: z.record(z.string(), z.enum(['ok', 'failing'])),
 						}),
 					},
 				},

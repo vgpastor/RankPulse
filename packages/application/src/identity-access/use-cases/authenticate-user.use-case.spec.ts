@@ -1,6 +1,6 @@
 import { IdentityAccess } from '@rankpulse/domain';
 import { UnauthorizedError, Uuid } from '@rankpulse/shared';
-import { FakePasswordHasher, InMemoryUserRepository, anEmail } from '@rankpulse/testing';
+import { anEmail, FakePasswordHasher, InMemoryUserRepository } from '@rankpulse/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AuthenticateUserUseCase } from './authenticate-user.use-case.js';
 

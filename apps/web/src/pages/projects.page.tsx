@@ -134,13 +134,7 @@ const ProjectCard = ({ project }: { project: ProjectManagementContracts.ProjectD
 	</Link>
 );
 
-const NewProjectForm = ({
-	organizationId,
-	onCreated,
-}: {
-	organizationId: string;
-	onCreated: () => void;
-}) => {
+const NewProjectForm = ({ organizationId, onCreated }: { organizationId: string; onCreated: () => void }) => {
 	const { t } = useTranslation(['common', 'projects']);
 	const queryClient = useQueryClient();
 	const [name, setName] = useState('');

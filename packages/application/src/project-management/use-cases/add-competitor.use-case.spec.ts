@@ -1,10 +1,10 @@
 import type { IdentityAccess, ProjectManagement } from '@rankpulse/domain';
 import { ConflictError, FakeClock, FixedIdGenerator, NotFoundError, Uuid } from '@rankpulse/shared';
 import {
+	aProject,
 	InMemoryCompetitorRepository,
 	InMemoryProjectRepository,
 	RecordingEventPublisher,
-	aProject,
 } from '@rankpulse/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AddCompetitorUseCase } from './add-competitor.use-case.js';

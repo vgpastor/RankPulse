@@ -18,11 +18,11 @@
 		"@rankpulse/domain": "workspace:*",
 		"@rankpulse/provider-core": "workspace:*",
 		"@rankpulse/shared": "workspace:*",
-		"google-auth-library": "9.15.1",
-		"zod": "3.25.76"
+		"google-auth-library": "10.6.2",
+		"zod": "4.4.3"
 	},
 	"devDependencies": {
-		"typescript": "5.6.3",
-		"vitest": "2.1.4"
+		"typescript": "6.0.3",
+		"vitest": "4.1.5"
 	}
 }

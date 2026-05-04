@@ -1,6 +1,6 @@
 import type { ProjectManagement } from '@rankpulse/domain';
 import { ConflictError, FakeClock, NotFoundError, Uuid } from '@rankpulse/shared';
-import { InMemoryProjectRepository, RecordingEventPublisher, aProject } from '@rankpulse/testing';
+import { aProject, InMemoryProjectRepository, RecordingEventPublisher } from '@rankpulse/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AddDomainToProjectUseCase } from './add-domain-to-project.use-case.js';
 

@@ -20,7 +20,7 @@ export const ScheduleEndpointRequest = z.object({
 	projectId: z.string().uuid(),
 	providerId: z.string().min(1),
 	endpointId: z.string().min(1),
-	params: z.record(z.unknown()),
+	params: z.record(z.string(), z.unknown()),
 	cron: z.string().min(5).max(80),
 	credentialOverrideId: z.string().uuid().nullable().optional(),
 });

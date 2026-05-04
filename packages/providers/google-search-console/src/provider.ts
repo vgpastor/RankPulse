@@ -2,8 +2,8 @@ import { ProviderConnectivity } from '@rankpulse/domain';
 import type { EndpointDescriptor, FetchContext, Provider } from '@rankpulse/provider-core';
 import { InvalidInputError } from '@rankpulse/shared';
 import {
-	type SearchAnalyticsParams,
 	fetchSearchAnalytics,
+	type SearchAnalyticsParams,
 	searchAnalyticsDescriptor,
 } from './endpoints/search-analytics.js';
 import { GscHttp } from './http.js';

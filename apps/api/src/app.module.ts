@@ -1,10 +1,9 @@
-import { type DynamicModule, Module } from '@nestjs/common';
 import type { Provider } from '@nestjs/common';
-import { APP_FILTER, APP_GUARD } from '@nestjs/core';
-import { Reflector } from '@nestjs/core';
+import { type DynamicModule, Module } from '@nestjs/common';
+import { APP_FILTER, APP_GUARD, Reflector } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { JwtAuthGuard } from './common/auth/jwt-auth.guard.js';
 import type { JwtService } from './common/auth/jwt.service.js';
+import { JwtAuthGuard } from './common/auth/jwt-auth.guard.js';
 import { DomainExceptionFilter } from './common/domain-exception.filter.js';
 import { Tokens } from './composition/tokens.js';
 import type { AppEnv } from './config/env.js';

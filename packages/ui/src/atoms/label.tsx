@@ -1,4 +1,4 @@
-import { type LabelHTMLAttributes, forwardRef } from 'react';
+import { forwardRef, type LabelHTMLAttributes } from 'react';
 import { cn } from '../lib/cn.js';
 
 export type LabelProps = LabelHTMLAttributes<HTMLLabelElement>;

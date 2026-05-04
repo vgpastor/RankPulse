@@ -10,11 +10,11 @@ import {
 } from '@rankpulse/domain';
 import type { ProviderFetchJobData } from '@rankpulse/infrastructure/queue';
 import type { ProviderRegistry } from '@rankpulse/provider-core';
-import { type SerpLiveResponse, extractRankingForDomain } from '@rankpulse/provider-dataforseo';
+import { extractRankingForDomain, type SerpLiveResponse } from '@rankpulse/provider-dataforseo';
 import {
+	extractGscRows,
 	type SearchAnalyticsParams,
 	type SearchAnalyticsResponse,
-	extractGscRows,
 } from '@rankpulse/provider-gsc';
 import { type Clock, type IdGenerator, NotFoundError } from '@rankpulse/shared';
 import type { Logger } from 'pino';

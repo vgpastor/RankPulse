@@ -1,9 +1,9 @@
 import {
+	createRootRoute,
+	createRoute,
 	Outlet,
 	type RootRoute,
 	Router,
-	createRootRoute,
-	createRoute,
 	redirect,
 } from '@tanstack/react-router';
 import { useAuthStore } from './lib/auth-store.js';

@@ -13,9 +13,8 @@ const SIZE_CLASS: Record<NonNullable<SpinnerProps['size']>, string> = {
 };
 
 export const Spinner = ({ size = 'md', className, ...props }: SpinnerProps) => (
-	// biome-ignore lint/a11y/useSemanticElements: span carries the live-region role to avoid forcing a block element.
-	<span role="status" aria-live="polite" className={cn('inline-flex', className)} {...props}>
+	<output aria-live="polite" className={cn('inline-flex', className)} {...props}>
 		<Loader2 className={cn('animate-spin text-muted-foreground', SIZE_CLASS[size])} />
 		<span className="sr-only">Loading…</span>
-	</span>
+	</output>
 );

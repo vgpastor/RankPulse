@@ -1,5 +1,5 @@
 import { JWT } from 'google-auth-library';
-import { type ServiceAccountKey, parseServiceAccount } from './credential.js';
+import { parseServiceAccount, type ServiceAccountKey } from './credential.js';
 
 const SCOPES = ['https://www.googleapis.com/auth/webmasters.readonly'];
 

@@ -1,10 +1,10 @@
 import type { ProjectManagement } from '@rankpulse/domain';
 import { FakeClock, FixedIdGenerator, NotFoundError, Uuid } from '@rankpulse/shared';
 import {
+	aProject,
 	InMemoryKeywordListRepository,
 	InMemoryProjectRepository,
 	RecordingEventPublisher,
-	aProject,
 } from '@rankpulse/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ImportKeywordsUseCase } from './import-keywords.use-case.js';
