@@ -296,6 +296,43 @@ posiciones simultáneas ($0.0035 total, **5× más barato**).
 
 ---
 
+### 14. No hay manejo de DataForSEO 402 (saldo insuficiente)
+**Síntoma:** tras gastar el crédito gratis de $1 (≈285 SERPs), DataForSEO
+empieza a devolver HTTP 402. El worker registra el error en
+`provider_job_runs.error_message` pero:
+- No deshabilita el JobDefinition automáticamente (sigue intentando en cada cron tick).
+- No notifica al operador (no hay alert).
+- BullMQ reintenta el job según su política, gastando recursos.
+
+**Tarea para devs:**
+1. ProviderFetchProcessor distingue 402 del resto y marca la credencial
+   como `quota_exceeded` (nuevo estado en provider_credentials).
+2. Si todas las credenciales del provider están en quota_exceeded, los
+   JobDefinitions se pausan automáticamente y se publica un evento
+   `ProviderQuotaExceeded` que dispara una alerta (email/webhook).
+3. UI muestra el balance actual de DataForSEO (endpoint `/v3/appendix/user_data`)
+   en la página de credenciales.
+
+**Estado:** ❌ pendiente. **Deuda crítica de operaciones** — sin esto, una
+campaña agresiva agota el saldo silenciosamente.
+
+---
+
+### 15. SERP fetch redundante por proyecto: 1 SERP por (project, dom, kw, location)
+**Contexto:** ya documentado parcialmente como item 12 (ACL una sola posición),
+pero merece un item propio porque tras la migración a Portfolio→Project quedó
+patente: la org tiene 7 proyectos, cada uno con N domains. PatrolTech ES con
+5 dominios + 7 keywords genera 35 SERPs idénticas (la misma query, mismas
+top-30 URLs). Coste: $0.1225 por refresh × 4 mercados PatrolTech ≈ $0.50/refresh.
+
+**Si el ACL extrajera para varios dominios en una pasada** (item 12), serían
+7 SERPs × 4 mercados = $0.098. **5× más barato**.
+
+**Estado:** convergente con 12. Documentado por separado para resaltar el
+impacto económico real medido tras agotar el saldo.
+
+---
+
 ## 🔴 Gaps de UI (alta prioridad — bloquean el uso self-service del panel)
 
 Detectados al hacer el bootstrap de la org PatrolTech con 11 proyectos. La API
