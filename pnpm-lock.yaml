@@ -243,6 +243,47 @@ importers:
         specifier: 2.1.4
         version: 2.1.4(@types/node@20.16.11)
 
+  packages/providers/core:
+    dependencies:
+      '@rankpulse/domain':
+        specifier: workspace:*
+        version: link:../../domain
+      '@rankpulse/shared':
+        specifier: workspace:*
+        version: link:../../shared
+      zod:
+        specifier: 3.23.8
+        version: 3.23.8
+    devDependencies:
+      typescript:
+        specifier: 5.6.3
+        version: 5.6.3
+      vitest:
+        specifier: 2.1.4
+        version: 2.1.4(@types/node@20.16.11)
+
+  packages/providers/dataforseo:
+    dependencies:
+      '@rankpulse/domain':
+        specifier: workspace:*
+        version: link:../../domain
+      '@rankpulse/provider-core':
+        specifier: workspace:*
+        version: link:../core
+      '@rankpulse/shared':
+        specifier: workspace:*
+        version: link:../../shared
+      zod:
+        specifier: 3.23.8
+        version: 3.23.8
+    devDependencies:
+      typescript:
+        specifier: 5.6.3
+        version: 5.6.3
+      vitest:
+        specifier: 2.1.4
+        version: 2.1.4(@types/node@20.16.11)
+
   packages/sdk:
     dependencies:
       '@rankpulse/contracts':
