@@ -93,9 +93,7 @@ export class ProvidersController {
 			throw new NotFoundError(`Job definition ${definitionId} not found`);
 		}
 		if (definition.providerId.value !== providerId) {
-			throw new NotFoundError(
-				`Job definition ${definitionId} does not belong to provider ${providerId}`,
-			);
+			throw new NotFoundError(`Job definition ${definitionId} does not belong to provider ${providerId}`);
 		}
 		const project = await this.projects.findById(definition.projectId);
 		if (!project) {
