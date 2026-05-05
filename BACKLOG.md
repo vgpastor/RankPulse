@@ -7,11 +7,11 @@
 
 | Categoría | Cantidad |
 |---|---:|
-| Pendiente arquitectura/UX (devs) | 2 |
+| Pendiente arquitectura/UX (devs) | 1 |
 | Pendiente del usuario (opcional) | 1 |
-| **Total** | **3** |
+| **Total** | **2** |
 
-> Numeración: items 7-14, 15, 17, 18, 19, 20, 21, 22 y 23 ya cerrados.
+> Numeración: items 7-14, 15, 17, 18, 19, 20, 21, 22, 23 y A9 ya cerrados.
 > Mantengo el id original para que enlaces externos a "BACKLOG #X" no se
 > rompan; los huecos en la secuencia son a propósito.
 
@@ -23,12 +23,6 @@
 Los apps usan transpilación on-the-fly (`@swc-node/register`) en lugar de un
 build TS a `dist/`. Funciona pero penaliza arranque (~1-2s) y aumenta tamaño.
 Migrar a multi-stage build → `tsc → dist/`.
-
----
-
-### A9 — Bootstrap UX: post-registro debería pedir credenciales primero
-Tras registro la SPA va a /projects vacía. Mejor: asistente que pida
-(1) credencial DataForSEO, (2) primer proyecto, (3) primer keyword + schedule.
 
 ---
 

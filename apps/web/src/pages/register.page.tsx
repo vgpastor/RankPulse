@@ -39,7 +39,10 @@ export const RegisterPage = () => {
 			});
 			const session = await api.auth.login({ email, password });
 			setSession(session);
-			await navigate({ to: '/projects' });
+			// BACKLOG A9 — fresh accounts go through the onboarding wizard
+			// (credential → project → keyword) so the dashboard is never empty
+			// the first time the user lands on it.
+			await navigate({ to: '/onboarding' });
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Registration failed');
 		} finally {

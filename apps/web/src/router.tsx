@@ -11,6 +11,7 @@ import { CredentialsPage } from './pages/credentials.page.js';
 import { GscPerformancePage } from './pages/gsc-performance.page.js';
 import { GscPropertiesPage } from './pages/gsc-properties.page.js';
 import { LoginPage } from './pages/login.page.js';
+import { OnboardingPage } from './pages/onboarding.page.js';
 import { PortfoliosPage } from './pages/portfolios.page.js';
 import { ProjectDetailPage } from './pages/project-detail.page.js';
 import { ProjectsPage } from './pages/projects.page.js';
@@ -41,6 +42,12 @@ const registerRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/register',
 	component: RegisterPage,
+});
+
+const onboardingRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/onboarding',
+	component: OnboardingPage,
 });
 
 const projectsRoute = createRoute({
@@ -95,6 +102,7 @@ const routeTree = rootRoute.addChildren([
 	indexRoute,
 	loginRoute,
 	registerRoute,
+	onboardingRoute,
 	projectsRoute,
 	projectDetailRoute,
 	projectRankingsRoute,
