@@ -1,6 +1,6 @@
 import type { ProjectManagement } from '@rankpulse/domain';
 import { ConflictError, FakeClock, NotFoundError, Uuid } from '@rankpulse/shared';
-import { aProject, InMemoryProjectRepository, RecordingEventPublisher } from '@rankpulse/testing';
+import { aDomain, aProject, InMemoryProjectRepository, RecordingEventPublisher } from '@rankpulse/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AddDomainToProjectUseCase } from './add-domain-to-project.use-case.js';
 
@@ -34,10 +34,30 @@ describe('AddDomainToProjectUseCase', () => {
 		);
 	});
 
-	it('rejects when the same domain is already attached', async () => {
+	it('rejects when the same domain is already attached to THIS project', async () => {
 		await useCase.execute({ projectId: project.id, domain: 'controlrondas.mx' });
 		await expect(
 			useCase.execute({ projectId: project.id, domain: 'controlrondas.mx' }),
-		).rejects.toBeInstanceOf(ConflictError);
+		).rejects.toMatchObject({
+			constructor: ConflictError,
+			message: expect.stringMatching(/already attached to this project/),
+		});
+	});
+
+	it('rejects with the OWNER project name when the domain belongs to another project of the same org (BACKLOG #24)', async () => {
+		const otherProject = aProject({
+			id: Uuid.generate() as ProjectManagement.ProjectId,
+			organizationId: project.organizationId,
+			name: 'PatrolTech ES',
+			primaryDomain: aDomain('patroltech.online'),
+		});
+		await projects.save(otherProject);
+
+		await expect(
+			useCase.execute({ projectId: project.id, domain: 'patroltech.online' }),
+		).rejects.toMatchObject({
+			constructor: ConflictError,
+			message: expect.stringMatching(/already attached to project "PatrolTech ES"/),
+		});
 	});
 });

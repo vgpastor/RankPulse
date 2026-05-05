@@ -10,14 +10,33 @@ import {
 } from '@rankpulse/domain';
 import type { ProviderFetchJobData } from '@rankpulse/infrastructure/queue';
 import type { ProviderRegistry } from '@rankpulse/provider-core';
-import { extractRankingForDomain, type SerpLiveResponse } from '@rankpulse/provider-dataforseo';
+import {
+	DataForSeoApiError,
+	extractRankingForDomain,
+	type SerpLiveResponse,
+} from '@rankpulse/provider-dataforseo';
 import {
 	extractGscRows,
+	GscApiError,
 	type SearchAnalyticsParams,
 	type SearchAnalyticsResponse,
 } from '@rankpulse/provider-gsc';
 import { type Clock, type IdGenerator, NotFoundError } from '@rankpulse/shared';
 import type { Logger } from 'pino';
+
+/**
+ * BACKLOG #14: detect provider-side "out of quota / payment required" so the
+ * processor stops retrying AND the job definition is auto-paused — otherwise
+ * BullMQ keeps hammering the upstream and the same error fills the run log.
+ * 402 (Payment Required) is the universal "you ran out of credit" code; we
+ * also accept 429 from quota-style providers (vs throttling 429s, which are
+ * retryable — provider implementations can subclass to disambiguate later).
+ */
+const isQuotaExhaustedError = (err: unknown): boolean => {
+	if (err instanceof DataForSeoApiError && err.status === 402) return true;
+	if (err instanceof GscApiError && err.status === 402) return true;
+	return false;
+};
 
 export interface ProviderFetchProcessorDeps {
 	registry: ProviderRegistry;
@@ -186,6 +205,22 @@ export class ProviderFetchProcessor {
 			await this.deps.jobRunRepo.save(run);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
+
+			if (isQuotaExhaustedError(err)) {
+				// Auto-pause the definition so the next cron tick is a no-op
+				// (the `if (!definition.enabled) skip` branch above). The
+				// operator must explicitly re-enable after topping up credit.
+				definition.disable();
+				await this.deps.jobDefRepo.save(definition);
+				run.fail({ code: 'QUOTA_EXCEEDED', message, retryable: false }, this.deps.clock.now());
+				await this.deps.jobRunRepo.save(run);
+				this.deps.logger.warn(
+					{ defId: definition.id, providerId: definition.providerId.value },
+					'provider returned 402 — definition auto-paused, top up credit and re-enable from the UI',
+				);
+				return;
+			}
+
 			run.fail({ code: 'FETCH_FAILED', message, retryable: true }, this.deps.clock.now());
 			await this.deps.jobRunRepo.save(run);
 			throw err;

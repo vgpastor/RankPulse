@@ -1,7 +1,7 @@
 import { type IdentityAccess, ProjectManagement } from '@rankpulse/domain';
-import { desc, eq } from 'drizzle-orm';
+import { count, desc, eq } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
-import { portfolios } from '../../schema/index.js';
+import { portfolios, projects } from '../../schema/index.js';
 
 export class DrizzlePortfolioRepository implements ProjectManagement.PortfolioRepository {
 	constructor(private readonly db: DrizzleDatabase) {}
@@ -35,6 +35,15 @@ export class DrizzlePortfolioRepository implements ProjectManagement.PortfolioRe
 			.where(eq(portfolios.organizationId, orgId))
 			.orderBy(desc(portfolios.createdAt));
 		return rows.map((r) => this.toAggregate(r));
+	}
+
+	async delete(id: ProjectManagement.PortfolioId): Promise<void> {
+		await this.db.delete(portfolios).where(eq(portfolios.id, id));
+	}
+
+	async countProjects(id: ProjectManagement.PortfolioId): Promise<number> {
+		const [row] = await this.db.select({ value: count() }).from(projects).where(eq(projects.portfolioId, id));
+		return row?.value ?? 0;
 	}
 
 	private toAggregate(row: typeof portfolios.$inferSelect): ProjectManagement.Portfolio {

@@ -112,6 +112,16 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		SystemIdGenerator,
 		eventPublisher,
 	);
+	const createPortfolio = new PMUseCases.CreatePortfolioUseCase(
+		portfolioRepo,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const listPortfolios = new PMUseCases.ListPortfoliosUseCase(portfolioRepo);
+	const getPortfolio = new PMUseCases.GetPortfolioUseCase(portfolioRepo);
+	const renamePortfolio = new PMUseCases.RenamePortfolioUseCase(portfolioRepo);
+	const deletePortfolio = new PMUseCases.DeletePortfolioUseCase(portfolioRepo);
 
 	const registerCredential = new PCUseCases.RegisterProviderCredentialUseCase(
 		credentialRepo,
@@ -222,6 +232,11 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.AddProjectLocation, addLocation),
 		value(Tokens.AddCompetitor, addCompetitor),
 		value(Tokens.ImportKeywords, importKeywords),
+		value(Tokens.CreatePortfolio, createPortfolio),
+		value(Tokens.ListPortfolios, listPortfolios),
+		value(Tokens.GetPortfolio, getPortfolio),
+		value(Tokens.RenamePortfolio, renamePortfolio),
+		value(Tokens.DeletePortfolio, deletePortfolio),
 
 		value(Tokens.CredentialRepository, credentialRepo),
 		value(Tokens.JobDefinitionRepository, jobDefRepo),

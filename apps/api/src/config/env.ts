@@ -17,7 +17,22 @@ const EnvSchema = z.object({
 		.default(60 * 60 * 24),
 	REDIS_URL: z.string().default('redis://localhost:6379'),
 	RANKPULSE_MASTER_KEY: z.string().min(16, 'RANKPULSE_MASTER_KEY must be at least 16 characters'),
-	CORS_ORIGINS: z.string().optional(),
+	/**
+	 * Comma-separated list of allowed origins (with protocol). Empty entries
+	 * are dropped, every entry is trimmed. When empty/unset, CORS is disabled
+	 * entirely (single-origin same-domain setups). BACKLOG #22.
+	 */
+	CORS_ORIGINS: z
+		.string()
+		.optional()
+		.transform((v): readonly string[] => {
+			if (!v) return [];
+			return v
+				.split(',')
+				.map((o) => o.trim())
+				.filter((o) => o.length > 0);
+		})
+		.pipe(z.array(z.string().url('CORS_ORIGINS entries must be absolute URLs (with protocol)'))),
 	OPENAPI_ENABLED: z
 		.string()
 		.optional()

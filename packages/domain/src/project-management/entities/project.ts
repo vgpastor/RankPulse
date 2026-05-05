@@ -79,7 +79,7 @@ export class Project extends AggregateRoot {
 	addDomain(domain: DomainName, kind: ProjectDomainEntry['kind'], now: Date): void {
 		this.assertNotArchived();
 		if (this.props.domains.some((d) => d.domain.equals(domain))) {
-			throw new ConflictError(`Domain ${domain.value} already attached to project`);
+			throw new ConflictError(`Domain ${domain.value} is already attached to this project`);
 		}
 		this.props.domains.push({ domain, kind });
 		this.record(

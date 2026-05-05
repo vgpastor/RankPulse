@@ -57,3 +57,22 @@ export const AddCompetitorRequest = z.object({
 	label: z.string().max(80).optional(),
 });
 export type AddCompetitorRequest = z.infer<typeof AddCompetitorRequest>;
+
+export const CreatePortfolioRequest = z.object({
+	name: z.string().min(2).max(80),
+});
+export type CreatePortfolioRequest = z.infer<typeof CreatePortfolioRequest>;
+
+export const RenamePortfolioRequest = z.object({
+	name: z.string().min(2).max(80),
+});
+export type RenamePortfolioRequest = z.infer<typeof RenamePortfolioRequest>;
+
+export const PortfolioDto = z.object({
+	id: z.string().uuid(),
+	organizationId: z.string().uuid(),
+	name: z.string(),
+	createdAt: z.string().datetime(),
+	projectCount: z.number().int().nonnegative(),
+});
+export type PortfolioDto = z.infer<typeof PortfolioDto>;

@@ -7,6 +7,14 @@ const EnvSchema = z.object({
 	RANKPULSE_MASTER_KEY: z.string().min(16, 'RANKPULSE_MASTER_KEY must be at least 16 characters'),
 	WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(50).default(4),
 	DATAFORSEO_API_BASE_URL: z.string().default('https://api.dataforseo.com'),
+	/**
+	 * Port for the worker's tiny health server (BACKLOG #21). Exposes
+	 * `/healthz` (always 200 if process is up) and `/readyz` (200 only if
+	 * Redis + Postgres + every BullMQ worker are running). Set to 0 to
+	 * disable.
+	 */
+	HEALTH_PORT: z.coerce.number().int().min(0).max(65535).default(3300),
+	HEALTH_HOST: z.string().default('0.0.0.0'),
 });
 
 export type WorkerEnv = z.infer<typeof EnvSchema>;

@@ -36,6 +36,11 @@ export const Tokens = {
 	AddProjectLocation: Symbol('AddProjectLocationUseCase'),
 	AddCompetitor: Symbol('AddCompetitorUseCase'),
 	ImportKeywords: Symbol('ImportKeywordsUseCase'),
+	CreatePortfolio: Symbol('CreatePortfolioUseCase'),
+	ListPortfolios: Symbol('ListPortfoliosUseCase'),
+	GetPortfolio: Symbol('GetPortfolioUseCase'),
+	RenamePortfolio: Symbol('RenamePortfolioUseCase'),
+	DeletePortfolio: Symbol('DeletePortfolioUseCase'),
 
 	// Provider-Connectivity ports
 	CredentialRepository: Symbol('CredentialRepository'),

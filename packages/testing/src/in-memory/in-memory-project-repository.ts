@@ -29,6 +29,18 @@ export class InMemoryProjectRepository implements ProjectManagement.ProjectRepos
 		return [...this.byId.values()].filter((p) => p.organizationId === orgId);
 	}
 
+	async findByDomainInOrganization(
+		orgId: IdentityAccess.OrganizationId,
+		domain: ProjectManagement.DomainName,
+	): Promise<ProjectManagement.Project | null> {
+		for (const p of this.byId.values()) {
+			if (p.organizationId !== orgId) continue;
+			if (p.primaryDomain.equals(domain)) return p;
+			if (p.domains.some((d) => d.domain.equals(domain))) return p;
+		}
+		return null;
+	}
+
 	size(): number {
 		return this.byId.size;
 	}

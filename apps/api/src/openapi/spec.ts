@@ -220,6 +220,95 @@ export function buildOpenApiDocument(): unknown {
 		},
 	});
 
+	// ---- portfolios (project-management) ----
+
+	registry.registerPath({
+		method: 'post',
+		path: '/api/v1/organizations/{orgId}/portfolios',
+		summary: 'Create a portfolio in an organization',
+		tags: ['project-management'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ orgId: z.string().uuid() }),
+			body: {
+				content: { 'application/json': { schema: ProjectManagementContracts.CreatePortfolioRequest } },
+			},
+		},
+		responses: {
+			201: {
+				description: 'Portfolio id',
+				content: { 'application/json': { schema: z.object({ portfolioId: z.string().uuid() }) } },
+			},
+			...errorResponses([400, 401, 403]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/organizations/{orgId}/portfolios',
+		summary: 'List portfolios in an organization',
+		tags: ['project-management'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: { params: z.object({ orgId: z.string().uuid() }) },
+		responses: {
+			200: {
+				description: 'Portfolios',
+				content: { 'application/json': { schema: z.array(ProjectManagementContracts.PortfolioDto) } },
+			},
+			...errorResponses([401, 403]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/portfolios/{id}',
+		summary: 'Get a portfolio by id',
+		tags: ['project-management'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: { params: z.object({ id: z.string().uuid() }) },
+		responses: {
+			200: {
+				description: 'Portfolio',
+				content: { 'application/json': { schema: ProjectManagementContracts.PortfolioDto } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'patch',
+		path: '/api/v1/portfolios/{id}',
+		summary: 'Rename a portfolio',
+		tags: ['project-management'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ id: z.string().uuid() }),
+			body: {
+				content: { 'application/json': { schema: ProjectManagementContracts.RenamePortfolioRequest } },
+			},
+		},
+		responses: {
+			200: {
+				description: 'Updated portfolio',
+				content: { 'application/json': { schema: ProjectManagementContracts.PortfolioDto } },
+			},
+			...errorResponses([400, 401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'delete',
+		path: '/api/v1/portfolios/{id}',
+		summary: 'Delete a portfolio (rejects if any project still references it)',
+		tags: ['project-management'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: { params: z.object({ id: z.string().uuid() }) },
+		responses: {
+			204: { description: 'Deleted' },
+			...errorResponses([401, 403, 404, 409]),
+		},
+	});
+
 	// ---- provider-connectivity ----
 
 	registry.registerPath({

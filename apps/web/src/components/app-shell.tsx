@@ -72,6 +72,13 @@ export const AppShell = ({ children }: AppShellProps) => {
 								{t('projects:title')}
 							</Link>
 							<Link
+								to="/portfolios"
+								className="text-muted-foreground hover:text-foreground"
+								activeProps={{ className: 'text-foreground font-medium' }}
+							>
+								Portfolios
+							</Link>
+							<Link
 								to="/credentials"
 								className="text-muted-foreground hover:text-foreground"
 								activeProps={{ className: 'text-foreground font-medium' }}

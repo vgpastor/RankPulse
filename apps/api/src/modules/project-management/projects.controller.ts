@@ -1,7 +1,17 @@
 import { Body, Controller, Get, Inject, Param, Post, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { ProjectManagement as PMUseCases } from '@rankpulse/application';
 import { ProjectManagementContracts } from '@rankpulse/contracts';
 import type { IdentityAccess, ProjectManagement } from '@rankpulse/domain';
+
+/**
+ * BACKLOG #23: legitimate operator setup (importing 2000 keywords or
+ * registering a dozen competitors back-to-back) hits the default 600/min
+ * throttle. These endpoints opt into a much higher 6000/min `bulk` throttle
+ * — the auth guard still gates access, so this only loosens the rate, not
+ * the authorization.
+ */
+const BulkWriteThrottle = Throttle({ bulk: { ttl: 60_000, limit: 6_000 } });
 
 type CreateProjectRequest = ProjectManagementContracts.CreateProjectRequest;
 type AddCompetitorRequest = ProjectManagementContracts.AddCompetitorRequest;
@@ -101,6 +111,7 @@ export class ProjectsController {
 	}
 
 	@Post(':id/competitors')
+	@BulkWriteThrottle
 	async addCompetitorToProject(
 		@Principal() principal: AuthPrincipal,
 		@Param('id') id: string,
@@ -128,6 +139,7 @@ export class ProjectsController {
 	}
 
 	@Post(':id/keywords')
+	@BulkWriteThrottle
 	async importKeywordsBatch(
 		@Principal() principal: AuthPrincipal,
 		@Param('id') id: string,
