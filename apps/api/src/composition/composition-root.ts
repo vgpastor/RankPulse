@@ -206,6 +206,27 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	);
 	const queryGscPerformance = new SCIUseCases.QueryGscPerformanceUseCase(gscPropertyRepo, gscObservationRepo);
 
+	// BACKLOG #23 / #21 — auto-schedule daily GSC fetch on property link.
+	// Subscribes to the in-memory event bus; the handler is fire-and-forget,
+	// errors are swallowed and logged so a scheduler outage doesn't 500 the
+	// link API.
+	const autoScheduleOnGscLink = new SCIUseCases.AutoScheduleOnGscPropertyLinkedHandler(
+		scheduleEndpointFetch,
+		{
+			info: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.log(`[auto-schedule-on-gsc-link] ${msg}`, meta);
+			},
+			error: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.error(`[auto-schedule-on-gsc-link] ${msg}`, meta);
+			},
+		},
+	);
+	eventPublisher.on('GscPropertyLinked', (event) => {
+		void autoScheduleOnGscLink.handle(event);
+	});
+
 	const providers: Provider[] = [
 		value(Tokens.AppEnv, env),
 		value(Tokens.DrizzleClient, drizzle),

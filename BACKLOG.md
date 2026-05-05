@@ -7,13 +7,13 @@
 
 | Categoría | Cantidad |
 |---|---:|
-| Pendiente arquitectura/UX (devs) | 7 |
+| Pendiente arquitectura/UX (devs) | 6 |
 | Pendiente del usuario (opcional) | 1 |
-| **Total** | **8** |
+| **Total** | **7** |
 
-> Numeración: items 7-14, 17, 20 y 22 ya cerrados. Mantengo el id original
-> para que enlaces externos a "BACKLOG #X" no se rompan; los huecos en la
-> secuencia son a propósito.
+> Numeración: items 7-14, 17, 20, 22 y 23 ya cerrados. Mantengo el id
+> original para que enlaces externos a "BACKLOG #X" no se rompan; los
+> huecos en la secuencia son a propósito.
 
 ---
 
@@ -116,17 +116,6 @@ se cargue"; el dato ya está ahí.
   provider.
 - **operación:** un proyecto pausado significa todas sus `JobDefinitions`
   con `enabled=false` (lo que ya hicimos para DeaMap/GE/RocStatus).
-
----
-
-### #23 — Auto-schedule al enlazar GSC property
-Hoy `POST /gsc/properties` solo persiste el enlace. Debería además crear la
-`JobDefinition` correspondiente con cron diario y los params relativos de
-#22. Igual para futuros providers (al añadir un dominio a un proyecto, al
-registrar credencial, etc.).
-
-Patrón: domain event → handler en application layer → llamada a
-`ScheduleEndpointFetchUseCase`.
 
 ---
 

@@ -62,6 +62,7 @@ export class GscProperty extends AggregateRoot {
 			new GscPropertyLinked({
 				gscPropertyId: input.id,
 				projectId: input.projectId,
+				organizationId: input.organizationId,
 				siteUrl,
 				propertyType: input.propertyType,
 				occurredAt: input.now,
