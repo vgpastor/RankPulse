@@ -92,8 +92,16 @@ jobs:
             rm -rf $VHOST/httpdocs/*
             tar xzf $VHOST/web-dist.tar.gz -C $VHOST/httpdocs/
             rm -f $VHOST/web-dist.tar.gz
-            echo ">>> Reload PM2"
-            pm2 reload $APP/ops/ecosystem.config.cjs --update-env
+            echo ">>> Reload PM2 (delete + start gives clean app config)"
+            # `pm2 reload --update-env` does not reliably refresh the `env:`
+            # field of a clustered app when the field went from undefined
+            # to populated (PM2 keeps the originally-cached app config). Use
+            # delete + start so each deploy gets a fresh app definition.
+            # Trade-off: ~5s of 502s while workers boot — acceptable given
+            # low deploy frequency. For zero-downtime in the future, switch
+            # to `pm2 reload` only AFTER an env-stable release.
+            pm2 delete rankpulse-api rankpulse-worker 2>/dev/null || true
+            pm2 start $APP/ops/ecosystem.config.cjs
             echo ">>> Drizzle migrate (loads .env + .env.local via Node --env-file)"
             pnpm --filter @rankpulse/infrastructure db:migrate
             echo ">>> Health check API"
