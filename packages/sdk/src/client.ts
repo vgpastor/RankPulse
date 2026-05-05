@@ -4,6 +4,7 @@ import { GscResource } from './resources/gsc.js';
 import { ProjectsResource } from './resources/projects.js';
 import { ProvidersResource } from './resources/providers.js';
 import { RankTrackingResource } from './resources/rank-tracking.js';
+import { WikipediaResource } from './resources/wikipedia.js';
 
 export interface RankPulseClientOptions extends HttpClientOptions {
 	apiPrefix?: string;
@@ -17,6 +18,7 @@ export class RankPulseClient {
 	readonly providers: ProvidersResource;
 	readonly rankTracking: RankTrackingResource;
 	readonly gsc: GscResource;
+	readonly wikipedia: WikipediaResource;
 
 	constructor(options: RankPulseClientOptions) {
 		const prefix = options.apiPrefix ?? DEFAULT_PREFIX;
@@ -27,5 +29,6 @@ export class RankPulseClient {
 		this.providers = new ProvidersResource(http);
 		this.rankTracking = new RankTrackingResource(http);
 		this.gsc = new GscResource(http);
+		this.wikipedia = new WikipediaResource(http);
 	}
 }

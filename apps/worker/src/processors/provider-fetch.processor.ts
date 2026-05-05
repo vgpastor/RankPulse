@@ -1,10 +1,12 @@
 import type {
+	EntityAwareness as EntityAwarenessUseCases,
 	ProjectManagement as ProjectManagementUseCases,
 	ProviderConnectivity as ProviderConnectivityUseCases,
 	RankTracking as RankTrackingUseCases,
 	SearchConsoleInsights as SearchConsoleInsightsUseCases,
 } from '@rankpulse/application';
 import {
+	type EntityAwareness as EntityAwarenessDomain,
 	type ProjectManagement,
 	ProviderConnectivity,
 	type RankTracking as RankTrackingDomain,
@@ -23,6 +25,11 @@ import {
 	type SearchAnalyticsParams,
 	type SearchAnalyticsResponse,
 } from '@rankpulse/provider-gsc';
+import {
+	extractPageviews,
+	type PageviewsPerArticleResponse,
+	WikipediaApiError,
+} from '@rankpulse/provider-wikipedia';
 import { type Clock, type IdGenerator, NotFoundError, resolveDateTokens } from '@rankpulse/shared';
 import type { Logger } from 'pino';
 import { extractMultiDomainRankings, isMultiDomainSerpJob } from './extract-multi-domain-rankings.js';
@@ -50,6 +57,8 @@ const isQuotaExhaustedError = (err: unknown): boolean => {
 		if (err.status >= 40500 && err.status < 41000) return true;
 	}
 	if (err instanceof GscApiError && err.status === 402) return true;
+	// Wikipedia is a public API, no quota; included for symmetry.
+	if (err instanceof WikipediaApiError && err.status === 402) return true;
 	return false;
 };
 
@@ -69,12 +78,14 @@ export interface ProviderFetchProcessorDeps {
 	trackedKeywordRepo: RankTrackingDomain.TrackedKeywordRepository;
 	competitorRepo: ProjectManagement.CompetitorRepository;
 	gscPropertyRepo: SearchConsoleInsightsDomain.GscPropertyRepository;
+	wikipediaArticleRepo: EntityAwarenessDomain.WikipediaArticleRepository;
 	vault: ProviderConnectivity.CredentialVault;
 	resolveCredentialUseCase: ProviderConnectivityUseCases.ResolveProviderCredentialUseCase;
 	recordApiUsageUseCase: ProviderConnectivityUseCases.RecordApiUsageUseCase;
 	recordRankingObservationUseCase: RankTrackingUseCases.RecordRankingObservationUseCase;
 	recordTop10HitsForSuggestionsUseCase: ProjectManagementUseCases.RecordTop10HitsForSuggestionsUseCase;
 	ingestGscRowsUseCase: SearchConsoleInsightsUseCases.IngestGscRowsUseCase;
+	ingestWikipediaPageviewsUseCase: EntityAwarenessUseCases.IngestWikipediaPageviewsUseCase;
 	clock: Clock;
 	ids: IdGenerator;
 	logger: Logger;
@@ -278,6 +289,35 @@ export class ProviderFetchProcessor {
 							externalDomainsInTop10: external,
 						});
 					}
+				}
+			}
+
+			if (
+				definition.providerId.value === 'wikipedia' &&
+				definition.endpointId.value === 'wikipedia-pageviews-per-article'
+			) {
+				// Issue #33 — entity-awareness ingest. The job's
+				// systemParams must carry `wikipediaArticleId` (set by
+				// LinkWikipediaArticleUseCase via auto-schedule on link;
+				// for now the schedule API caller is responsible for it).
+				const wpParams = resolvedParams as { wikipediaArticleId?: string };
+				if (!wpParams.wikipediaArticleId) {
+					runLog.warn(
+						{},
+						'wikipedia-pageviews job missing wikipediaArticleId in systemParams; skipping ingest',
+					);
+				} else {
+					const observations = extractPageviews(fetchResult as PageviewsPerArticleResponse);
+					await this.deps.ingestWikipediaPageviewsUseCase.execute({
+						articleId: wpParams.wikipediaArticleId,
+						rows: observations.map((o) => ({
+							observedAt: o.observedAt,
+							views: o.views,
+							access: o.access,
+							agent: o.agent,
+							granularity: o.granularity,
+						})),
+					});
 				}
 			}
 

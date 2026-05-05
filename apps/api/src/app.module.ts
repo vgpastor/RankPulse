@@ -7,6 +7,7 @@ import { JwtAuthGuard } from './common/auth/jwt-auth.guard.js';
 import { DomainExceptionFilter } from './common/domain-exception.filter.js';
 import { Tokens } from './composition/tokens.js';
 import type { AppEnv } from './config/env.js';
+import { EntityAwarenessModule } from './modules/entity-awareness/entity-awareness.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { IdentityAccessModule } from './modules/identity-access/identity-access.module.js';
 import { ProjectManagementModule } from './modules/project-management/project-management.module.js';
@@ -42,6 +43,7 @@ export class AppModule {
 			ProviderConnectivityModule,
 			RankTrackingModule,
 			SearchConsoleInsightsModule,
+			EntityAwarenessModule,
 		];
 		if (env.OPENAPI_ENABLED) imports.push(OpenApiModule);
 

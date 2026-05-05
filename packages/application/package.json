@@ -11,6 +11,11 @@
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"
 		},
+		"./entity-awareness": {
+			"development": "./src/entity-awareness/index.ts",
+			"types": "./dist/entity-awareness/index.d.ts",
+			"default": "./dist/entity-awareness/index.js"
+		},
 		"./identity-access": {
 			"development": "./src/identity-access/index.ts",
 			"types": "./dist/identity-access/index.d.ts",

@@ -1,3 +1,4 @@
+export * as EntityAwarenessContracts from './entity-awareness/index.js';
 export * as IdentityAccessContracts from './identity-access/index.js';
 export * as ProjectManagementContracts from './project-management/index.js';
 export * as ProviderConnectivityContracts from './provider-connectivity/index.js';

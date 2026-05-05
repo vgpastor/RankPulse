@@ -1,6 +1,7 @@
 import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
 import { GscProvider } from '@rankpulse/provider-gsc';
+import { WikipediaProvider } from '@rankpulse/provider-wikipedia';
 
 /**
  * Composition root for provider plug-ins active in this deployment. Adding a
@@ -10,5 +11,6 @@ export function buildProviderRegistry(options: { dataforseoBaseUrl: string }): P
 	const registry = new ProviderRegistry();
 	registry.register(new DataForSeoProvider({ baseUrl: options.dataforseoBaseUrl }));
 	registry.register(new GscProvider());
+	registry.register(new WikipediaProvider());
 	return registry;
 }

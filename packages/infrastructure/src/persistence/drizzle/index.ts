@@ -1,4 +1,6 @@
 export * from './client.js';
+export { DrizzleWikipediaArticleRepository } from './repositories/entity-awareness/wikipedia-article.repository.js';
+export { DrizzleWikipediaPageviewObservationRepository } from './repositories/entity-awareness/wikipedia-pageview-observation.repository.js';
 export { DrizzleApiTokenRepository } from './repositories/identity-access/api-token.repository.js';
 export { DrizzleMembershipRepository } from './repositories/identity-access/membership.repository.js';
 export { DrizzleOrganizationRepository } from './repositories/identity-access/organization.repository.js';

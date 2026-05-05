@@ -1,5 +1,6 @@
 import type { Provider, ValueProvider } from '@nestjs/common';
 import {
+	EntityAwareness as EAUseCases,
 	IdentityAccess as IAUseCases,
 	ProviderConnectivity as PCUseCases,
 	ProjectManagement as PMUseCases,
@@ -58,6 +59,10 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const observationRepo = new DrizzlePersistence.DrizzleRankingObservationRepository(drizzle.db);
 	const gscPropertyRepo = new DrizzlePersistence.DrizzleGscPropertyRepository(drizzle.db);
 	const gscObservationRepo = new DrizzlePersistence.DrizzleGscPerformanceObservationRepository(drizzle.db);
+	const wikipediaArticleRepo = new DrizzlePersistence.DrizzleWikipediaArticleRepository(drizzle.db);
+	const wikipediaPageviewRepo = new DrizzlePersistence.DrizzleWikipediaPageviewObservationRepository(
+		drizzle.db,
+	);
 
 	const jobScheduler = new QueueAdapters.BullMqJobScheduler({
 		connection: { url: env.REDIS_URL },
@@ -229,6 +234,23 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	);
 	const queryGscPerformance = new SCIUseCases.QueryGscPerformanceUseCase(gscPropertyRepo, gscObservationRepo);
 
+	// Issue #33 — entity-awareness use cases
+	const linkWikipediaArticle = new EAUseCases.LinkWikipediaArticleUseCase(
+		wikipediaArticleRepo,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const unlinkWikipediaArticle = new EAUseCases.UnlinkWikipediaArticleUseCase(
+		wikipediaArticleRepo,
+		SystemClock,
+		eventPublisher,
+	);
+	const queryWikipediaPageviews = new EAUseCases.QueryWikipediaPageviewsUseCase(
+		wikipediaArticleRepo,
+		wikipediaPageviewRepo,
+	);
+
 	// BACKLOG #23 / #21 — auto-schedule daily GSC fetch on property link.
 	// Subscribes to the in-memory event bus; the handler is fire-and-forget,
 	// errors are swallowed and logged so a scheduler outage doesn't 500 the
@@ -316,6 +338,12 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.LinkGscProperty, linkGscProperty),
 		value(Tokens.IngestGscRows, ingestGscRows),
 		value(Tokens.QueryGscPerformance, queryGscPerformance),
+
+		value(Tokens.WikipediaArticleRepository, wikipediaArticleRepo),
+		value(Tokens.WikipediaPageviewObservationRepository, wikipediaPageviewRepo),
+		value(Tokens.LinkWikipediaArticle, linkWikipediaArticle),
+		value(Tokens.UnlinkWikipediaArticle, unlinkWikipediaArticle),
+		value(Tokens.QueryWikipediaPageviews, queryWikipediaPageviews),
 	];
 
 	return {
