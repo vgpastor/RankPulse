@@ -64,10 +64,12 @@ jobs:
             export PATH=$HOME/.fnm:$PATH
             eval "$(fnm env --shell bash)"
             fnm use 24
-            echo ">>> Pull main"
             cd "$APP"
+            echo ">>> Pull main"
             git fetch --quiet origin main
             git reset --hard origin/main
+            echo ">>> Load env"
+            set -a && source $APP/.env.local && set +a
             echo ">>> pnpm install"
             pnpm install --frozen-lockfile
             echo ">>> Drizzle migrate"
@@ -77,7 +79,6 @@ jobs:
             tar xzf $VHOST/web-dist.tar.gz -C $VHOST/httpdocs/
             rm -f $VHOST/web-dist.tar.gz
             echo ">>> Reload PM2"
-            set -a && source $APP/.env.local && set +a
             pm2 reload $APP/ops/ecosystem.config.cjs --update-env
             echo ">>> Health check"
             sleep 5
