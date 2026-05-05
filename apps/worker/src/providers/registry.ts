@@ -1,6 +1,7 @@
 import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
 import { GscProvider } from '@rankpulse/provider-gsc';
+import { PageSpeedProvider } from '@rankpulse/provider-pagespeed';
 import { WikipediaProvider } from '@rankpulse/provider-wikipedia';
 
 /**
@@ -12,5 +13,6 @@ export function buildProviderRegistry(options: { dataforseoBaseUrl: string }): P
 	registry.register(new DataForSeoProvider({ baseUrl: options.dataforseoBaseUrl }));
 	registry.register(new GscProvider());
 	registry.register(new WikipediaProvider());
+	registry.register(new PageSpeedProvider());
 	return registry;
 }

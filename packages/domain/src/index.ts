@@ -5,3 +5,4 @@ export * as ProviderConnectivity from './provider-connectivity/index.js';
 export * as RankTracking from './rank-tracking/index.js';
 export * as SearchConsoleInsights from './search-console-insights/index.js';
 export * as SharedKernel from './shared-kernel/index.js';
+export * as WebPerformance from './web-performance/index.js';

@@ -6,6 +6,7 @@ import {
 	ProjectManagement as PMUseCases,
 	RankTracking as RTUseCases,
 	SearchConsoleInsights as SCIUseCases,
+	WebPerformance as WPUseCases,
 } from '@rankpulse/application';
 import type { ProjectManagement } from '@rankpulse/domain';
 import { Crypto, DrizzlePersistence, Events, Queue as QueueAdapters } from '@rankpulse/infrastructure';
@@ -63,6 +64,8 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const wikipediaPageviewRepo = new DrizzlePersistence.DrizzleWikipediaPageviewObservationRepository(
 		drizzle.db,
 	);
+	const trackedPageRepo = new DrizzlePersistence.DrizzleTrackedPageRepository(drizzle.db);
+	const pageSpeedSnapshotRepo = new DrizzlePersistence.DrizzlePageSpeedSnapshotRepository(drizzle.db);
 
 	const jobScheduler = new QueueAdapters.BullMqJobScheduler({
 		connection: { url: env.REDIS_URL },
@@ -251,6 +254,19 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		wikipediaPageviewRepo,
 	);
 
+	// Issue #18 — web-performance use cases
+	const trackPage = new WPUseCases.TrackPageUseCase(
+		trackedPageRepo,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const untrackPage = new WPUseCases.UntrackPageUseCase(trackedPageRepo);
+	const queryPageSpeedHistory = new WPUseCases.QueryPageSpeedHistoryUseCase(
+		trackedPageRepo,
+		pageSpeedSnapshotRepo,
+	);
+
 	// BACKLOG #23 / #21 — auto-schedule daily GSC fetch on property link.
 	// Subscribes to the in-memory event bus; the handler is fire-and-forget,
 	// errors are swallowed and logged so a scheduler outage doesn't 500 the
@@ -341,6 +357,11 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 
 		value(Tokens.WikipediaArticleRepository, wikipediaArticleRepo),
 		value(Tokens.WikipediaPageviewObservationRepository, wikipediaPageviewRepo),
+		value(Tokens.TrackedPageRepository, trackedPageRepo),
+		value(Tokens.PageSpeedSnapshotRepository, pageSpeedSnapshotRepo),
+		value(Tokens.TrackPage, trackPage),
+		value(Tokens.UntrackPage, untrackPage),
+		value(Tokens.QueryPageSpeedHistory, queryPageSpeedHistory),
 		value(Tokens.LinkWikipediaArticle, linkWikipediaArticle),
 		value(Tokens.UnlinkWikipediaArticle, unlinkWikipediaArticle),
 		value(Tokens.QueryWikipediaPageviews, queryWikipediaPageviews),

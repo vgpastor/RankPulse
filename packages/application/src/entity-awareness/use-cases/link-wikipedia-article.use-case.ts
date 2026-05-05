@@ -39,7 +39,7 @@ export class LinkWikipediaArticleUseCase {
 		const projectId = cmd.projectId as ProjectManagement.ProjectId;
 
 		const existing = await this.articles.findByProjectAndSlug(projectId, wikipediaProject, slug);
-		if (existing && existing.isActive()) {
+		if (existing?.isActive()) {
 			throw new ConflictError(
 				`Wikipedia article "${slug.value}" on ${wikipediaProject.value} is already linked to this project`,
 			);
