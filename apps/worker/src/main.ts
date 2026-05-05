@@ -9,6 +9,7 @@ import { Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { pino } from 'pino';
 import { loadEnv } from './config/env.js';
+import { createHealthServer } from './health-server.js';
 import { ProviderFetchProcessor } from './processors/provider-fetch.processor.js';
 import { buildProviderRegistry } from './providers/registry.js';
 
@@ -102,8 +103,25 @@ async function bootstrap(): Promise<void> {
 		logger.info({ queue: queueName }, 'worker started');
 	}
 
+	const healthServer = createHealthServer({
+		pingPostgres: async () => {
+			// `postgres` (postgres-js) supports tagged-template SQL directly. The
+			// drizzle client exposes the underlying `sql` instance for exactly this
+			// kind of out-of-ORM use.
+			await drizzle.sql`SELECT 1`;
+		},
+		pingRedis: async () => {
+			const pong = await connection.ping();
+			if (pong !== 'PONG') throw new Error(`unexpected redis reply: ${pong}`);
+		},
+		workers,
+		logger,
+	});
+	await healthServer.listen(env.HEALTH_PORT, env.HEALTH_HOST);
+
 	const shutdown = async (): Promise<void> => {
 		logger.info('shutting down worker…');
+		await healthServer.close();
 		await Promise.all(workers.map((w) => w.close()));
 		await connection.quit();
 		await drizzle.close();

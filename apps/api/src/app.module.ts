@@ -22,10 +22,18 @@ export class AppModule {
 		const imports = [
 			ThrottlerModule.forRoot({
 				throttlers: [
-					// Default lax throttle for the whole API; auth routes opt into a
-					// stricter limit via the @Throttle decorator at the controller.
-					{ name: 'default', ttl: 60_000, limit: 240 },
+					// Default throttle for read-heavy endpoints; the dashboard
+					// polls several queries on every page so 600/min (10/s) is
+					// the comfortable floor for a single human session.
+					{ name: 'default', ttl: 60_000, limit: 600 },
+					// Auth routes use a much stricter limit to slow brute force.
 					{ name: 'auth', ttl: 60_000, limit: 20 },
+					// Admin bulk-writes (BACKLOG #23): legitimate operator setup
+					// (curl/SDK scripts importing 2000 keywords + competitors)
+					// hit hundreds of rapid POSTs. The endpoints opt into this
+					// throttle via @Throttle({ bulk: ... }) — see project /
+					// rank-tracking controllers.
+					{ name: 'bulk', ttl: 60_000, limit: 6_000 },
 				],
 			}),
 			HealthModule,

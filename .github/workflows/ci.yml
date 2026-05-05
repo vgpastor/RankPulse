@@ -12,6 +12,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Pre-empt the June 2026 Node 20 deprecation in GHA JS-actions.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   build:
     name: Lint, typecheck, test, build
@@ -58,3 +62,33 @@ jobs:
 
       - name: Build (api + worker + web)
         run: pnpm build
+
+  docker-build:
+    name: Verify Dockerfiles build (${{ matrix.app }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: api
+            dockerfile: docker/api.Dockerfile
+          - app: worker
+            dockerfile: docker/worker.Dockerfile
+          - app: web
+            dockerfile: docker/web.Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image (no push) — catches missing COPY paths early (BACKLOG #18)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: false
+          load: false
+          cache-from: type=gha,scope=ci-${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=ci-${{ matrix.app }}
+          build-args: |
+            VITE_API_BASE_URL=https://example.invalid

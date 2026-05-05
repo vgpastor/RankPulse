@@ -11,7 +11,7 @@ export interface PortfolioProps {
 }
 
 export class Portfolio extends AggregateRoot {
-	private constructor(private readonly props: PortfolioProps) {
+	private constructor(private props: PortfolioProps) {
 		super();
 	}
 
@@ -35,6 +35,14 @@ export class Portfolio extends AggregateRoot {
 
 	static rehydrate(props: PortfolioProps): Portfolio {
 		return new Portfolio(props);
+	}
+
+	rename(newName: string): void {
+		const trimmed = newName.trim();
+		if (trimmed.length < 2) {
+			throw new InvalidInputError('Portfolio name must be at least 2 characters');
+		}
+		this.props = { ...this.props, name: trimmed };
 	}
 
 	get id(): PortfolioId {

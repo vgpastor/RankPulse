@@ -83,6 +83,31 @@ export class DrizzleProjectRepository implements ProjectManagement.ProjectReposi
 		return Promise.all(rows.map((r) => this.assemble(r)));
 	}
 
+	async findByDomainInOrganization(
+		orgId: IdentityAccess.OrganizationId,
+		domain: ProjectManagement.DomainName,
+	): Promise<ProjectManagement.Project | null> {
+		// Two-step lookup: a project owns the domain either as `primaryDomain`
+		// (column on `projects`) or as a row in `projectDomains`. We could
+		// UNION but two tiny queries are cheaper than the cross-table OR plan
+		// the planner picks today.
+		const [primaryRow] = await this.db
+			.select()
+			.from(projects)
+			.where(and(eq(projects.organizationId, orgId), eq(projects.primaryDomain, domain.value)))
+			.limit(1);
+		if (primaryRow) return this.assemble(primaryRow);
+
+		const [domainRow] = await this.db
+			.select({ projectId: projectDomains.projectId })
+			.from(projectDomains)
+			.innerJoin(projects, eq(projects.id, projectDomains.projectId))
+			.where(and(eq(projects.organizationId, orgId), eq(projectDomains.domain, domain.value)))
+			.limit(1);
+		if (!domainRow) return null;
+		return this.findById(domainRow.projectId as ProjectManagement.ProjectId);
+	}
+
 	private async assemble(row: typeof projects.$inferSelect): Promise<ProjectManagement.Project> {
 		const [domains, locations] = await Promise.all([
 			this.db.select().from(projectDomains).where(eq(projectDomains.projectId, row.id)),

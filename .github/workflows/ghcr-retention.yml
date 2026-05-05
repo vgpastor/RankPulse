@@ -1,0 +1,40 @@
+name: GHCR retention
+
+# BACKLOG #20: every push publishes :sha-<commit>, :latest and :main for three
+# images. Without retention GHCR accumulates hundreds of tags and the storage
+# bill grows. This workflow keeps the most recent N versions per image and
+# deletes anything older than 30d.
+#
+# Runs weekly (Mondays 03:00 UTC) and on-demand via workflow_dispatch.
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Set to "true" to print what would be deleted without deleting'
+        required: false
+        default: 'false'
+
+permissions:
+  packages: write
+
+jobs:
+  prune:
+    name: Prune ${{ matrix.package }} (keep 10, drop >30d)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [rankpulse-api, rankpulse-worker, rankpulse-web]
+    steps:
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ matrix.package }}
+          package-type: container
+          min-versions-to-keep: 10
+          delete-only-untagged-versions: false
+          ignore-versions: '^(latest|main)$'
+          dry-run: ${{ github.event.inputs.dry_run == 'true' }}

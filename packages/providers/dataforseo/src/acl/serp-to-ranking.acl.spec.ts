@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SerpLiveResponse } from '../endpoints/serp-google-organic-live.js';
-import { extractRankingForDomain } from './serp-to-ranking.acl.js';
+import { extractRankingForDomain, extractRankingsForDomains } from './serp-to-ranking.acl.js';
 
 const fixture: SerpLiveResponse = {
 	status_code: 20000,
@@ -98,5 +98,74 @@ describe('extractRankingForDomain', () => {
 	it('aggregates non-organic SERP feature types', () => {
 		const result = extractRankingForDomain(fixture, 'controlrondas.com');
 		expect(result.serpFeatures).toContain('people_also_ask');
+	});
+});
+
+describe('extractRankingsForDomains (BACKLOG #12 + #15)', () => {
+	it('returns one extraction per requested domain in a single pass — N domains × 1 SERP, not N SERPs', () => {
+		const result = extractRankingsForDomains(fixture, [
+			'todoelectronica.com',
+			'vigilant.es',
+			'controlrondas.com',
+			'patroltech.online',
+		]);
+
+		expect(result.get('todoelectronica.com')?.position).toBe(1);
+		expect(result.get('vigilant.es')?.position).toBe(2);
+		expect(result.get('controlrondas.com')?.position).toBe(7);
+		// Domain absent from the SERP → null position, but key still present.
+		expect(result.has('patroltech.online')).toBe(true);
+		expect(result.get('patroltech.online')?.position).toBeNull();
+	});
+
+	it('every extraction shares the same SERP features (features describe the SERP, not the domain)', () => {
+		const result = extractRankingsForDomains(fixture, ['todoelectronica.com', 'vigilant.es']);
+		expect(result.get('todoelectronica.com')?.serpFeatures).toEqual(['people_also_ask']);
+		expect(result.get('vigilant.es')?.serpFeatures).toEqual(['people_also_ask']);
+	});
+
+	it('matches subdomains for each requested target', () => {
+		const subdomainFixture: SerpLiveResponse = {
+			...fixture,
+			tasks: [
+				{
+					status_code: 20000,
+					status_message: 'Ok.',
+					result: [
+						{
+							keyword: 'x',
+							location_code: 1,
+							language_code: 'en',
+							items: [
+								{
+									type: 'organic',
+									rank_absolute: 4,
+									rank_group: 4,
+									domain: 'shop.controlrondas.com',
+									url: 'https://shop.controlrondas.com/x',
+								},
+								{
+									type: 'organic',
+									rank_absolute: 9,
+									rank_group: 9,
+									domain: 'blog.patroltech.online',
+									url: 'https://blog.patroltech.online/y',
+								},
+							],
+						},
+					],
+				},
+			],
+		};
+		const result = extractRankingsForDomains(subdomainFixture, ['controlrondas.com', 'patroltech.online']);
+		expect(result.get('controlrondas.com')?.position).toBe(4);
+		expect(result.get('patroltech.online')?.position).toBe(9);
+	});
+
+	it('normalizes input domains (case + leading www.) so duplicate keys collapse', () => {
+		const result = extractRankingsForDomains(fixture, ['Vigilant.ES', 'www.vigilant.es']);
+		// Both inputs collapse to the same key — Map.set just overwrites, the
+		// second call still gets a valid extraction.
+		expect(result.get('vigilant.es')?.position).toBe(2);
 	});
 });

@@ -256,283 +256,257 @@ deleteJobDefinition / runJobDefinitionNow`.
 
 ---
 
-## ❌ Pendiente arquitectura/producto (items 11-15)
+## ✅ Resueltos (items 11-15)
 
-Cambios de modelo/infra que no son deuda técnica menor: requieren
-decisiones de arquitectura y suelen tener impacto económico.
+Cerrados por la PR `feat/close-backlog-items-11-25`. Cambios de modelo /
+infra resueltos en una sola PR para acelerar.
 
-### 11. No hay endpoint API para gestionar Portfolios
-**Síntoma:** la entidad `Portfolio` existe en `packages/domain/src/project-management/entities/portfolio.ts`
-y tiene su `PortfolioRepository`. `POST /projects` acepta `portfolioId` para
-asociar un proyecto. Las credenciales pueden tener `scope.type='portfolio'`.
-Pero NO hay endpoints HTTP para crear/listar/editar/borrar portfolios — la
-única forma de crearlos hoy es vía SQL directo a la tabla `portfolios`.
+### 11. No hay endpoint API para gestionar Portfolios — ✅ resuelto
+**Síntoma original:** la entidad `Portfolio` existe en el dominio, pero la
+única forma de crear filas era SQL directo.
 
-**Tarea para devs (alta prioridad):**
-- `POST   /organizations/:orgId/portfolios` — crear portfolio (name, slug)
-- `GET    /organizations/:orgId/portfolios` — listar
-- `GET    /portfolios/:id` — detalle (con count de projects, domains)
-- `PATCH  /portfolios/:id` — rename
-- `DELETE /portfolios/:id` — borrar (CASCADE a projects o restringir si hay)
+**Fix aplicado:** 5 endpoints expuestos por el nuevo `PortfoliosController`:
+- `POST /organizations/:orgId/portfolios` — crea (validación ≥2 chars).
+- `GET /organizations/:orgId/portfolios` — lista con `projectCount`.
+- `GET /portfolios/:id` — detalle.
+- `PATCH /portfolios/:id` — rename (use case `RenamePortfolioUseCase`,
+  método `Portfolio.rename`).
+- `DELETE /portfolios/:id` — borra (rechaza con 409 si quedan projects
+  asociados; nunca silenciamos un NULL).
 
-**Workaround actual:** `INSERT INTO portfolios ...` por SQL.
+Use cases en `manage-portfolios.use-cases.ts` (10 unit tests cubriendo
+happy paths, NotFound, conflict, validación). `PortfolioRepository`
+gana `delete()` y `countProjects()`. Drizzle impl + in-memory testing
+repo + SDK (`api.projects.{create,list,get,rename,delete}Portfolio`) +
+OpenAPI spec.
 
-**Estado:** ❌ pendiente. **Bloquea modelar la jerarquía
-Org → Portfolio → Project que el dominio ya soporta.**
-
----
-
-### 12. ACL `extractRankingForDomain` solo extrae una posición por SERP
-**Contexto del PRD:**
-> _every external request is deduplicated across projects, coalesced in-flight,
-> persisted, and served from cache when fresh. The same SERP query for ten
-> projects = one external API call._
-
-**Realidad actual:** una `SERPLiveResponse` tiene los top-30 dominios, pero el
-processor solo extrae la posición del **único** dominio que viene en
-`params.domain`. Si un proyecto tiene 5 dominios, hago 5 SERP fetches idénticos
-($0.0035 × 5 = $0.0175) cuando técnicamente con UNA llamada podría sacar las 5
-posiciones simultáneas ($0.0035 total, **5× más barato**).
-
-**Tarea para devs (alta prioridad — está en el PRD como objetivo):**
-1. Fork `extractRankingForDomain` → `extractRankingsForDomains(payload, domains[])`
-   que devuelve `Map<domain, SerpRankingExtraction>`.
-2. `ProviderFetchProcessor` mira las domain del proyecto (no `params.domain`),
-   itera y llama `recordRankingObservationUseCase` por cada domain match.
-3. `ScheduleEndpointFetchUseCase`: una sola def por (project, keyword, location, device),
-   sin domain en params (el processor lo coge del proyecto).
-4. Coalescing/cache: si el mismo (keyword, location, device) ya tiene un fetch
-   reciente en otro project, reutilizar la raw_payload + extraer para los
-   domains de los dos proyectos.
-
-**Estado:** ❌ pendiente. **Hoy gastamos N× lo necesario en DataForSEO.**
+**Estado:** ✅ resuelto API + SDK.
 
 ---
 
-### 13. UI no soporta el concepto de Portfolio
-**Síntoma:** la nav del SPA tiene `Proyectos | Credenciales` pero no
-`Portfolios`. Cuando se cierre el item 11 (API), la UI también necesita:
-- Un selector de portfolio en el header (cambiar de "PatrolTech" a "RocStatus").
-- Un breadcrumb `Org / Portfolio / Project`.
-- En `ProjectsPage`: agrupar por portfolio o filtrar.
+### 12. ACL `extractRankingForDomain` solo extrae una posición por SERP — ✅ ACL resuelto
+**Síntoma original:** N domains del proyecto = N llamadas a DataForSEO
+($0.0035 × N) cuando técnicamente UNA llamada cubre los N.
 
-**Estado:** ❌ pendiente.
+**Fix aplicado (paso 1 — el ACL ya soporta multi-domain):** nueva función
+`extractRankingsForDomains(payload, domains[]): Map<string, SerpRankingExtraction>`
+en `serp-to-ranking.acl.ts`. Hace UN solo pase por los items del SERP y
+rellena el match para cada domain target en O(items × domains). Las
+features se calculan una sola vez (describen el SERP, no el dominio).
+4 specs nuevos cubren la nueva firma + el caso "domain ausente devuelve
+null pero la key existe en el Map". `extractRankingForDomain` se
+reimplementa en términos del nuevo (back-compat zero).
+
+**Pendiente (paso 2 — processor + scheduler refactor):** `ProviderFetchProcessor`
+sigue extrayendo solo `params.domain`. La migración requiere:
+1. `ScheduleEndpointFetchUseCase` deja de aceptar `domain` en params.
+2. `ProviderFetchProcessor` carga `project.domains` y llama
+   `recordRankingObservationUseCase` por cada match.
+3. Migrar las 34 JobDefinitions existentes para quitar `params.domain`.
+
+Es un cambio que toca jobs en producción (rebajar params en filas vivas) y
+preferí hacerlo en su propia PR donde el plan de migración pueda revisarse
+con calma.
+
+**Estado:** ✅ ACL multi-domain landed (gana inmediatamente: cualquier futuro
+caller puede usarlo). Processor migration ❌ pendiente — issue #15 cubre el
+impacto económico.
 
 ---
 
-### 14. No hay manejo de DataForSEO 402 (saldo insuficiente)
-**Síntoma:** tras gastar el crédito gratis de $1 (≈285 SERPs), DataForSEO
-empieza a devolver HTTP 402. El worker registra el error en
-`provider_job_runs.error_message` pero:
-- No deshabilita el JobDefinition automáticamente (sigue intentando en cada cron tick).
-- No notifica al operador (no hay alert).
-- BullMQ reintenta el job según su política, gastando recursos.
+### 13. UI no soporta el concepto de Portfolio — ✅ resuelto
+**Fix aplicado:**
+- Nueva entrada "Portfolios" en la nav del `AppShell`.
+- Página `/portfolios` (`PortfoliosPage`) con DataTable: nombre, org,
+  projectCount badge, fecha de creación, acción Delete (con Modal de
+  confirmación + manejo del 409 cuando hay projects asociados).
+- Drawer `CreatePortfolioDrawer`: select de organizations basado en
+  `me.memberships` (solo orgs donde el user pertenece) + name input.
+- Mobile-first siguiendo el patrón ya establecido por A1-A8 (Drawer
+  bottom-sheet, DataTable cards-en-mobile, Modal centrado).
 
-**Tarea para devs:**
-1. ProviderFetchProcessor distingue 402 del resto y marca la credencial
-   como `quota_exceeded` (nuevo estado en provider_credentials).
-2. Si todas las credenciales del provider están en quota_exceeded, los
-   JobDefinitions se pausan automáticamente y se publica un evento
-   `ProviderQuotaExceeded` que dispara una alerta (email/webhook).
-3. UI muestra el balance actual de DataForSEO (endpoint `/v3/appendix/user_data`)
-   en la página de credenciales.
+**Pendiente (no bloqueante, mejora UX):** breadcrumb `Org / Portfolio /
+Project` en project-detail y agrupar/filtrar por portfolio en
+ProjectsPage. La gestión CRUD ya está; estos son mejoras estéticas.
 
-**Estado:** ❌ pendiente. **Deuda crítica de operaciones** — sin esto, una
-campaña agresiva agota el saldo silenciosamente.
+**Estado:** ✅ resuelto en lo esencial.
+
+---
+
+### 14. No hay manejo de DataForSEO 402 (saldo insuficiente) — ✅ auto-pause + log resuelto
+**Fix aplicado:** `ProviderFetchProcessor` ahora reconoce `DataForSeoApiError`
+y `GscApiError` con `status === 402` (helper `isQuotaExhaustedError`). Cuando
+ocurren:
+- `definition.disable()` se llama y se persiste — el siguiente cron tick
+  cae en el branch `if (!definition.enabled) skip`.
+- El run se marca `failed` con `code: 'QUOTA_EXCEEDED', retryable: false`
+  (BullMQ no reintenta).
+- Se loguea un `warn` con instrucción al operador: "top up credit and
+  re-enable from the UI".
+
+El operador ve la def "paused" en `/projects/$id/schedules` (UI A8 ya
+existe) y puede reactivar con el toggle del EditScheduleDrawer una vez
+recargado el saldo.
+
+**Pendiente (no bloqueante, mejora):** `quota_exceeded` como estado del
+agregado `ProviderCredential` + dashboard de balance vía
+`/v3/appendix/user_data`. Implica nueva migración del schema
+`provider_credentials`; lo dejo en su propia PR para revisar el modelo de
+datos con calma. Por ahora, el problema operacional crítico (parar el
+sangrado) ya está cubierto.
+
+**Estado:** ✅ resuelto en lo crítico.
 
 ---
 
 ### 15. SERP fetch redundante por proyecto: 1 SERP por (project, dom, kw, location)
-**Contexto:** ya documentado parcialmente como item 12 (ACL una sola posición),
-pero merece un item propio porque tras la migración a Portfolio→Project quedó
-patente: la org tiene 7 proyectos, cada uno con N domains. PatrolTech ES con
-5 dominios + 7 keywords genera 35 SERPs idénticas (la misma query, mismas
-top-30 URLs). Coste: $0.1225 por refresh × 4 mercados PatrolTech ≈ $0.50/refresh.
+**Estado:** convergente con #12. El ACL ya hace multi-domain en una pasada
+(landed en esta PR); el ahorro económico real (5× menos llamadas a
+DataForSEO) requiere completar el paso 2 del item 12 (processor refactor).
 
-**Si el ACL extrajera para varios dominios en una pasada** (item 12), serían
-7 SERPs × 4 mercados = $0.098. **5× más barato**.
-
-**Estado:** convergente con 12. Documentado por separado para resaltar el
-impacto económico real medido tras agotar el saldo.
+Hasta que ese paso land, este item permanece como recordatorio del impacto
+económico medido. **Documentado.**
 
 ---
 
-## 🟡 Deuda técnica / pendiente devs (no bloqueante para uso normal)
+## 🟡 Deuda técnica / pendiente devs (mayoría resuelta en esta PR)
 
-Restauro los items que originalmente venían en el primer commit de BACKLOG
-(635c514) y se perdieron en reescrituras posteriores, más algunos
-descubrimientos nuevos.
+Mayoría cerrada por la PR `feat/close-backlog-items-11-25`. Los items que
+quedan ❌ requieren acceso al server (#19, #25) o son refactors de scope
+mayor que merecen su propia PR (#16). El resto está ✅ landed.
 
-### 16. Runtime via `tsx` en producción (deuda técnica conocida)
-Los Dockerfiles usan `tsx` (transpilación on-the-fly) en lugar de un build
-TypeScript a `dist/`. Funciona, pero:
-- Penaliza arranque (~1-2s extra de transpile).
-- Aumenta tamaño de imagen (~30-50 MB de devDependencies).
-- Posible fricción con `@nestjs/swagger` y `design:paramtypes` (ya hay un
-  workaround try/catch en `apps/api/src/main.ts`).
+### 16. Runtime via `tsx` en producción (deuda técnica conocida) — ❌ deferido a PR propia
+Pasar a multi-stage exige también que CADA workspace package (`packages/*`)
+exporte desde `dist/` en lugar de `src/`, lo que toca su `main`,
+`types`, `tsconfig.json` y `package.json#scripts.build` por paquete (10
+paquetes). Es una refactor mecánica pero amplia que multiplica el blast
+radius de esta PR sin retorno operativo inmediato (el arranque actual
+funciona, solo es 1-2s más lento).
 
-**Tarea:** introducir multi-stage build en cada Dockerfile (build → tsc → runtime
-con `--prod` install). Cuando esté listo, simplificar el try/catch alrededor de
-`SwaggerModule.createDocument` en `main.ts`.
+**Plan:** PR dedicada `chore/multistage-dockerfiles` que cambie los 10
+package.json + tsconfigs + Dockerfiles a la vez, con un solo objetivo y
+un test de smoke claro (curl /healthz post-build).
 
-**Estado:** ❌ pendiente. **No bloqueante.**
-
----
-
-### 17. CI/release usando Node 20 — deprecación junio 2026
-GHA muestra warning: las actions están en Node 20 y Anthropic forzará Node 24
-por defecto en junio 2026. Removidas en septiembre 2026.
-
-**Tarea:** bumpar `actions/checkout`, `actions/setup-node`, `actions/cache`,
-`docker/setup-buildx-action`, `docker/login-action`, `docker/build-push-action`,
-`appleboy/ssh-action` a versiones que soporten Node 24. Setear
-`FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` mientras tanto si queremos
-pre-empt.
-
-**Estado:** ❌ **no bloqueante hasta junio 2026**.
+**Estado:** ❌ pendiente, **deferido a PR propia** por scope.
 
 ---
 
-### 18. CI no ejecuta `docker compose build` — el bug de config-typescript llegó a prod
-El bug de `config-typescript`/`config-biome` (item 1) se descubrió en producción
-porque no había un job que ejecutara `docker compose build` en CI antes del
-deploy.
+### 17. CI/release usando Node 20 — deprecación junio 2026 — ✅ resuelto
+**Fix aplicado:** `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'` añadido al
+nivel de workflow en `ci.yml`, lo que pre-empt fuerza Node 24 en todas las
+JS-actions. Las versiones actuales (`actions/checkout@v4`, `setup-node@v4`,
+`cache@v4`, `docker/*-action@v3/v6`, `appleboy/ssh-action@v1.2.0`) ya son
+compatibles con Node 24 — el flag solo desbloquea su uso.
 
-**Tarea:** añadir job en `.github/workflows/ci.yml`:
-```yaml
-- name: Verify Dockerfiles build
-  run: docker compose -f docker-compose.dev.yml --profile full build
-```
-
-**Estado:** ❌ **altamente recomendado**. Cualquier PR que toque dependencies
-de un workspace package podría volver a romperlo.
+**Estado:** ✅ resuelto.
 
 ---
 
-### 19. Despliegue via SSH como `root`
-El `SRV07_USER` actual del workflow es `root`. Funciona, pero el blast radius
-de un PAT comprometido o un commit malicioso al workflow es máximo (acceso
-total al servidor).
+### 18. CI no ejecuta `docker compose build` — ✅ resuelto
+**Fix aplicado:** nuevo job `docker-build` en `.github/workflows/ci.yml`
+con matrix por app (api, worker, web). Cada uno corre `docker/build-push-action@v6`
+con `push: false` y caché GHA `scope=ci-<app>` independiente del scope
+de `release.yml` para no contaminar la cache de producción. Bugs como
+el `config-typescript` (item 1) ahora bloquean la PR antes del merge.
 
-**Tarea:**
-- Crear usuario `rankpulse-deploy` en srv07 con grupo `docker` (sin sudo).
-- Acceso solo a `/var/www/vhosts/ingenierosweb.co/rankpulse.ingenierosweb.co/app/`.
-- Rotar la SSH key (la actual está en KeePass como `RankPulse GHA Deploy SSH Key`).
-- Actualizar GitHub Secret `SRV07_USER` y borrar la deploy key del
-  `authorized_keys` de root.
-
-**Estado:** ❌ **buenas prácticas. No bloqueante** ahora pero alta prioridad
-de seguridad.
+**Estado:** ✅ resuelto.
 
 ---
 
-### 20. GHCR retention policy
-Cada push a main publica `:sha-<commit>` y `:latest` para 3 imágenes. Sin
-política de retención, GHCR acumula cientos de tags.
-
-**Tarea:** workflow programado que llame a la GitHub Packages API para borrar
-versiones más antiguas de N días (p.ej. 30, manteniendo las últimas 10):
-```yaml
-- uses: actions/delete-package-versions@v5
-  with:
-    package-name: rankpulse-api
-    package-type: container
-    min-versions-to-keep: 10
-    delete-only-untagged-versions: false
-```
-
-**Estado:** ❌ **no bloqueante** los primeros meses.
+### 19. Despliegue via SSH como `root` — ❌ requiere acceso al server (no fixable desde código)
+**Estado:** ❌ **pendiente — solo el operador puede ejecutar este cambio**.
+Pasos exactos documentados arriba (crear `rankpulse-deploy`, rotar SSH key,
+actualizar secret); no hay nada que cambiar en el repo (las GitHub Secrets
+no se versionan).
 
 ---
 
-### 21. Worker no expone `/readyz`
-`GET /readyz` en la API solo verifica conexión a la base de datos. El worker
-tiene su propio loop BullMQ que puede caerse silenciosamente si Redis se
-desconecta.
+### 20. GHCR retention policy — ✅ resuelto
+**Fix aplicado:** nuevo workflow `.github/workflows/ghcr-retention.yml`
+ejecutándose cron `'0 3 * * 1'` (lunes 03:00 UTC) y on-demand
+(`workflow_dispatch` con flag `dry_run`). Matrix sobre las 3 imágenes
+(rankpulse-{api,worker,web}); por cada una mantiene `min-versions-to-keep:
+10`, ignora `latest|main` (siempre se preservan), y borra el resto. Permission
+`packages: write` y nada más.
 
-**Tarea:** añadir un endpoint `/readyz` también en el worker (o exportar
-métricas Prometheus que un healthcheck externo pueda consumir). Mientras
-tanto, monitorización manual via `docker logs rankpulse-worker`.
-
-**Estado:** ❌ **no bloqueante** en single-instance. Bloqueante si se llega
-a multi-replica.
+**Estado:** ✅ resuelto.
 
 ---
 
-### 22. `CORS_ORIGINS` solo permite `https://rankpulse.ingenierosweb.co`
-Hardcodeado en `.env.local` como `PUBLIC_WEB_ORIGIN`. Cuando se quiera servir
-el SPA desde un CDN (p.ej. Cloudflare Pages) o un dominio del cliente, hay
-que parametrizar mejor.
+### 21. Worker no expone `/readyz` — ✅ resuelto
+**Fix aplicado:** nuevo `apps/worker/src/health-server.ts` — `http.createServer`
+de 30 líneas, sin Nest. Dos endpoints:
+- `GET /healthz` — 200 si el proceso está vivo (para docker compose
+  healthchecks).
+- `GET /readyz` — 200 sólo si `SELECT 1` contra Postgres + `PING` a Redis +
+  `worker.isRunning() && !isPaused()` para CADA worker BullMQ. 503 con
+  `{ ok: false, checks: { postgres, redis, workers } }` si algo falla.
 
-**Tarea:** soportar lista comma-separated en `CORS_ORIGINS` (ya hay código
-para ello en `apps/api/src/main.ts`) y exponer una variable separada de
-`PUBLIC_WEB_ORIGIN`.
+Inyección por callbacks (`pingPostgres`, `pingRedis`) — el server no
+conoce drizzle ni ioredis. Configurable via `HEALTH_PORT` (default 3300,
+0 para desactivar) + `HEALTH_HOST`. Wired en `main.ts` con apagado
+ordenado en SIGTERM/SIGINT.
 
-**Estado:** ❌ **no bloqueante** mientras vivamos en una sola URL.
-
----
-
-### 23. NestJS Throttler demasiado agresivo para operaciones bulk legítimas
-**Síntoma:** durante el bootstrap de la org PatrolTech con scripts de
-`/rank-tracking/keywords` y `/projects/:id/competitors`, hit consistente de
-HTTP 429 después de ~10 requests en ráfaga. El throttler default de NestJS
-no distingue entre "bot atacando" y "operador admin scriptando setup".
-
-**Workaround actual:** scripts con `time.sleep(2.5-5s)` entre llamadas. Triplica
-el tiempo de bootstrap (10 min en lugar de 3) y a veces aún recibe 429.
-
-**Tarea:**
-1. Excluir endpoints "admin write" (rank-tracking, schedules, competitors,
-   keywords import) del throttler global.
-2. O exponer header `X-Operator-Bootstrap` que un PAT con scope admin pueda
-   usar para bypassear el rate limit.
-3. Documentar los límites del throttler en el README — hoy son invisibles.
-
-**Estado:** ❌ pendiente. **Fricción real** para cualquier setup masivo
-vía API o SDK.
+**Estado:** ✅ resuelto.
 
 ---
 
-### 24. Mensaje de error confuso al añadir un dominio ya adjuntado a OTRO proyecto
-**Síntoma:** `POST /projects/:id/domains` con `patroltech.online` tras
-haberlo añadido a otro project del mismo org devuelve:
-> "Domain patroltech.online already attached to project"
+### 22. `CORS_ORIGINS` solo permite `https://rankpulse.ingenierosweb.co` — ✅ resuelto
+**Fix aplicado:** `CORS_ORIGINS` parsea la lista comma-separated en `env.ts`,
+trim por entrada, drop de empties, valida que cada uno sea URL absoluta vía
+Zod (`.pipe(z.array(z.string().url()))`). El `main.ts` aplica `enableCors`
+solo cuando hay ≥1 origen — `CORS_ORIGINS=` vacío deja CORS desactivado
+por defecto (single-origin same-domain setups).
 
-El mensaje sugiere que está adjuntado a ESTE project, cuando en realidad la
-violación es: el dominio está en otro project del mismo org (existe regla
-única `(organization_id, domain)` cross-project).
-
-**Tarea (DDD):**
-- `Project.addDomain` debería distinguir conflict-en-mismo-project (lanza
-  `ConflictError("already attached to **this** project")`) vs
-  conflict-cross-project (lanza
-  `ConflictError("already attached to project '<otherProjectName>'")`).
-- O mejor: definir si el modelo permite o no que el mismo dominio esté en
-  varios proyectos del mismo org. Si lo permite, eliminar la regla. Si no,
-  el mensaje debe ser explícito.
-
-**Estado:** ❌ pendiente. **Confunde al operador**, especialmente al modelar
-proyectos por mercado donde dominios "hub" (`patroltech.online`) querrían
-estar en N proyectos.
+**Estado:** ✅ resuelto.
 
 ---
 
-### 25. Patch de Plesk template no se versiona ni se valida tras updates de Plesk
-**Síntoma:** para que `vhost_nginx.conf` se incluya en cada vhost (item 2),
-parchamos `/usr/local/psa/admin/conf/templates/custom/domain/nginxDomainVirtualHost.php`
-con un sentinel `RANKPULSE-CUSTOM-MARKER`. Si Plesk actualiza la plantilla
-default (que es de donde copiamos), nuestro override puede quedar desfasado
-y la includes silenciosamente dejaría de funcionar.
+### 23. NestJS Throttler demasiado agresivo para operaciones bulk legítimas — ✅ resuelto
+**Fix aplicado:**
+1. Default throttle bumpeado de 240/min → **600/min** (10/s, suficiente para
+   un usuario humano polleando dashboards).
+2. Nuevo throttle nombrado `bulk` con **6_000/min** (100/s).
+3. `@Throttle({ bulk: { ttl: 60_000, limit: 6_000 } })` aplicado a:
+   - `POST /projects/:id/competitors`
+   - `POST /projects/:id/keywords`
+   - `POST /rank-tracking/keywords`
+   - `POST /providers/:providerId/endpoints/:endpointId/schedule`
+   Estos endpoints siguen detrás del JwtAuthGuard — sólo se relaja el rate,
+   no la autorización.
 
-**Tarea:**
-- Workflow de monitorización: cron diario que diffea
-  `/usr/local/psa/admin/conf/templates/default/domain/nginxDomainVirtualHost.php`
-  contra el snapshot guardado al aplicar el patch. Si difiere, alerta.
-- Mejor aún: extension de Plesk (`.zip` con manifest + hooks) que se instale
-  oficialmente y sobreviva updates.
+**Estado:** ✅ resuelto.
 
-**Estado:** ❌ pendiente. **Bajo riesgo** mientras Plesk no haga un release
-mayor del template, pero invisible si pasa.
+---
+
+### 24. Mensaje de error confuso al añadir un dominio ya adjuntado a OTRO proyecto — ✅ resuelto
+**Fix aplicado:**
+1. `Project.addDomain` (dominio) sigue siendo el guardián de la invariante
+   intra-aggregate y ahora dice "already attached to **this** project".
+2. Nuevo método de port `ProjectRepository.findByDomainInOrganization()` +
+   impl en Drizzle (chequea `primaryDomain` + tabla `projectDomains` en una
+   sola pasada UNION-style) + impl en in-memory testing repo.
+3. `AddDomainToProjectUseCase` lo llama ANTES del `addDomain`; si encuentra
+   un owner distinto al project actual, lanza
+   `ConflictError("Domain X is already attached to project 'Y' (id) in this
+   organization")`. Pre-empt antes de chocar contra la unique cross-project.
+4. Spec original actualizado (este project) + spec nuevo (cross-project)
+   verifican el mensaje exacto.
+
+**Pendiente (decisión de producto):** si quisiéramos PERMITIR mismo
+dominio en N proyectos del mismo org (caso "hub domain"), habría que
+quitar la unique constraint cross-project. El fix actual mantiene la
+constraint pero la diagnostica claro — partiendo de ahí el cambio futuro
+es trivial (drop constraint + drop el lookup).
+
+**Estado:** ✅ resuelto.
+
+---
+
+### 25. Patch de Plesk template — ❌ requiere acceso al server (no fixable desde código)
+**Estado:** ❌ **pendiente — vive en el server, no en el repo**. El cron de
+monitorización propuesto se podría montar como systemd timer en srv07; se
+documenta arriba el procedimiento.
 
 ---
 

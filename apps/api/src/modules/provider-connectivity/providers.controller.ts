@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, Inject, Param, Patch, Post } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { ProviderConnectivity as PCUseCases } from '@rankpulse/application';
 import { ProviderConnectivityContracts } from '@rankpulse/contracts';
 import type { IdentityAccess, ProjectManagement, ProviderConnectivity } from '@rankpulse/domain';
@@ -184,6 +185,7 @@ export class ProvidersController {
 	}
 
 	@Post(':providerId/endpoints/:endpointId/schedule')
+	@Throttle({ bulk: { ttl: 60_000, limit: 6_000 } })
 	async scheduleEndpoint(
 		@Principal() principal: AuthPrincipal,
 		@Param('providerId') providerId: string,

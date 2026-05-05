@@ -46,9 +46,9 @@ async function bootstrap(): Promise<void> {
 		],
 	});
 
-	if (env.CORS_ORIGINS) {
+	if (env.CORS_ORIGINS.length > 0) {
 		app.enableCors({
-			origin: env.CORS_ORIGINS.split(',').map((o) => o.trim()),
+			origin: [...env.CORS_ORIGINS],
 			credentials: true,
 		});
 	}

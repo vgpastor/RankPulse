@@ -66,4 +66,30 @@ export class ProjectsResource {
 	listKeywordLists(projectId: string): Promise<KeywordListEntry[]> {
 		return this.http.get(`/projects/${encodeURIComponent(projectId)}/keywords`);
 	}
+
+	createPortfolio(
+		organizationId: string,
+		body: ProjectManagementContracts.CreatePortfolioRequest,
+	): Promise<{ portfolioId: string }> {
+		return this.http.post(`/organizations/${encodeURIComponent(organizationId)}/portfolios`, body);
+	}
+
+	listPortfolios(organizationId: string): Promise<ProjectManagementContracts.PortfolioDto[]> {
+		return this.http.get(`/organizations/${encodeURIComponent(organizationId)}/portfolios`);
+	}
+
+	getPortfolio(portfolioId: string): Promise<ProjectManagementContracts.PortfolioDto> {
+		return this.http.get(`/portfolios/${encodeURIComponent(portfolioId)}`);
+	}
+
+	renamePortfolio(
+		portfolioId: string,
+		body: ProjectManagementContracts.RenamePortfolioRequest,
+	): Promise<ProjectManagementContracts.PortfolioDto> {
+		return this.http.patch(`/portfolios/${encodeURIComponent(portfolioId)}`, body);
+	}
+
+	deletePortfolio(portfolioId: string): Promise<void> {
+		return this.http.delete(`/portfolios/${encodeURIComponent(portfolioId)}`);
+	}
 }
