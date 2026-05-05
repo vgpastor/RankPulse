@@ -1,4 +1,5 @@
 import {
+	EntityAwareness as EntityAwarenessUseCases,
 	ProjectManagement as ProjectManagementUseCases,
 	ProviderConnectivity as ProviderConnectivityUseCases,
 	RankTracking as RankTrackingUseCases,
@@ -30,6 +31,10 @@ async function bootstrap(): Promise<void> {
 	const competitorSuggestionRepo = new DrizzlePersistence.DrizzleCompetitorSuggestionRepository(drizzle.db);
 	const gscPropertyRepo = new DrizzlePersistence.DrizzleGscPropertyRepository(drizzle.db);
 	const gscObservationRepo = new DrizzlePersistence.DrizzleGscPerformanceObservationRepository(drizzle.db);
+	const wikipediaArticleRepo = new DrizzlePersistence.DrizzleWikipediaArticleRepository(drizzle.db);
+	const wikipediaPageviewRepo = new DrizzlePersistence.DrizzleWikipediaPageviewObservationRepository(
+		drizzle.db,
+	);
 
 	const vault = new Crypto.LibsodiumCredentialVault(env.RANKPULSE_MASTER_KEY);
 	const eventPublisher = new Events.InMemoryEventPublisher();
@@ -68,6 +73,12 @@ async function bootstrap(): Promise<void> {
 			SystemIdGenerator,
 			{ warn: (meta, msg) => logger.warn(meta, msg) },
 		);
+	const ingestWikipediaPageviewsUseCase = new EntityAwarenessUseCases.IngestWikipediaPageviewsUseCase(
+		wikipediaArticleRepo,
+		wikipediaPageviewRepo,
+		eventPublisher,
+		SystemClock,
+	);
 
 	const processor = new ProviderFetchProcessor({
 		registry,
@@ -79,12 +90,14 @@ async function bootstrap(): Promise<void> {
 		trackedKeywordRepo,
 		competitorRepo,
 		gscPropertyRepo,
+		wikipediaArticleRepo,
 		vault,
 		resolveCredentialUseCase,
 		recordApiUsageUseCase,
 		recordRankingObservationUseCase,
 		recordTop10HitsForSuggestionsUseCase,
 		ingestGscRowsUseCase,
+		ingestWikipediaPageviewsUseCase,
 		clock: SystemClock,
 		ids: SystemIdGenerator,
 		logger,

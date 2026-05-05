@@ -86,6 +86,15 @@ export const Tokens = {
 	IngestGscRows: Symbol('IngestGscRowsUseCase'),
 	QueryGscPerformance: Symbol('QueryGscPerformanceUseCase'),
 
+	// Entity-Awareness ports
+	WikipediaArticleRepository: Symbol('WikipediaArticleRepository'),
+	WikipediaPageviewObservationRepository: Symbol('WikipediaPageviewObservationRepository'),
+
+	// Entity-Awareness use cases
+	LinkWikipediaArticle: Symbol('LinkWikipediaArticleUseCase'),
+	UnlinkWikipediaArticle: Symbol('UnlinkWikipediaArticleUseCase'),
+	QueryWikipediaPageviews: Symbol('QueryWikipediaPageviewsUseCase'),
+
 	// Infrastructure handles
 	DrizzleClient: Symbol('DrizzleClient'),
 	JwtService: Symbol('JwtService'),

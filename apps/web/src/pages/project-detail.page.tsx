@@ -1,20 +1,21 @@
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, Spinner } from '@rankpulse/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
-import { CalendarClock, Check, LineChart, MapPin, Plus, Search, Sparkles, X } from 'lucide-react';
+import { BookOpen, CalendarClock, Check, LineChart, MapPin, Plus, Search, Sparkles, X } from 'lucide-react';
 import { useState } from 'react';
 import { AddCompetitorDrawer } from '../components/add-competitor-drawer.js';
 import { AddDomainDrawer } from '../components/add-domain-drawer.js';
 import { AddLocationDrawer } from '../components/add-location-drawer.js';
 import { AppShell } from '../components/app-shell.js';
 import { ImportKeywordsDrawer } from '../components/import-keywords-drawer.js';
+import { LinkWikipediaDrawer } from '../components/link-wikipedia-drawer.js';
 import { api } from '../lib/api.js';
 
 export const ProjectDetailPage = () => {
 	const { id } = useParams({ from: '/projects/$id' });
-	const [openDrawer, setOpenDrawer] = useState<'competitor' | 'keywords' | 'domain' | 'location' | null>(
-		null,
-	);
+	const [openDrawer, setOpenDrawer] = useState<
+		'competitor' | 'keywords' | 'domain' | 'location' | 'wikipedia' | null
+	>(null);
 
 	const projectQuery = useQuery({
 		queryKey: ['project', id],
@@ -36,6 +37,12 @@ export const ProjectDetailPage = () => {
 	const suggestionsQuery = useQuery({
 		queryKey: ['project', id, 'competitor-suggestions'],
 		queryFn: () => api.projects.listCompetitorSuggestions(id),
+		enabled: Boolean(projectQuery.data),
+	});
+
+	const wikipediaQuery = useQuery({
+		queryKey: ['project', id, 'wikipedia'],
+		queryFn: () => api.wikipedia.listForProject(id),
 		enabled: Boolean(projectQuery.data),
 	});
 
@@ -255,6 +262,46 @@ export const ProjectDetailPage = () => {
 
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between gap-2">
+							<CardTitle className="flex items-center gap-2 text-base">
+								<BookOpen size={14} className="text-primary" />
+								Wikipedia entities ({wikipediaQuery.data?.length ?? '…'})
+							</CardTitle>
+							<Button variant="ghost" size="sm" onClick={() => setOpenDrawer('wikipedia')}>
+								<Plus size={14} />
+								Link
+							</Button>
+						</CardHeader>
+						<CardContent>
+							{wikipediaQuery.isLoading ? (
+								<Spinner />
+							) : wikipediaQuery.data && wikipediaQuery.data.length > 0 ? (
+								<ul className="space-y-1 text-sm">
+									{wikipediaQuery.data.map((a) => (
+										<li key={a.id} className="break-words">
+											<span className="font-medium">{a.label}</span>{' '}
+											<span className="text-muted-foreground">
+												· {a.slug} on {a.wikipediaProject}
+											</span>
+										</li>
+									))}
+								</ul>
+							) : (
+								<EmptyState
+									title="No Wikipedia entities tracked"
+									description="Link an article (yours, a competitor's, or an industry topic) to monitor pageviews as a brand-awareness signal."
+									action={
+										<Button size="sm" onClick={() => setOpenDrawer('wikipedia')}>
+											<Plus size={14} />
+											Link article
+										</Button>
+									}
+								/>
+							)}
+						</CardContent>
+					</Card>
+
+					<Card>
+						<CardHeader className="flex flex-row items-center justify-between gap-2">
 							<CardTitle className="text-base">
 								Keyword lists ({keywordsQuery.data?.reduce((acc, l) => acc + l.keywords.length, 0) ?? '…'})
 							</CardTitle>
@@ -306,6 +353,11 @@ export const ProjectDetailPage = () => {
 			<AddLocationDrawer
 				projectId={id}
 				open={openDrawer === 'location'}
+				onClose={() => setOpenDrawer(null)}
+			/>
+			<LinkWikipediaDrawer
+				projectId={id}
+				open={openDrawer === 'wikipedia'}
 				onClose={() => setOpenDrawer(null)}
 			/>
 		</AppShell>
