@@ -56,12 +56,17 @@ export class RankTrackingController {
 			device: body.device,
 		});
 
-		// BACKLOG #9 opción A: with `autoSchedule` present, immediately wire a
-		// JobDefinition with `trackedKeywordId` injected so the processor will
-		// materialize RankingObservation rows. The two operations are NOT
-		// transactional — by design, since they live in different bounded
-		// contexts; on partial failure the caller can still trigger the
-		// schedule via POST /providers/.../schedule explicitly.
+		// BACKLOG #9 opción A + #15: with `autoSchedule` present, wire ONE
+		// JobDefinition per (project, phrase, country, language, device).
+		// The processor reads tracked_keywords matching that query and fans
+		// the SERP payload into N observations — so additional
+		// StartTrackingKeyword calls for new domains under the same query
+		// just add tracked_keyword rows, not new SERP fetches. 5× cheaper
+		// when a project tracks multiple domains for the same keyword.
+		//
+		// The two operations are NOT transactional — they live in different
+		// bounded contexts. On partial failure the caller can fall back to
+		// `POST /providers/.../schedule` with the same systemParams shape.
 		let scheduledDefinitionId: string | null = null;
 		if (body.autoSchedule) {
 			const result = await this.scheduleEndpoint.execute({
@@ -69,7 +74,14 @@ export class RankTrackingController {
 				providerId: body.autoSchedule.providerId,
 				endpointId: body.autoSchedule.endpointId,
 				params: body.autoSchedule.params,
-				systemParams: { organizationId: project.organizationId, trackedKeywordId },
+				systemParams: {
+					organizationId: project.organizationId,
+					projectId: body.projectId,
+					phrase: body.phrase,
+					country: body.country,
+					language: body.language,
+					device: body.device ?? 'desktop',
+				},
 				cron: body.autoSchedule.cron,
 				credentialOverrideId: body.autoSchedule.credentialOverrideId ?? null,
 			});

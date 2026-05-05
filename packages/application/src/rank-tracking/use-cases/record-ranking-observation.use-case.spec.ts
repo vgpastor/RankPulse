@@ -38,6 +38,9 @@ class TrackedRepo implements RankTracking.TrackedKeywordRepository {
 	async listForOrganization(): Promise<readonly RankTracking.TrackedKeyword[]> {
 		return [];
 	}
+	async listByProjectQuery(): Promise<readonly RankTracking.TrackedKeyword[]> {
+		return [];
+	}
 }
 
 class ObservationRepo implements RankTracking.RankingObservationRepository {

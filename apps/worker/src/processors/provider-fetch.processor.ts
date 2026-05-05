@@ -4,17 +4,14 @@ import type {
 	SearchConsoleInsights as SearchConsoleInsightsUseCases,
 } from '@rankpulse/application';
 import {
+	type ProjectManagement,
 	ProviderConnectivity,
 	type RankTracking as RankTrackingDomain,
 	type SearchConsoleInsights as SearchConsoleInsightsDomain,
 } from '@rankpulse/domain';
 import type { ProviderFetchJobData } from '@rankpulse/infrastructure/queue';
 import type { ProviderRegistry } from '@rankpulse/provider-core';
-import {
-	DataForSeoApiError,
-	extractRankingForDomain,
-	type SerpLiveResponse,
-} from '@rankpulse/provider-dataforseo';
+import { DataForSeoApiError, type SerpLiveResponse } from '@rankpulse/provider-dataforseo';
 import {
 	extractGscRows,
 	GscApiError,
@@ -23,6 +20,7 @@ import {
 } from '@rankpulse/provider-gsc';
 import { type Clock, type IdGenerator, NotFoundError, resolveDateTokens } from '@rankpulse/shared';
 import type { Logger } from 'pino';
+import { extractMultiDomainRankings, isMultiDomainSerpJob } from './extract-multi-domain-rankings.js';
 
 /**
  * BACKLOG #14: detect provider-side "out of quota / payment required" so the
@@ -84,21 +82,17 @@ export class ProviderFetchProcessor {
 			definition.providerId.value,
 			definition.endpointId.value,
 		);
-		const params = definition.params as {
-			domain?: string;
-			organizationId?: string;
-			trackedKeywordId?: string;
-		};
+		const params = definition.params as { organizationId?: string };
 
 		const orgId = params.organizationId;
 		if (!orgId) {
-			throw new Error(`Job definition ${definition.id} missing organizationId param`);
+			throw new Error(`Job definition ${definition.id} missing organizationId in systemParams`);
 		}
 
 		const resolved = await this.deps.resolveCredentialUseCase.execute({
 			organizationId: orgId,
 			providerId: definition.providerId.value,
-			hints: { domain: params.domain, projectId: definition.projectId },
+			hints: { projectId: definition.projectId },
 			overrideCredentialId: definition.credentialOverrideId,
 		});
 
@@ -170,19 +164,41 @@ export class ProviderFetchProcessor {
 
 			if (
 				definition.providerId.value === 'dataforseo' &&
-				definition.endpointId.value === 'serp-google-organic-live' &&
-				params.domain &&
-				params.trackedKeywordId
+				definition.endpointId.value === 'serp-google-organic-live'
 			) {
-				const extracted = extractRankingForDomain(fetchResult as SerpLiveResponse, params.domain);
-				await this.deps.recordRankingObservationUseCase.execute({
-					trackedKeywordId: params.trackedKeywordId,
-					position: extracted.position,
-					url: extracted.url,
-					serpFeatures: extracted.serpFeatures,
-					sourceProvider: definition.providerId.value,
-					rawPayloadId,
-				});
+				// BACKLOG #15 — fan-out: 1 SERP fetch → N RankingObservations,
+				// one per project domain currently tracked for this query.
+				// `(projectId, phrase, country, language, device)` arrives via
+				// `systemParams` (merged into resolvedParams). The Zod schema
+				// of the endpoint already validated the DataForSEO query
+				// fields (`keyword`, `locationCode`, `languageCode`, `device`,
+				// `depth`); fan-out fields are orchestration-only and live in
+				// systemParams.
+				if (!isMultiDomainSerpJob(resolvedParams as Record<string, string>)) {
+					throw new Error(
+						`SERP job ${definition.id} missing fan-out systemParams ` +
+							`(projectId, phrase, country, language, device)`,
+					);
+				}
+				const fanOutKey = resolvedParams as {
+					projectId: ProjectManagement.ProjectId;
+					phrase: string;
+					country: string;
+					language: string;
+					device: string;
+				};
+				const tracked = await this.deps.trackedKeywordRepo.listByProjectQuery(fanOutKey);
+				const extractions = extractMultiDomainRankings(fetchResult as SerpLiveResponse, tracked);
+				for (const e of extractions) {
+					await this.deps.recordRankingObservationUseCase.execute({
+						trackedKeywordId: e.trackedKeywordId,
+						position: e.extraction.position,
+						url: e.extraction.url,
+						serpFeatures: e.extraction.serpFeatures,
+						sourceProvider: definition.providerId.value,
+						rawPayloadId,
+					});
+				}
 			}
 
 			if (

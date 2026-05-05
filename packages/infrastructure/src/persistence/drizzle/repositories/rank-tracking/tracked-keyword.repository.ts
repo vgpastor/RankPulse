@@ -76,6 +76,28 @@ export class DrizzleTrackedKeywordRepository implements RankTracking.TrackedKeyw
 		return rows.map((r) => this.toAggregate(r));
 	}
 
+	async listByProjectQuery(input: {
+		projectId: ProjectManagement.ProjectId;
+		phrase: string;
+		country: string;
+		language: string;
+		device: string;
+	}): Promise<readonly RankTracking.TrackedKeyword[]> {
+		const rows = await this.db
+			.select()
+			.from(trackedKeywords)
+			.where(
+				and(
+					eq(trackedKeywords.projectId, input.projectId),
+					eq(trackedKeywords.phrase, input.phrase),
+					eq(trackedKeywords.country, input.country),
+					eq(trackedKeywords.language, input.language),
+					eq(trackedKeywords.device, input.device),
+				),
+			);
+		return rows.map((r) => this.toAggregate(r));
+	}
+
 	private toAggregate(row: typeof trackedKeywords.$inferSelect): RankTracking.TrackedKeyword {
 		if (!RankTracking.isDevice(row.device)) {
 			throw new InvalidInputError(`Stored tracked keyword has invalid device "${row.device}"`);

@@ -7,35 +7,17 @@
 
 | Categoría | Cantidad |
 |---|---:|
-| Pendiente arquitectura/UX (devs) | 6 |
+| Pendiente arquitectura/UX (devs) | 5 |
 | Pendiente del usuario (opcional) | 1 |
-| **Total** | **7** |
+| **Total** | **6** |
 
-> Numeración: items 7-14, 17, 20, 22 y 23 ya cerrados. Mantengo el id
+> Numeración: items 7-14, 15, 17, 20, 22 y 23 ya cerrados. Mantengo el id
 > original para que enlaces externos a "BACKLOG #X" no se rompan; los
 > huecos en la secuencia son a propósito.
 
 ---
 
 ## ❌ Pendiente arquitectura / producto / UX
-
-### #15 — SERP fetch redundante por proyecto (5× ahorro DataForSEO)
-**Contexto:** una `SERPLiveResponse` trae el top-30 entero. Hoy el processor
-solo extrae la posición del único dominio que viene en `params.domain`. Si un
-proyecto tiene 5 dominios, hago 5 SERP fetches idénticos
-(`$0.0035 × 5 = $0.0175`) cuando con UNA llamada podrían sacarse las 5
-posiciones simultáneas (`$0.0035`, **5× más barato**).
-
-**Estado actual:** PR #13 ya implementó `extractRankingsForDomains(payload, domains[])`
-en el ACL. Falta el **paso 2**: refactor del `ProviderFetchProcessor` para que:
-1. Lea `project.domains` en lugar de `params.domain`.
-2. Itere y persista una `RankingObservation` por cada domain match.
-3. Coalesce/cache: si la misma `(keyword, location, device)` ya tiene un
-   fetch reciente en otro project, reutilizar la `raw_payload`.
-
-Más una migración para des-duplicar las `tracked_keywords` actuales.
-
----
 
 ### #16 — Runtime via `tsx`/swc-node en producción (deuda técnica)
 Los apps usan transpilación on-the-fly (`@swc-node/register`) en lugar de un

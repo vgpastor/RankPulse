@@ -16,4 +16,18 @@ export interface TrackedKeywordRepository {
 	}): Promise<TrackedKeyword | null>;
 	listForProject(projectId: ProjectId): Promise<readonly TrackedKeyword[]>;
 	listForOrganization(orgId: OrganizationId): Promise<readonly TrackedKeyword[]>;
+	/**
+	 * BACKLOG #15: returns every tracked keyword sharing the same SERP query
+	 * (project + phrase + country + language + device). The processor uses
+	 * this to fan one SERP fetch into N RankingObservations — one per
+	 * project domain that matches in the top-N. Replaces the old
+	 * per-domain JobDefinition pattern.
+	 */
+	listByProjectQuery(input: {
+		projectId: ProjectId;
+		phrase: string;
+		country: string;
+		language: string;
+		device: string;
+	}): Promise<readonly TrackedKeyword[]>;
 }
