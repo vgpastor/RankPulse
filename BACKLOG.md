@@ -8,9 +8,8 @@
 | Categoría | Cantidad |
 |---|---:|
 | Pendiente arquitectura/UX (devs) | 3 |
-| Pendiente server-side (ops) | 2 |
-| Pendiente del usuario | 5 |
-| **Total** | **10** |
+| Pendiente del usuario (opcional) | 1 |
+| **Total** | **4** |
 
 ---
 
@@ -30,11 +29,11 @@ en el ACL. Falta el **paso 2**: refactor del `ProviderFetchProcessor` para que:
 3. Coalesce/cache: si la misma `(keyword, location, device)` ya tiene un
    fetch reciente en otro project, reutilizar la `raw_payload`.
 
-Más una migración para des-duplicar las 165 `tracked_keywords` actuales
-(crear una `tracked_keyword` por (project, keyword, location), no por dominio).
+Más una migración para des-duplicar las `tracked_keywords` actuales (crear
+una `tracked_keyword` por (project, keyword, location), no por dominio).
 
 **Impacto medido:** las 4 markets de PatrolTech con 5+3+5+2 dominios y
-7+5+6+4 keywords son ahora 88 SERPs/refresh (~$0.31). Tras el refactor: 22
+7+5+6+4 keywords son hoy 88 SERPs/refresh (~$0.31). Tras el refactor: 22
 SERPs (~$0.077). En todo el portfolio: hoy ~181 fetches/refresh
 (~$0.63), tras refactor ~50 (~$0.18).
 
@@ -66,48 +65,8 @@ alrededor de `SwaggerModule.createDocument` en `main.ts`.
 
 ---
 
-## ❌ Pendiente server-side / ops (no fixable desde código)
+## 🟢 Pendiente del usuario (opcional)
 
-### #19 — Despliegue via SSH como `root`
-El `SRV07_USER` actual del workflow es `root`. El blast radius de un PAT
-comprometido o un commit malicioso al workflow es máximo (acceso total).
-
-**Tarea:**
-1. Crear usuario `rankpulse-deploy` en srv07 con grupo `docker` (sin sudo).
-2. Acceso solo a `/var/www/vhosts/ingenierosweb.co/rankpulse.ingenierosweb.co/app/`.
-3. Rotar la SSH key (la actual está en KeePass como `RankPulse GHA Deploy SSH Key`).
-4. Actualizar GitHub Secret `SRV07_USER` y borrar la deploy key del
-   `authorized_keys` de root.
-
----
-
-### #25 — Patch de Plesk template no se versiona ni se valida tras updates de Plesk
-Para que `vhost_nginx.conf` se incluya en cada vhost, parchamos
-`/usr/local/psa/admin/conf/templates/custom/domain/nginxDomainVirtualHost.php`
-con un sentinel `RANKPULSE-CUSTOM-MARKER`. Si Plesk actualiza la plantilla
-default, el override puede quedar desfasado y los includes silenciosamente
-dejarían de funcionar.
-
-**Tarea:**
-- Cron diario que diffea
-  `/usr/local/psa/admin/conf/templates/default/domain/nginxDomainVirtualHost.php`
-  contra el snapshot guardado al aplicar el patch. Si difiere, alerta.
-- Mejor aún: extension de Plesk (`.zip` con manifest + hooks) que se instale
-  oficialmente y sobreviva updates.
-
----
-
-## 🟢 Pendiente del usuario (Víctor)
-
-- **GSC service account JSON.** Subir a
-  `/var/www/vhosts/ingenierosweb.co/rankpulse.ingenierosweb.co/app/config/gsc-service-account.json`
-  el JSON de `claude-access@ingenierosweb.iam.gserviceaccount.com` para
-  activar el provider GSC.
-- **SMTP.** Si quieres alertas por email, rellenar `SMTP_*` en `.env.local`
-  y reiniciar el stack.
-- **Backup de Postgres.** No hay todavía. Cuando empiece a haber datos
-  reales, montar un cron que `pg_dump` a un volumen externo + Cloudflare R2.
-- **Recargar saldo DataForSEO.** El crédito de $1 gratis está agotado tras
-  los 181 SERPs del bootstrap. Mínimo $50 (≈11 meses al ritmo actual).
-- **DataForSEO Backlinks API ($100/mo).** Excluida del v1 — GSC referring
-  domains + Ahrefs Free DR cubren el caso.
+- **DataForSEO Backlinks API** ($100/mo). Excluida del v1 — GSC referring
+  domains + Ahrefs Free DR cubren el caso. Solo si quieres datos completos
+  de backlinks.
