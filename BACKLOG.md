@@ -7,7 +7,7 @@ Marcado al final si es **bloqueante** o **no bloqueante**.
 
 ---
 
-## 🔴 Resueltos en caliente durante el primer deploy
+## ✅ Resueltos en caliente durante el primer deploy (items 1-5)
 
 ### 1. Dockerfiles referenciaban paquetes inexistentes
 **Síntoma:** El primer build de GHA falló con
@@ -136,6 +136,11 @@ manipulación del módulo.
 
 ---
 
+## ✅ Resueltos en sprints posteriores (items 6-10)
+
+Cerrados por los PRs #11 (`e244776` — pre-persist validation + CRUD job-defs)
+y #12 (`d5e55f2` — test BullMQ + opción A auto-schedule + UI A1-A8).
+
 ### 6. BullMQ jobId con ':' en `enqueueOnce`
 **Síntoma:** todas las llamadas a `POST /providers/:id/job-definitions/:defId/run-now`
 devolvían 500 con `Error: Custom Id cannot contain :`.
@@ -250,6 +255,11 @@ deleteJobDefinition / runJobDefinitionNow`.
 **Estado:** ✅ resuelto a nivel API/SDK.
 
 ---
+
+## ❌ Pendiente arquitectura/producto (items 11-15)
+
+Cambios de modelo/infra que no son deuda técnica menor: requieren
+decisiones de arquitectura y suelen tener impacto económico.
 
 ### 11. No hay endpoint API para gestionar Portfolios
 **Síntoma:** la entidad `Portfolio` existe en `packages/domain/src/project-management/entities/portfolio.ts`
