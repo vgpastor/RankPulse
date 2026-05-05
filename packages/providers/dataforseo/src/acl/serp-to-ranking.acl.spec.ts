@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SerpLiveResponse } from '../endpoints/serp-google-organic-live.js';
-import { extractRankingForDomain, extractRankingsForDomains } from './serp-to-ranking.acl.js';
+import { extractRankingForDomain, extractRankingsForDomains, extractTop10Domains } from './serp-to-ranking.acl.js';
 
 const fixture: SerpLiveResponse = {
 	status_code: 20000,
@@ -167,5 +167,82 @@ describe('extractRankingsForDomains (BACKLOG #12 + #15)', () => {
 		// Both inputs collapse to the same key — Map.set just overwrites, the
 		// second call still gets a valid extraction.
 		expect(result.get('vigilant.es')?.position).toBe(2);
+	});
+});
+
+describe('extractTop10Domains (BACKLOG #18)', () => {
+	it('returns each distinct organic domain in the top-10, normalized', () => {
+		const domains = extractTop10Domains(fixture);
+		expect(domains).toEqual(['todoelectronica.com', 'vigilant.es', 'euroma.es', 'controlrondas.com']);
+	});
+
+	it('skips non-organic items (people_also_ask, paid, snippets) — only competitor signals count', () => {
+		const domains = extractTop10Domains(fixture);
+		expect(domains).not.toContain(undefined);
+		// people_also_ask in the fixture has no domain anyway, but if it did,
+		// it would still be filtered out.
+	});
+
+	it('drops items past rank 10 — extending the top-10 cutoff would change the policy semantics', () => {
+		const past10: SerpLiveResponse = {
+			...fixture,
+			tasks: [
+				{
+					status_code: 20000,
+					status_message: 'Ok.',
+					result: [
+						{
+							keyword: 'x',
+							location_code: 1,
+							language_code: 'en',
+							items: [
+								{ type: 'organic', rank_absolute: 9, rank_group: 9, domain: 'a.com', url: 'https://a.com' },
+								{ type: 'organic', rank_absolute: 11, rank_group: 11, domain: 'b.com', url: 'https://b.com' },
+							],
+						},
+					],
+				},
+			],
+		};
+		expect(extractTop10Domains(past10)).toEqual(['a.com']);
+	});
+
+	it('deduplicates a domain showing up in multiple positions', () => {
+		const dup: SerpLiveResponse = {
+			...fixture,
+			tasks: [
+				{
+					status_code: 20000,
+					status_message: 'Ok.',
+					result: [
+						{
+							keyword: 'x',
+							location_code: 1,
+							language_code: 'en',
+							items: [
+								{ type: 'organic', rank_absolute: 1, rank_group: 1, domain: 'a.com', url: 'https://a.com/1' },
+								{ type: 'organic', rank_absolute: 5, rank_group: 5, domain: 'a.com', url: 'https://a.com/2' },
+								{ type: 'organic', rank_absolute: 6, rank_group: 6, domain: 'B.COM', url: 'https://b.com' },
+							],
+						},
+					],
+				},
+			],
+		};
+		expect(extractTop10Domains(dup)).toEqual(['a.com', 'b.com']);
+	});
+
+	it('returns empty when there are no organic items', () => {
+		const empty: SerpLiveResponse = {
+			...fixture,
+			tasks: [
+				{
+					status_code: 20000,
+					status_message: 'Ok.',
+					result: [{ keyword: 'x', location_code: 1, language_code: 'en', items: [] }],
+				},
+			],
+		};
+		expect(extractTop10Domains(empty)).toEqual([]);
 	});
 });

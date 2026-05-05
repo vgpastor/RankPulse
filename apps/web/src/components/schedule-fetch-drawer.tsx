@@ -7,8 +7,6 @@ export interface ScheduleFetchDrawerProps {
 	open: boolean;
 	onClose: () => void;
 	projectId: string;
-	/** Optional pre-filled trackedKeywordId to wire into systemParams (BACKLOG #9). */
-	trackedKeywordId?: string;
 }
 
 const DEFAULT_PARAMS_HINT: Record<string, string> = {
@@ -24,12 +22,7 @@ const DEFAULT_PARAMS_HINT: Record<string, string> = {
 	),
 };
 
-export const ScheduleFetchDrawer = ({
-	open,
-	onClose,
-	projectId,
-	trackedKeywordId,
-}: ScheduleFetchDrawerProps) => {
+export const ScheduleFetchDrawer = ({ open, onClose, projectId }: ScheduleFetchDrawerProps) => {
 	const qc = useQueryClient();
 	const [providerId, setProviderId] = useState('dataforseo');
 	const [endpointId, setEndpointId] = useState('serp-google-organic-live');
@@ -77,7 +70,6 @@ export const ScheduleFetchDrawer = ({
 				endpointId,
 				params: parsed,
 				cron,
-				trackedKeywordId,
 			});
 		},
 		onSuccess: () => {
@@ -98,7 +90,6 @@ export const ScheduleFetchDrawer = ({
 			open={open}
 			onClose={onClose}
 			title="Schedule recurring fetch"
-			description={trackedKeywordId ? 'Linked to the selected tracked keyword.' : undefined}
 			footer={
 				<>
 					<Button variant="ghost" type="button" onClick={onClose} disabled={mutation.isPending}>

@@ -1,4 +1,5 @@
 import type {
+	ProjectManagement as ProjectManagementUseCases,
 	ProviderConnectivity as ProviderConnectivityUseCases,
 	RankTracking as RankTrackingUseCases,
 	SearchConsoleInsights as SearchConsoleInsightsUseCases,
@@ -11,7 +12,7 @@ import {
 } from '@rankpulse/domain';
 import type { ProviderFetchJobData } from '@rankpulse/infrastructure/queue';
 import type { ProviderRegistry } from '@rankpulse/provider-core';
-import { DataForSeoApiError, type SerpLiveResponse } from '@rankpulse/provider-dataforseo';
+import { DataForSeoApiError, extractTop10Domains, type SerpLiveResponse } from '@rankpulse/provider-dataforseo';
 import {
 	extractGscRows,
 	GscApiError,
@@ -36,6 +37,8 @@ const isQuotaExhaustedError = (err: unknown): boolean => {
 	return false;
 };
 
+const normalize = (raw: string): string => raw.trim().toLowerCase().replace(/^www\./, '');
+
 export interface ProviderFetchProcessorDeps {
 	registry: ProviderRegistry;
 	credentialRepo: ProviderConnectivity.CredentialRepository;
@@ -44,11 +47,13 @@ export interface ProviderFetchProcessorDeps {
 	rawPayloadRepo: ProviderConnectivity.RawPayloadRepository;
 	apiUsageRepo: ProviderConnectivity.ApiUsageRepository;
 	trackedKeywordRepo: RankTrackingDomain.TrackedKeywordRepository;
+	competitorRepo: ProjectManagement.CompetitorRepository;
 	gscPropertyRepo: SearchConsoleInsightsDomain.GscPropertyRepository;
 	vault: ProviderConnectivity.CredentialVault;
 	resolveCredentialUseCase: ProviderConnectivityUseCases.ResolveProviderCredentialUseCase;
 	recordApiUsageUseCase: ProviderConnectivityUseCases.RecordApiUsageUseCase;
 	recordRankingObservationUseCase: RankTrackingUseCases.RecordRankingObservationUseCase;
+	recordTop10HitsForSuggestionsUseCase: ProjectManagementUseCases.RecordTop10HitsForSuggestionsUseCase;
 	ingestGscRowsUseCase: SearchConsoleInsightsUseCases.IngestGscRowsUseCase;
 	clock: Clock;
 	ids: IdGenerator;
@@ -198,6 +203,26 @@ export class ProviderFetchProcessor {
 						sourceProvider: definition.providerId.value,
 						rawPayloadId,
 					});
+				}
+
+				// BACKLOG #18 — auto-discover competitors. Top-10 domains that
+				// are NOT in the project's own tracked set AND NOT already
+				// promoted competitors get recorded as suggestions. The use
+				// case is idempotent on (project, domain): it bumps the
+				// existing tally or starts a new PENDING row.
+				const top10 = extractTop10Domains(fetchResult as SerpLiveResponse);
+				if (top10.length > 0) {
+					const ownDomains = new Set(tracked.map((tk) => normalize(tk.domain.value)));
+					const competitors = await this.deps.competitorRepo.listForProject(fanOutKey.projectId);
+					const competitorDomains = new Set(competitors.map((c) => normalize(c.domain.value)));
+					const external = top10.filter((d) => !ownDomains.has(d) && !competitorDomains.has(d));
+					if (external.length > 0) {
+						await this.deps.recordTop10HitsForSuggestionsUseCase.execute({
+							projectId: fanOutKey.projectId,
+							keyword: fanOutKey.phrase,
+							externalDomainsInTop10: external,
+						});
+					}
 				}
 			}
 

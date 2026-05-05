@@ -7,11 +7,11 @@
 
 | Categoría | Cantidad |
 |---|---:|
-| Pendiente arquitectura/UX (devs) | 5 |
+| Pendiente arquitectura/UX (devs) | 4 |
 | Pendiente del usuario (opcional) | 1 |
-| **Total** | **6** |
+| **Total** | **5** |
 
-> Numeración: items 7-14, 15, 17, 20, 22 y 23 ya cerrados. Mantengo el id
+> Numeración: items 7-14, 15, 17, 18, 20, 22 y 23 ya cerrados. Mantengo el id
 > original para que enlaces externos a "BACKLOG #X" no se rompan; los
 > huecos en la secuencia son a propósito.
 
@@ -29,29 +29,6 @@ Migrar a multi-stage build → `tsc → dist/`.
 ### A9 — Bootstrap UX: post-registro debería pedir credenciales primero
 Tras registro la SPA va a /projects vacía. Mejor: asistente que pida
 (1) credencial DataForSEO, (2) primer proyecto, (3) primer keyword + schedule.
-
----
-
-### #18 — Auto-discovery de competidores desde SERP
-**Problema:** los proyectos arrancan con cero competidores. Se añaden a mano,
-y los locale-specific (FR, MX) son difíciles de adivinar.
-
-**Idea:** cada vez que un fetch SERP devuelva el top-N, identificar los
-dominios externos (no propios, no ya-trackeados como competidores) que
-aparecen recurrentemente en las keywords de un proyecto. Cuando un dominio
-supere un umbral (p.ej. aparezca en top-10 en ≥30% de las keywords del
-proyecto durante ≥3 fetches consecutivos), auto-añadirlo como competidor
-(o emitir un evento "CompetitorSuggested" para que el usuario apruebe).
-
-**Capas:**
-- **rank-tracking domain:** evento `RankingObservationRecorded` ya existe.
-- **Nuevo use-case en `project-management`:** `SuggestCompetitorsFromSerp`
-  que consume esos eventos y mantiene un agregado de frecuencia.
-- **API:** `GET /projects/:id/competitor-suggestions` (lista pendientes) +
-  `POST /projects/:id/competitors/from-suggestion/:sid` (promover).
-- **UI:** badge en el panel del proyecto con sugerencias pendientes.
-
-Esto desacopla el descubrimiento del operador y mejora con cada SERP fetch.
 
 ---
 

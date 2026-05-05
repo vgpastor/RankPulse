@@ -6,6 +6,7 @@ import {
 	RankTracking as RTUseCases,
 	SearchConsoleInsights as SCIUseCases,
 } from '@rankpulse/application';
+import type { ProjectManagement } from '@rankpulse/domain';
 import { Crypto, DrizzlePersistence, Events, Queue as QueueAdapters } from '@rankpulse/infrastructure';
 import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
@@ -46,6 +47,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const projectRepo = new DrizzlePersistence.DrizzleProjectRepository(drizzle.db);
 	const keywordListRepo = new DrizzlePersistence.DrizzleKeywordListRepository(drizzle.db);
 	const competitorRepo = new DrizzlePersistence.DrizzleCompetitorRepository(drizzle.db);
+	const competitorSuggestionRepo = new DrizzlePersistence.DrizzleCompetitorSuggestionRepository(drizzle.db);
 
 	const credentialRepo = new DrizzlePersistence.DrizzleCredentialRepository(drizzle.db);
 	const jobDefRepo = new DrizzlePersistence.DrizzleJobDefinitionRepository(drizzle.db);
@@ -122,6 +124,29 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const getPortfolio = new PMUseCases.GetPortfolioUseCase(portfolioRepo);
 	const renamePortfolio = new PMUseCases.RenamePortfolioUseCase(portfolioRepo);
 	const deletePortfolio = new PMUseCases.DeletePortfolioUseCase(portfolioRepo);
+
+	// BACKLOG #18 — competitor auto-discovery. The list use case needs the
+	// project's keyword count to evaluate the eligibility ratio. We don't
+	// leak the rank-tracking aggregate; we expose a tiny lambda over the
+	// tracked-keyword repo so suggestions stay project-management-pure.
+	const listCompetitorSuggestions = new PMUseCases.ListCompetitorSuggestionsUseCase(
+		competitorSuggestionRepo,
+		async (projectId) => {
+			const tracked = await trackedKeywordRepo.listForProject(projectId as ProjectManagement.ProjectId);
+			return tracked.length;
+		},
+	);
+	const promoteCompetitorSuggestion = new PMUseCases.PromoteCompetitorSuggestionUseCase(
+		competitorSuggestionRepo,
+		competitorRepo,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const dismissCompetitorSuggestion = new PMUseCases.DismissCompetitorSuggestionUseCase(
+		competitorSuggestionRepo,
+		SystemClock,
+	);
 
 	const registerCredential = new PCUseCases.RegisterProviderCredentialUseCase(
 		credentialRepo,
@@ -244,6 +269,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.ProjectRepository, projectRepo),
 		value(Tokens.KeywordListRepository, keywordListRepo),
 		value(Tokens.CompetitorRepository, competitorRepo),
+		value(Tokens.CompetitorSuggestionRepository, competitorSuggestionRepo),
 		value(Tokens.RegisterOrganization, registerOrganization),
 		value(Tokens.AuthenticateUser, authenticateUser),
 		value(Tokens.InviteUser, inviteUser),
@@ -258,6 +284,9 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.GetPortfolio, getPortfolio),
 		value(Tokens.RenamePortfolio, renamePortfolio),
 		value(Tokens.DeletePortfolio, deletePortfolio),
+		value(Tokens.ListCompetitorSuggestions, listCompetitorSuggestions),
+		value(Tokens.PromoteCompetitorSuggestion, promoteCompetitorSuggestion),
+		value(Tokens.DismissCompetitorSuggestion, dismissCompetitorSuggestion),
 
 		value(Tokens.CredentialRepository, credentialRepo),
 		value(Tokens.JobDefinitionRepository, jobDefRepo),

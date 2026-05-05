@@ -76,3 +76,32 @@ export const PortfolioDto = z.object({
 	projectCount: z.number().int().nonnegative(),
 });
 export type PortfolioDto = z.infer<typeof PortfolioDto>;
+
+// BACKLOG #18 — competitor auto-discovery
+export const CompetitorSuggestionStatusSchema = z.enum(['PENDING', 'PROMOTED', 'DISMISSED']);
+export type CompetitorSuggestionStatusDto = z.infer<typeof CompetitorSuggestionStatusSchema>;
+
+export const CompetitorSuggestionDto = z.object({
+	id: z.string().uuid(),
+	projectId: z.string().uuid(),
+	domain: z.string(),
+	totalTop10Hits: z.number().int().nonnegative(),
+	distinctKeywordsInTop10: z.number().int().nonnegative(),
+	firstSeenAt: z.string().datetime(),
+	lastSeenAt: z.string().datetime(),
+	status: CompetitorSuggestionStatusSchema,
+});
+export type CompetitorSuggestionDto = z.infer<typeof CompetitorSuggestionDto>;
+
+export const ListCompetitorSuggestionsQuery = z.object({
+	eligibleOnly: z
+		.union([z.literal('true'), z.literal('false')])
+		.optional()
+		.transform((v) => v === 'true'),
+});
+export type ListCompetitorSuggestionsQuery = z.infer<typeof ListCompetitorSuggestionsQuery>;
+
+export const PromoteCompetitorSuggestionRequest = z.object({
+	label: z.string().min(1).max(80).optional(),
+});
+export type PromoteCompetitorSuggestionRequest = z.infer<typeof PromoteCompetitorSuggestionRequest>;

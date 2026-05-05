@@ -53,8 +53,16 @@ export class ProjectsController {
 		@Inject(Tokens.AddProjectLocation) private readonly addLocation: PMUseCases.AddProjectLocationUseCase,
 		@Inject(Tokens.AddCompetitor) private readonly addCompetitor: PMUseCases.AddCompetitorUseCase,
 		@Inject(Tokens.ImportKeywords) private readonly importKeywords: PMUseCases.ImportKeywordsUseCase,
+		@Inject(Tokens.ListCompetitorSuggestions)
+		private readonly listSuggestions: PMUseCases.ListCompetitorSuggestionsUseCase,
+		@Inject(Tokens.PromoteCompetitorSuggestion)
+		private readonly promoteSuggestion: PMUseCases.PromoteCompetitorSuggestionUseCase,
+		@Inject(Tokens.DismissCompetitorSuggestion)
+		private readonly dismissSuggestion: PMUseCases.DismissCompetitorSuggestionUseCase,
 		@Inject(Tokens.ProjectRepository) private readonly projects: ProjectManagement.ProjectRepository,
 		@Inject(Tokens.CompetitorRepository) private readonly competitors: ProjectManagement.CompetitorRepository,
+		@Inject(Tokens.CompetitorSuggestionRepository)
+		private readonly suggestions: ProjectManagement.CompetitorSuggestionRepository,
 		@Inject(Tokens.KeywordListRepository)
 		private readonly keywordLists: ProjectManagement.KeywordListRepository,
 		@Inject(Tokens.MembershipRepository) memberships: IdentityAccess.MembershipRepository,
@@ -139,6 +147,55 @@ export class ProjectsController {
 			label: c.label,
 			createdAt: c.createdAt.toISOString(),
 		}));
+	}
+
+	// BACKLOG #18 — competitor auto-discovery surface area.
+	@Get(':id/competitor-suggestions')
+	async listCompetitorSuggestions(
+		@Principal() principal: AuthPrincipal,
+		@Param('id') id: string,
+		@Query(new ZodValidationPipe(ProjectManagementContracts.ListCompetitorSuggestionsQuery))
+		q: ProjectManagementContracts.ListCompetitorSuggestionsQuery,
+	): Promise<ProjectManagementContracts.CompetitorSuggestionDto[]> {
+		const project = await this.loadProject(id);
+		await this.orgMembership.require(principal, project.organizationId);
+		// Default behaviour: surface the eligible bucket only — that's the
+		// list the UI shows. The `?eligibleOnly=false` escape hatch is for
+		// debugging the threshold policy.
+		const eligibleOnly = q.eligibleOnly !== false;
+		return this.listSuggestions.execute({ projectId: id, eligibleOnly });
+	}
+
+	@Post('competitor-suggestions/:suggestionId/promote')
+	async promoteCompetitorSuggestion(
+		@Principal() principal: AuthPrincipal,
+		@Param('suggestionId') suggestionId: string,
+		@Body(new ZodValidationPipe(ProjectManagementContracts.PromoteCompetitorSuggestionRequest))
+		body: ProjectManagementContracts.PromoteCompetitorSuggestionRequest,
+	): Promise<{ competitorId: string }> {
+		await this.requireAccessToSuggestion(principal, suggestionId);
+		return this.promoteSuggestion.execute({ suggestionId, label: body.label });
+	}
+
+	@Post('competitor-suggestions/:suggestionId/dismiss')
+	async dismissCompetitorSuggestion(
+		@Principal() principal: AuthPrincipal,
+		@Param('suggestionId') suggestionId: string,
+	): Promise<{ ok: true }> {
+		await this.requireAccessToSuggestion(principal, suggestionId);
+		await this.dismissSuggestion.execute(suggestionId);
+		return { ok: true };
+	}
+
+	private async requireAccessToSuggestion(principal: AuthPrincipal, suggestionId: string): Promise<void> {
+		const suggestion = await this.suggestions.findById(
+			suggestionId as ProjectManagement.CompetitorSuggestionId,
+		);
+		if (!suggestion) {
+			throw new NotFoundError(`Suggestion ${suggestionId} not found`);
+		}
+		const project = await this.loadProject(suggestion.projectId);
+		await this.orgMembership.require(principal, project.organizationId);
 	}
 
 	@Post(':id/keywords')

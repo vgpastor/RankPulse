@@ -1,7 +1,7 @@
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, Spinner } from '@rankpulse/ui';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
-import { CalendarClock, LineChart, MapPin, Plus, Search } from 'lucide-react';
+import { CalendarClock, Check, LineChart, MapPin, Plus, Search, Sparkles, X } from 'lucide-react';
 import { useState } from 'react';
 import { AddCompetitorDrawer } from '../components/add-competitor-drawer.js';
 import { AddDomainDrawer } from '../components/add-domain-drawer.js';
@@ -31,6 +31,27 @@ export const ProjectDetailPage = () => {
 		queryKey: ['project', id, 'keywords'],
 		queryFn: () => api.projects.listKeywordLists(id),
 		enabled: Boolean(projectQuery.data),
+	});
+
+	const suggestionsQuery = useQuery({
+		queryKey: ['project', id, 'competitor-suggestions'],
+		queryFn: () => api.projects.listCompetitorSuggestions(id),
+		enabled: Boolean(projectQuery.data),
+	});
+
+	const qc = useQueryClient();
+	const promoteSuggestion = useMutation({
+		mutationFn: (suggestionId: string) => api.projects.promoteCompetitorSuggestion(suggestionId),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['project', id, 'competitor-suggestions'] });
+			qc.invalidateQueries({ queryKey: ['project', id, 'competitors'] });
+		},
+	});
+	const dismissSuggestion = useMutation({
+		mutationFn: (suggestionId: string) => api.projects.dismissCompetitorSuggestion(suggestionId),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ['project', id, 'competitor-suggestions'] });
+		},
 	});
 
 	if (projectQuery.isLoading) {
@@ -168,6 +189,66 @@ export const ProjectDetailPage = () => {
 										</Button>
 									}
 								/>
+							)}
+						</CardContent>
+					</Card>
+
+					<Card>
+						<CardHeader className="flex flex-row items-center justify-between gap-2">
+							<CardTitle className="flex items-center gap-2 text-base">
+								<Sparkles size={14} className="text-primary" />
+								Suggested competitors
+								{suggestionsQuery.data && suggestionsQuery.data.length > 0 && (
+									<Badge variant="default">{suggestionsQuery.data.length}</Badge>
+								)}
+							</CardTitle>
+						</CardHeader>
+						<CardContent>
+							{suggestionsQuery.isLoading ? (
+								<Spinner />
+							) : suggestionsQuery.data && suggestionsQuery.data.length > 0 ? (
+								<ul className="space-y-2 text-sm">
+									{suggestionsQuery.data.map((s) => (
+										<li
+											key={s.id}
+											className="flex flex-col gap-2 rounded border border-border p-2 sm:flex-row sm:items-center sm:justify-between"
+										>
+											<div className="min-w-0 flex-1">
+												<p className="break-words font-medium">{s.domain}</p>
+												<p className="text-xs text-muted-foreground">
+													{s.distinctKeywordsInTop10} keywords · {s.totalTop10Hits} top-10 hits
+												</p>
+											</div>
+											<div className="flex gap-1">
+												<Button
+													size="sm"
+													variant="ghost"
+													disabled={promoteSuggestion.isPending}
+													onClick={() => promoteSuggestion.mutate(s.id)}
+													aria-label={`Promote ${s.domain}`}
+												>
+													<Check size={14} />
+													Promote
+												</Button>
+												<Button
+													size="sm"
+													variant="ghost"
+													disabled={dismissSuggestion.isPending}
+													onClick={() => dismissSuggestion.mutate(s.id)}
+													aria-label={`Dismiss ${s.domain}`}
+												>
+													<X size={14} />
+													Dismiss
+												</Button>
+											</div>
+										</li>
+									))}
+								</ul>
+							) : (
+								<p className="text-sm text-muted-foreground">
+									No suggestions yet. Once SERP fetches run for this project, frequent top-10 domains will
+									show up here.
+								</p>
 							)}
 						</CardContent>
 					</Card>
