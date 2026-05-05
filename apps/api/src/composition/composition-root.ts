@@ -10,7 +10,7 @@ import { Crypto, DrizzlePersistence, Events, Queue as QueueAdapters } from '@ran
 import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
 import { GscProvider } from '@rankpulse/provider-gsc';
-import { SystemClock, SystemIdGenerator } from '@rankpulse/shared';
+import { InvalidInputError, SystemClock, SystemIdGenerator } from '@rankpulse/shared';
 import { JwtService } from '../common/auth/jwt.service.js';
 import type { AppEnv } from '../config/env.js';
 import { Tokens } from './tokens.js';
@@ -116,6 +116,11 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const registerCredential = new PCUseCases.RegisterProviderCredentialUseCase(
 		credentialRepo,
 		credentialVault,
+		{
+			validate: (providerId, plaintextSecret) => {
+				providerRegistry.get(providerId).validateCredentialPlaintext(plaintextSecret);
+			},
+		},
 		SystemClock,
 		SystemIdGenerator,
 		eventPublisher,
@@ -134,6 +139,18 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const scheduleEndpointFetch = new PCUseCases.ScheduleEndpointFetchUseCase(
 		jobDefRepo,
 		jobScheduler,
+		{
+			validate: (providerId, endpointId, params) => {
+				const descriptor = providerRegistry.endpoint(providerId, endpointId);
+				const parsed = descriptor.paramsSchema.safeParse(params);
+				if (!parsed.success) {
+					throw new InvalidInputError(
+						`Invalid params for ${providerId}/${endpointId}: ${parsed.error.message}`,
+					);
+				}
+				return parsed.data as Record<string, unknown>;
+			},
+		},
 		SystemClock,
 		SystemIdGenerator,
 		eventPublisher,

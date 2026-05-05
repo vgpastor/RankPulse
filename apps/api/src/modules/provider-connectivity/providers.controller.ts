@@ -118,14 +118,18 @@ export class ProvidersController {
 			throw new NotFoundError(`Project ${body.projectId} not found`);
 		}
 		await this.orgMembership.require(principal, project.organizationId);
-		// The worker reads organizationId from params to enforce scoping. Inject
-		// it transparently so callers don't need to repeat it.
-		const params = { ...body.params, organizationId: project.organizationId };
+		// `systemParams` are merged after Zod validation so they survive the
+		// endpoint's paramsSchema strip (organizationId scopes the run for the
+		// worker; trackedKeywordId tells the processor to materialize a
+		// RankingObservation per fetched SERP — see BACKLOG #9).
+		const systemParams: Record<string, unknown> = { organizationId: project.organizationId };
+		if (body.trackedKeywordId) systemParams.trackedKeywordId = body.trackedKeywordId;
 		return this.schedule.execute({
 			projectId: body.projectId,
 			providerId,
 			endpointId,
-			params,
+			params: body.params,
+			systemParams,
 			cron: body.cron,
 			credentialOverrideId: body.credentialOverrideId ?? null,
 		});

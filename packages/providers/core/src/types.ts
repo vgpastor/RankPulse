@@ -66,6 +66,19 @@ export interface Provider {
 	discover(): readonly EndpointDescriptor[];
 
 	/**
+	 * Validates that a plaintext secret is in the format this provider expects
+	 * (e.g. DataForSEO `email|api_password`, GSC service account JSON). Called
+	 * by RegisterProviderCredentialUseCase before encrypting + persisting, so
+	 * misconfigured credentials surface as a 400 at registration time instead
+	 * of as a worker job failure on the first run.
+	 *
+	 * Implementations throw `InvalidInputError` (or any `Error` subclass) on
+	 * mismatch. Returning normally means the format is acceptable; it does NOT
+	 * imply the credential is authorised by the upstream API.
+	 */
+	validateCredentialPlaintext(plaintextSecret: string): void;
+
+	/**
 	 * Performs the HTTP call and returns the raw response, exactly as the
 	 * provider returned it. Persistence + dedup is the worker's responsibility.
 	 */

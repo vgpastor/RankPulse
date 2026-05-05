@@ -1,6 +1,7 @@
 import { ProviderConnectivity } from '@rankpulse/domain';
 import type { EndpointDescriptor, FetchContext, Provider } from '@rankpulse/provider-core';
 import { InvalidInputError } from '@rankpulse/shared';
+import { parseCredential } from './credential.js';
 import {
 	fetchSerpGoogleOrganicLive,
 	type SerpGoogleOrganicLiveParams,
@@ -23,6 +24,10 @@ export class DataForSeoProvider implements Provider {
 
 	discover(): readonly EndpointDescriptor[] {
 		return ENDPOINTS;
+	}
+
+	validateCredentialPlaintext(plaintextSecret: string): void {
+		parseCredential(plaintextSecret);
 	}
 
 	async fetch(endpointId: string, params: unknown, ctx: FetchContext): Promise<unknown> {

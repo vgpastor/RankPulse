@@ -1,6 +1,7 @@
 import { ProviderConnectivity } from '@rankpulse/domain';
 import type { EndpointDescriptor, FetchContext, Provider } from '@rankpulse/provider-core';
 import { InvalidInputError } from '@rankpulse/shared';
+import { parseServiceAccount } from './credential.js';
 import {
 	fetchSearchAnalytics,
 	type SearchAnalyticsParams,
@@ -23,6 +24,10 @@ export class GscProvider implements Provider {
 
 	discover(): readonly EndpointDescriptor[] {
 		return ENDPOINTS;
+	}
+
+	validateCredentialPlaintext(plaintextSecret: string): void {
+		parseServiceAccount(plaintextSecret);
 	}
 
 	async fetch(endpointId: string, params: unknown, ctx: FetchContext): Promise<unknown> {
