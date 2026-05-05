@@ -147,12 +147,15 @@ rechaza IDs custom que lo contengan.
 
 **Fix aplicado** en commit `e88603d`: `manual:` → `manual-`.
 
-**Tarea futura:** test de integración en
-`packages/infrastructure/src/queue/bullmq-job-scheduler.spec.ts` que ejercite
-`enqueueOnce` real contra Redis Testcontainer para que no se escape un tercer
-caso del mismo bug.
+**Test de regresión añadido:** `packages/infrastructure/src/queue/bullmq-job-scheduler.spec.ts`
+mockea `bullmq.Queue` y verifica que (1) los nombres de cola usan `-` no `:`,
+(2) `enqueueOnce` siempre genera `jobId: "manual-<runId>"` y nunca contiene
+`:`, (3) `register` instala el repeatable con el cron pattern correcto, (4)
+`register` sobre una definición disabled cae en unregister, (5) la Queue se
+cachea por providerId. Más rápido que arrastrar testcontainers para una sola
+comprobación de formato.
 
-**Estado:** ✅ resuelto. **No bloqueante.**
+**Estado:** ✅ resuelto + test de regresión.
 
 ---
 
@@ -205,19 +208,22 @@ procesó los 34 SERPs OK pero NO grabó NINGUNA `RankingObservation`.
 `params.trackedKeywordId` está presente. `ScheduleEndpointFetchUseCase` no
 sabe nada de tracked keywords — son contextos separados.
 
-**Fix aplicado (opción B, mínimo viable):** `ScheduleEndpointRequest` admite
-ahora un `trackedKeywordId` opcional. El controller lo añade a `systemParams`,
-que el use case mergea tras la validación. Con el campo presente, el
-processor materializará la `RankingObservation` correspondiente; sin él, el
-fetch sigue siendo válido como auditoría one-off (raw payload sin
-observación).
+**Fix aplicado (opción B):** `ScheduleEndpointRequest` admite un
+`trackedKeywordId` opcional. El controller lo añade a `systemParams`, que el
+use case mergea tras la validación. Con el campo presente, el processor
+materializará la `RankingObservation` correspondiente.
 
-**Pendiente (no bloqueante, mejora UX):** opción A — que
-`StartTrackingKeywordUseCase` cree por defecto el JobDefinition asociado con
-cron semanal y el `trackedKeywordId` precargado, para evitar que el caller
-tenga que componer dos requests.
+**Fix aplicado (opción A):** `StartTrackingKeywordRequest` admite un
+`autoSchedule` opcional `{ providerId, endpointId, cron, params,
+credentialOverrideId? }`. Cuando viene en el cuerpo, el `RankTrackingController`
+ejecuta `StartTrackingKeyword` y, en el mismo handler, encadena
+`ScheduleEndpointFetch` con `systemParams.trackedKeywordId` ya inyectado. La
+respuesta devuelve ambos ids: `{ trackedKeywordId, scheduledDefinitionId }`.
+Las dos operaciones NO son transaccionales — son contextos distintos; en un
+fallo parcial el caller puede fallback a `POST /providers/.../schedule`
+explícito.
 
-**Estado:** ✅ resuelto a nivel API.
+**Estado:** ✅ resuelto (opciones A + B).
 
 ---
 
@@ -252,58 +258,56 @@ soporta todos estos flujos, pero la SPA aún no los expone — requiriendo
 scripting via `curl`/SDK para cualquier setup más allá de "registrarse y crear
 un proyecto vacío".
 
-### A1. Añadir competidor a un proyecto
-- **API:** `POST /projects/:id/competitors`
-- **SDK:** `api.projects.addCompetitor(...)` ya existe.
-- **Falta:** botón "Add competitor" + formulario en `project-detail.page.tsx`
-  (al lado de la lista que ya pinta).
-- **Workaround actual:** vía API.
+Todos los gaps siguientes resueltos en una segunda PR sobre `feat/close-remaining-backlog`.
+Patrones compartidos: atomic design (atoms en `packages/ui/src/atoms`, molecules en
+`packages/ui/src/molecules`, organisms drawer-form en `apps/web/src/components`),
+mobile-first (Drawer es bottom sheet bajo `md`, side panel `md+`; DataTable
+collapsa a tarjetas apiladas en mobile), TanStack Query para fetching/cache,
+Zod contracts → SDK → UI sin duplicar tipos.
 
-### A2. Importar lista de keywords (bulk)
-- **API:** `POST /projects/:id/keywords` (acepta hasta 2000 phrases en un POST)
-- **SDK:** `api.projects.importKeywords(...)` existe.
-- **Falta:** un drawer en `project-detail.page.tsx` con textarea que parsee
-  una keyword por línea (con tags opcionales tipo `keyword #ES #core`).
-- **Workaround actual:** vía API.
+### A1. Añadir competidor a un proyecto — ✅ resuelto
+- `AddCompetitorDrawer` (organism) en `apps/web/src/components`.
+- Lanzado desde el header de la card de competidores en `project-detail.page.tsx`
+  (botón "+ Add" en cada card; estados vacíos también muestran CTA).
+- Invalida `['project', id, 'competitors']` al éxito.
 
-### A3. Programar fetch SERP recurrente
-- **API:** `POST /providers/:id/endpoints/:eid/schedule`
-- **SDK:** `api.providers.schedule(...)` existe.
-- **Falta:** UI para configurar cron + params por (proyecto, keyword).
-  Idealmente, tras hacer track-keyword desde la UI, el form preguntase
-  "¿programar fetch semanal? sí/no" y lo creara automáticamente.
-- **Workaround actual:** vía API. Sin UI, los schedules son invisibles para
-  el operador y no se pueden pausar/des-schedule.
+### A2. Importar lista de keywords (bulk) — ✅ resuelto
+- `ImportKeywordsDrawer` con textarea monospace (font-mono).
+- Parser inline: una keyword por línea, `#TAG` opcional. Cap 2000 phrases por
+  POST (validado client-side antes de enviar para evitar el round-trip).
 
-### A4. Disparar un fetch one-off (manual)
-- **API:** ✅ `POST /providers/:id/job-definitions/:defId/run-now` ya existe
-  (commit `958b8c3`).
-- **SDK:** `api.providers.runJobDefinitionNow(...)` añadido.
-- **Falta:** botón "Run now" en cada fila de schedule/keyword cuando exista
-  la vista A8.
+### A3. Programar fetch SERP recurrente — ✅ resuelto
+- `ScheduleFetchDrawer`: select de provider + select de endpoint (autoload
+  vía `api.providers.list()`), cron input prefijado con `defaultCron` del
+  endpoint, textarea JSON de params con plantilla por endpoint.
+- Disponible desde la página `/projects/$id/schedules` ("New schedule").
 
-### A5. Añadir domain o location extra a un proyecto
-- **API:** `POST /projects/:id/domains` y `/projects/:id/locations`
-- **SDK:** ambos existen.
-- **Falta:** botones "+ Add domain" / "+ Add location" en `project-detail.page.tsx`.
-- **Workaround actual:** crear el proyecto con todo de inicio, o vía API.
+### A4. Disparar un fetch one-off (manual) — ✅ resuelto
+- Botón `Play` en cada fila de la tabla de schedules. Llama a
+  `api.providers.runJobDefinitionNow` y muestra un banner de éxito/error.
 
-### A6. GSC property linking + performance viewer
-- **API:** `POST /gsc/properties`, `GET /gsc/projects/:id/properties`,
-  `GET /gsc/properties/:id/performance`
-- **Falta:** páginas `gsc-properties.page.tsx` y `gsc-performance.page.tsx`.
-- **Workaround actual:** GSC no operativo en absoluto vía UI.
+### A5. Añadir domain o location extra a un proyecto — ✅ resuelto
+- `AddDomainDrawer` (con select main/subdomain/alias) y `AddLocationDrawer`
+  (country ISO + language BCP-47), ambos en project-detail.
 
-### A7. Histórico de keyword (chart)
-- **API:** `GET /rank-tracking/keywords/:id/history`
-- **Falta:** clic en una fila de rankings → drawer/página con line chart
-  mostrando `position` vs `observedAt` (recharts ya está disponible para web,
-  está en otros proyectos del stack).
+### A6. GSC property linking + performance viewer — ✅ resuelto
+- Página `/projects/$id/gsc` lista las properties ligadas con DataTable;
+  drawer `LinkGscPropertyDrawer` para añadir nuevas (URL_PREFIX o DOMAIN).
+- Página `/projects/$id/gsc/$propertyId` con métricas agregadas (clicks,
+  impressions, CTR, avg position) y line chart dual-axis (clicks vs
+  impressions) usando `recharts` (recién añadido como dep de web).
 
-### A8. Vista de schedules y job runs
-- **API schedules:** ✅ resuelto por el item 10 (GET/PATCH/DELETE).
-- **API job runs:** falta endpoint `GET /providers/.../job-definitions/:defId/runs`
-  (la tabla `provider_job_runs` ya existe; solo hay que exponerla).
-- **UI:** todo pendiente — tabla de schedules con acciones (run-now, edit
-  cron, pause/disable, delete) y, por fila, un drawer con el historial de
-  runs (status, cost, duration, runId).
+### A7. Histórico de keyword (chart) — ✅ resuelto
+- Filas de la tabla de rankings clickeables → `KeywordHistoryDrawer` con
+  line chart de posición vs tiempo. Eje Y invertido (#1 arriba). Línea
+  punteada en y=10 marcando el límite "page 1".
+
+### A8. Vista de schedules y job runs — ✅ resuelto
+- **API job runs:** `GET /providers/:providerId/job-definitions/:defId/runs`
+  añadido (use case `ListJobRunsUseCase` + 3 specs). SDK:
+  `api.providers.listJobRuns(...)`.
+- **UI:** página `/projects/$id/schedules` con `DataTable` (Endpoint, Cron,
+  Status, Last run, Actions). Acciones por fila: Run now, History (abre
+  `ScheduleRunsDrawer` con auto-refresh de 5s), Edit (abre
+  `EditScheduleDrawer` con cron/params/enabled), Delete (modal de
+  confirmación). Botón "+ New schedule" en la cabecera.
