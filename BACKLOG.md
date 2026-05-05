@@ -9,7 +9,7 @@ Marcado al final si es **bloqueante** o **no bloqueante**.
 
 ## ✅ Resueltos en caliente durante el primer deploy (items 1-5)
 
-### 1. Dockerfiles referenciaban paquetes inexistentes
+### 1. Dockerfiles referenciaban paquetes inexistentes — ✅ resuelto
 **Síntoma:** El primer build de GHA falló con
 `failed to calculate checksum: "/packages/config-typescript/package.json": not found`.
 
@@ -33,7 +33,7 @@ los Dockerfiles como están.
 
 ---
 
-### 2. `vhost_nginx.conf` de Plesk no se incluía
+### 2. `vhost_nginx.conf` de Plesk no se incluía — ✅ resuelto
 **Síntoma:** Plesk crea un fichero
 `/var/www/vhosts/system/<DOMAIN>/conf/vhost_nginx.conf` para directivas
 custom, pero la plantilla por defecto sólo lo incluye cuando la propiedad
@@ -58,7 +58,7 @@ que reaplicar el patch (es idempotente).
 
 ---
 
-### 3. Compose original en `/opt/RankPulse/docker-compose.yml` era obsoleto
+### 3. Compose original en `/opt/RankPulse/docker-compose.yml` era obsoleto — ✅ resuelto
 **Síntoma:** El compose original creado al bootstrap del servidor apuntaba a
 una imagen `ghcr.io/vgpastor/rankpulse:latest` monolítica (no existía), usaba
 `postgres:17-alpine` (no TimescaleDB, requerido), y no tenía Redis. No
@@ -73,7 +73,7 @@ y bind a `127.0.0.1` en lugar de `0.0.0.0`.
 
 ---
 
-### 4. Bundle hash colision entre builds con distinto `VITE_API_BASE_URL`
+### 4. Bundle hash colision entre builds con distinto `VITE_API_BASE_URL` — ✅ resuelto
 **Síntoma:** El primer despliegue en producción funcionó. Tras un cambio de la
 GitHub variable `PUBLIC_API_BASE_URL` (rebuild → distinto contenido), el
 nuevo bundle se sirvió bajo el **mismo filename hashed** que el anterior
@@ -118,7 +118,7 @@ siguiente cambio de env var.
 
 ---
 
-### 5. ACME `No order found for account ID` en Let's Encrypt
+### 5. ACME `No order found for account ID` en Let's Encrypt — ✅ resuelto
 **Síntoma:** Plesk LE CLI fallaba con
 `Type: urn:ietf:params:acme:error:malformed Status: 404 Detail: No order found for account ID …`
 incluso después de borrar accounts.
@@ -141,7 +141,7 @@ manipulación del módulo.
 Cerrados por los PRs #11 (`e244776` — pre-persist validation + CRUD job-defs)
 y #12 (`d5e55f2` — test BullMQ + opción A auto-schedule + UI A1-A8).
 
-### 6. BullMQ jobId con ':' en `enqueueOnce`
+### 6. BullMQ jobId con ':' en `enqueueOnce` — ✅ resuelto
 **Síntoma:** todas las llamadas a `POST /providers/:id/job-definitions/:defId/run-now`
 devolvían 500 con `Error: Custom Id cannot contain :`.
 
@@ -164,7 +164,7 @@ comprobación de formato.
 
 ---
 
-### 7. `ScheduleEndpointFetch` no valida la shape de `params` contra el endpoint
+### 7. `ScheduleEndpointFetch` no valida la shape de `params` contra el endpoint — ✅ resuelto
 **Síntoma:** scheduleé 34 fetches con `{phrase, country, language}` y la API los
 aceptó con 201. El worker, al procesar, falla con
 `Invalid params for serp-google-organic-live: keyword/locationCode/languageCode required`.
@@ -184,7 +184,7 @@ en `cmd.systemParams` y se mergean tras la validación.
 
 ---
 
-### 8. `RegisterProviderCredential` no valida el formato del secret
+### 8. `RegisterProviderCredential` no valida el formato del secret — ✅ resuelto
 **Síntoma:** registré la credencial DataForSEO con `email:password` (separador
 `:`). La API aceptó 201. El worker falla luego con
 `DataForSEO credential must be "email|api_password"`.
@@ -204,7 +204,7 @@ de quemarse en el worker en el primer fetch.
 
 ---
 
-### 9. `TrackedKeyword` y `JobDefinition` no se enlazan automáticamente
+### 9. `TrackedKeyword` y `JobDefinition` no se enlazan automáticamente — ✅ resuelto
 **Síntoma:** creé los 33 `TrackedKeyword` vía `POST /rank-tracking/keywords` y
 luego los 34 `JobDefinition` vía `POST /providers/.../schedule`. El worker
 procesó los 34 SERPs OK pero NO grabó NINGUNA `RankingObservation`.
@@ -232,7 +232,7 @@ explícito.
 
 ---
 
-### 10. No hay endpoint para LISTAR / EDITAR / BORRAR JobDefinitions
+### 10. No hay endpoint para LISTAR / EDITAR / BORRAR JobDefinitions — ✅ resuelto
 **Síntoma:** durante el debugging tuve que entrar via SSH + `psql` directamente
 a `provider_job_definitions` para reescribir params. La API solo expone POST
 para crear, no GET/PUT/DELETE.
@@ -359,7 +359,7 @@ sangrado) ya está cubierto.
 
 ---
 
-### 15. SERP fetch redundante por proyecto: 1 SERP por (project, dom, kw, location)
+### 15. SERP fetch redundante por proyecto: 1 SERP por (project, dom, kw, location) — ❌ depende de #12 paso 2
 **Estado:** convergente con #12. El ACL ya hace multi-domain en una pasada
 (landed en esta PR); el ahorro económico real (5× menos llamadas a
 DataForSEO) requiere completar el paso 2 del item 12 (processor refactor).
@@ -588,7 +588,7 @@ Zod contracts → SDK → UI sin duplicar tipos.
   `EditScheduleDrawer` con cron/params/enabled), Delete (modal de
   confirmación). Botón "+ New schedule" en la cabecera.
 
-### A9. Bootstrap UX: post-registro debería pedir credenciales primero
+### A9. Bootstrap UX: post-registro debería pedir credenciales primero — ❌ pendiente
 - **Hoy:** registras, te metes en /projects, ves vacío con un botón "+ Nuevo
   proyecto". Si añades proyectos sin credenciales, ningún fetch funciona.
 - **Mejor:** asistente que tras registro pida (1) credencial DataForSEO,
