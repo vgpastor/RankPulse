@@ -29,44 +29,24 @@ en el ACL. Falta el **paso 2**: refactor del `ProviderFetchProcessor` para que:
 3. Coalesce/cache: si la misma `(keyword, location, device)` ya tiene un
    fetch reciente en otro project, reutilizar la `raw_payload`.
 
-Más una migración para des-duplicar las `tracked_keywords` actuales (crear
-una `tracked_keyword` por (project, keyword, location), no por dominio).
-
-**Impacto medido:** las 4 markets de PatrolTech con 5+3+5+2 dominios y
-7+5+6+4 keywords son hoy 88 SERPs/refresh (~$0.31). Tras el refactor: 22
-SERPs (~$0.077). En todo el portfolio: hoy ~181 fetches/refresh
-(~$0.63), tras refactor ~50 (~$0.18).
+Más una migración para des-duplicar las `tracked_keywords` actuales.
 
 ---
 
-### #16 — Runtime via `tsx` en producción (deuda técnica)
-Los Dockerfiles usan `tsx` (transpilación on-the-fly) en lugar de un build
-TypeScript a `dist/`. Funciona, pero:
-- Penaliza arranque (~1-2 s extra de transpile).
-- Aumenta tamaño de imagen (~30-50 MB de devDependencies).
-- Posible fricción con `@nestjs/swagger` y `design:paramtypes` (workaround
-  try/catch ya en `apps/api/src/main.ts`).
-
-**Tarea:** introducir multi-stage build en cada Dockerfile (build → tsc →
-runtime con `--prod` install). Cuando esté listo, simplificar el try/catch
-alrededor de `SwaggerModule.createDocument` en `main.ts`.
-
-**Por qué pendiente:** requiere refactor `main`+`build` per-package en los
-10 paquetes del workspace. Aplazado a PR propia (no bloqueante).
+### #16 — Runtime via `tsx`/swc-node en producción (deuda técnica)
+Los apps usan transpilación on-the-fly (`@swc-node/register`) en lugar de un
+build TS a `dist/`. Funciona pero penaliza arranque (~1-2s) y aumenta tamaño.
+Migrar a multi-stage build → `tsc → dist/`.
 
 ---
 
 ### A9 — Bootstrap UX: post-registro debería pedir credenciales primero
-- **Hoy:** registras, te metes en /projects, ves vacío con un botón "+ Nuevo
-  proyecto". Si añades proyectos sin credenciales, ningún fetch funciona.
-- **Mejor:** asistente que tras registro pida (1) credencial DataForSEO,
-  (2) primer proyecto, (3) primer keyword tracked + schedule. Todo en una
-  ventana modal.
+Tras registro la SPA va a /projects vacía. Mejor: asistente que pida
+(1) credencial DataForSEO, (2) primer proyecto, (3) primer keyword + schedule.
 
 ---
 
 ## 🟢 Pendiente del usuario (opcional)
 
 - **DataForSEO Backlinks API** ($100/mo). Excluida del v1 — GSC referring
-  domains + Ahrefs Free DR cubren el caso. Solo si quieres datos completos
-  de backlinks.
+  domains + Ahrefs Free DR cubren el caso.
