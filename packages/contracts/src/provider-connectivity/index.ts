@@ -53,3 +53,28 @@ export const ProviderDto = z.object({
 	endpoints: z.array(EndpointDescriptorDto),
 });
 export type ProviderDto = z.infer<typeof ProviderDto>;
+
+export const JobDefinitionDto = z.object({
+	id: z.string(),
+	projectId: z.string(),
+	providerId: z.string(),
+	endpointId: z.string(),
+	params: z.record(z.string(), z.unknown()),
+	cron: z.string(),
+	credentialOverrideId: z.string().nullable(),
+	enabled: z.boolean(),
+	lastRunAt: z.string().nullable(),
+	createdAt: z.string(),
+});
+export type JobDefinitionDto = z.infer<typeof JobDefinitionDto>;
+
+export const UpdateJobDefinitionRequest = z
+	.object({
+		cron: z.string().min(5).max(80).optional(),
+		params: z.record(z.string(), z.unknown()).optional(),
+		enabled: z.boolean().optional(),
+	})
+	.refine((v) => v.cron !== undefined || v.params !== undefined || v.enabled !== undefined, {
+		message: 'At least one of cron, params, enabled must be provided',
+	});
+export type UpdateJobDefinitionRequest = z.infer<typeof UpdateJobDefinitionRequest>;

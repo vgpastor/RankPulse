@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Inject, Param, Patch, Post } from '@nestjs/common';
 import type { ProviderConnectivity as PCUseCases } from '@rankpulse/application';
 import { ProviderConnectivityContracts } from '@rankpulse/contracts';
 import type { IdentityAccess, ProjectManagement, ProviderConnectivity } from '@rankpulse/domain';
@@ -12,7 +12,9 @@ import { Tokens } from '../../composition/tokens.js';
 
 type RegisterCredentialRequest = ProviderConnectivityContracts.RegisterCredentialRequest;
 type ScheduleEndpointRequest = ProviderConnectivityContracts.ScheduleEndpointRequest;
+type UpdateJobDefinitionRequest = ProviderConnectivityContracts.UpdateJobDefinitionRequest;
 type ProviderDto = ProviderConnectivityContracts.ProviderDto;
+type JobDefinitionDto = ProviderConnectivityContracts.JobDefinitionDto;
 
 @Controller('providers')
 export class ProvidersController {
@@ -25,12 +27,42 @@ export class ProvidersController {
 		@Inject(Tokens.ScheduleEndpointFetch) private readonly schedule: PCUseCases.ScheduleEndpointFetchUseCase,
 		@Inject(Tokens.TriggerJobDefinitionRun)
 		private readonly triggerRun: PCUseCases.TriggerJobDefinitionRunUseCase,
+		@Inject(Tokens.ListJobDefinitions)
+		private readonly listJobs: PCUseCases.ListJobDefinitionsUseCase,
+		@Inject(Tokens.GetJobDefinition)
+		private readonly getJob: PCUseCases.GetJobDefinitionUseCase,
+		@Inject(Tokens.UpdateJobDefinition)
+		private readonly updateJob: PCUseCases.UpdateJobDefinitionUseCase,
+		@Inject(Tokens.DeleteJobDefinition)
+		private readonly deleteJob: PCUseCases.DeleteJobDefinitionUseCase,
 		@Inject(Tokens.JobDefinitionRepository)
 		private readonly jobDefs: ProviderConnectivity.JobDefinitionRepository,
 		@Inject(Tokens.MembershipRepository) memberships: IdentityAccess.MembershipRepository,
 		@Inject(Tokens.ProjectRepository) private readonly projects: ProjectManagement.ProjectRepository,
 	) {
 		this.orgMembership = new OrgMembership(memberships);
+	}
+
+	private async loadDefinitionAndAuthorize(
+		principal: AuthPrincipal,
+		providerId: string,
+		definitionId: string,
+	): Promise<ProviderConnectivity.ProviderJobDefinition> {
+		const definition = await this.jobDefs.findById(
+			definitionId as ProviderConnectivity.ProviderJobDefinitionId,
+		);
+		if (!definition) {
+			throw new NotFoundError(`Job definition ${definitionId} not found`);
+		}
+		if (definition.providerId.value !== providerId) {
+			throw new NotFoundError(`Job definition ${definitionId} does not belong to provider ${providerId}`);
+		}
+		const project = await this.projects.findById(definition.projectId);
+		if (!project) {
+			throw new NotFoundError(`Project ${definition.projectId} not found`);
+		}
+		await this.orgMembership.require(principal, project.organizationId);
+		return definition;
 	}
 
 	@Get()
@@ -88,21 +120,54 @@ export class ProvidersController {
 		@Param('providerId') providerId: string,
 		@Param('definitionId') definitionId: string,
 	): Promise<{ runId: string; definitionId: string }> {
-		const definition = await this.jobDefs.findById(
-			definitionId as ProviderConnectivity.ProviderJobDefinitionId,
-		);
-		if (!definition) {
-			throw new NotFoundError(`Job definition ${definitionId} not found`);
-		}
-		if (definition.providerId.value !== providerId) {
-			throw new NotFoundError(`Job definition ${definitionId} does not belong to provider ${providerId}`);
-		}
-		const project = await this.projects.findById(definition.projectId);
+		await this.loadDefinitionAndAuthorize(principal, providerId, definitionId);
+		return this.triggerRun.execute({ definitionId });
+	}
+
+	@Get('job-definitions/by-project/:projectId')
+	async listJobDefinitions(
+		@Principal() principal: AuthPrincipal,
+		@Param('projectId') projectId: string,
+	): Promise<JobDefinitionDto[]> {
+		const project = await this.projects.findById(projectId as ProjectManagement.ProjectId);
 		if (!project) {
-			throw new NotFoundError(`Project ${definition.projectId} not found`);
+			throw new NotFoundError(`Project ${projectId} not found`);
 		}
 		await this.orgMembership.require(principal, project.organizationId);
-		return this.triggerRun.execute({ definitionId });
+		return this.listJobs.execute(projectId);
+	}
+
+	@Get(':providerId/job-definitions/:definitionId')
+	async getJobDefinition(
+		@Principal() principal: AuthPrincipal,
+		@Param('providerId') providerId: string,
+		@Param('definitionId') definitionId: string,
+	): Promise<JobDefinitionDto> {
+		await this.loadDefinitionAndAuthorize(principal, providerId, definitionId);
+		return this.getJob.execute(definitionId);
+	}
+
+	@Patch(':providerId/job-definitions/:definitionId')
+	async patchJobDefinition(
+		@Principal() principal: AuthPrincipal,
+		@Param('providerId') providerId: string,
+		@Param('definitionId') definitionId: string,
+		@Body(new ZodValidationPipe(ProviderConnectivityContracts.UpdateJobDefinitionRequest))
+		body: UpdateJobDefinitionRequest,
+	): Promise<JobDefinitionDto> {
+		await this.loadDefinitionAndAuthorize(principal, providerId, definitionId);
+		return this.updateJob.execute({ definitionId, ...body });
+	}
+
+	@Delete(':providerId/job-definitions/:definitionId')
+	@HttpCode(204)
+	async deleteJobDefinition(
+		@Principal() principal: AuthPrincipal,
+		@Param('providerId') providerId: string,
+		@Param('definitionId') definitionId: string,
+	): Promise<void> {
+		await this.loadDefinitionAndAuthorize(principal, providerId, definitionId);
+		await this.deleteJob.execute(definitionId);
 	}
 
 	@Post(':providerId/endpoints/:endpointId/schedule')

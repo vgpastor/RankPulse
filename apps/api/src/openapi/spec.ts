@@ -283,6 +283,94 @@ export function buildOpenApiDocument(): unknown {
 		},
 	});
 
+	registry.registerPath({
+		method: 'post',
+		path: '/api/v1/providers/{providerId}/job-definitions/{definitionId}/run-now',
+		summary: 'Trigger an immediate one-off run of an existing job definition',
+		tags: ['provider-connectivity'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: { params: z.object({ providerId: z.string(), definitionId: z.string().uuid() }) },
+		responses: {
+			201: {
+				description: 'Run enqueued',
+				content: {
+					'application/json': {
+						schema: z.object({ runId: z.string().uuid(), definitionId: z.string().uuid() }),
+					},
+				},
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/providers/job-definitions/by-project/{projectId}',
+		summary: 'List all job definitions scheduled for a project',
+		tags: ['provider-connectivity'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: { params: z.object({ projectId: z.string().uuid() }) },
+		responses: {
+			200: {
+				description: 'Job definitions',
+				content: { 'application/json': { schema: z.array(ProviderConnectivityContracts.JobDefinitionDto) } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/providers/{providerId}/job-definitions/{definitionId}',
+		summary: 'Inspect a single job definition',
+		tags: ['provider-connectivity'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: { params: z.object({ providerId: z.string(), definitionId: z.string().uuid() }) },
+		responses: {
+			200: {
+				description: 'Job definition',
+				content: { 'application/json': { schema: ProviderConnectivityContracts.JobDefinitionDto } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'patch',
+		path: '/api/v1/providers/{providerId}/job-definitions/{definitionId}',
+		summary: 'Update cron / params / enabled on an existing job definition',
+		tags: ['provider-connectivity'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ providerId: z.string(), definitionId: z.string().uuid() }),
+			body: {
+				content: {
+					'application/json': { schema: ProviderConnectivityContracts.UpdateJobDefinitionRequest },
+				},
+			},
+		},
+		responses: {
+			200: {
+				description: 'Updated job definition',
+				content: { 'application/json': { schema: ProviderConnectivityContracts.JobDefinitionDto } },
+			},
+			...errorResponses([400, 401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'delete',
+		path: '/api/v1/providers/{providerId}/job-definitions/{definitionId}',
+		summary: 'Unregister and delete a job definition',
+		tags: ['provider-connectivity'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: { params: z.object({ providerId: z.string(), definitionId: z.string().uuid() }) },
+		responses: {
+			204: { description: 'Deleted' },
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
 	// ---- rank-tracking ----
 
 	registry.registerPath({
