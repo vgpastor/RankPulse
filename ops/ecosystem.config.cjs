@@ -33,12 +33,12 @@ const sharedEnv = {
 	// All service URLs are localhost — Postgres/Redis are bound to
 	// 127.0.0.1 by the Plesk-managed Docker containers, the api/worker
 	// processes are host-side via PM2.
-	DATABASE_URL: process.env.DATABASE_URL || 'postgres://rankpulse@127.0.0.1:5432/rankpulse',
-	REDIS_URL: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
+	DATABASE_URL: process.env.DATABASE_URL,
+	REDIS_URL: process.env.REDIS_URL,
 	RANKPULSE_MASTER_KEY: process.env.RANKPULSE_MASTER_KEY,
 	JWT_SECRET: process.env.JWT_SECRET,
 	JWT_TTL_SECONDS: '86400',
-	LOG_LEVEL: process.env.LOG_LEVEL || 'info',
+	LOG_LEVEL: process.env.LOG_LEVEL,
 };
 
 module.exports = {
@@ -58,7 +58,7 @@ module.exports = {
 				...sharedEnv,
 				PORT: '3200',
 				HOST: '127.0.0.1',
-				CORS_ORIGINS: process.env.CORS_ORIGINS || 'https://rankpulse.ingenierosweb.co',
+				CORS_ORIGINS: process.env.CORS_ORIGINS,
 				OPENAPI_ENABLED: 'true',
 			},
 			out_file: path.join(APP_ROOT, 'logs/api.out.log'),
@@ -78,7 +78,7 @@ module.exports = {
 			kill_timeout: 8_000,
 			env: {
 				...sharedEnv,
-				WORKER_CONCURRENCY: process.env.WORKER_CONCURRENCY || '4',
+				WORKER_CONCURRENCY: process.env.WORKER_CONCURRENCY,
 				HEALTH_PORT: '3300',
 				HEALTH_HOST: '127.0.0.1',
 			},

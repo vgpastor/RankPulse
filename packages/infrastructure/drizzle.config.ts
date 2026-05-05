@@ -5,7 +5,7 @@ export default defineConfig({
 	schema: './src/persistence/drizzle/schema/index.ts',
 	out: './src/persistence/drizzle/migrations',
 	dbCredentials: {
-		url: process.env.DATABASE_URL ?? 'postgres://rankpulse:rankpulse@localhost:5432/rankpulse',
+		url: process.env.DATABASE_URL,
 	},
 	verbose: true,
 	strict: true,

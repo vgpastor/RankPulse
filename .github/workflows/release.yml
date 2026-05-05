@@ -25,7 +25,7 @@ jobs:
       - name: Build web SPA
         run: pnpm --filter @rankpulse/web build
         env:
-          VITE_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL || 'https://rankpulse.ingenierosweb.co' }}
+          VITE_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL }}
       - name: Pack dist for upload
         run: tar czf web-dist.tar.gz -C apps/web/dist .
       - uses: actions/upload-artifact@v4

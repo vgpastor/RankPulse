@@ -82,9 +82,9 @@ docker run -d --name rankpulse-postgres \
     --network rankpulse-net --restart unless-stopped \
     -p 127.0.0.1:5433:5432 \
     -v /var/www/vhosts/ingenierosweb.co/rankpulse.ingenierosweb.co/data/postgres:/home/postgres/pgdata/data \
-    -e POSTGRES_USER=rankpulse \
-    -e POSTGRES_PASSWORD=<from .env.local> \
-    -e POSTGRES_DB=rankpulse \
+    -e POSTGRES_USER=$POSTGRES_USER \
+    -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
+    -e POSTGRES_DB=$POSTGRES_DB \
     -e PGDATA=/home/postgres/pgdata/data \
     --label site=rankpulse.ingenierosweb.co \
     --label managed-by=plesk-docker \
