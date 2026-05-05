@@ -1,4 +1,5 @@
 import {
+	BingWebmasterInsights as BingWebmasterInsightsUseCases,
 	EntityAwareness as EntityAwarenessUseCases,
 	ProjectManagement as ProjectManagementUseCases,
 	ProviderConnectivity as ProviderConnectivityUseCases,
@@ -41,6 +42,10 @@ async function bootstrap(): Promise<void> {
 	const pageSpeedSnapshotRepo = new DrizzlePersistence.DrizzlePageSpeedSnapshotRepository(drizzle.db);
 	const ga4PropertyRepo = new DrizzlePersistence.DrizzleGa4PropertyRepository(drizzle.db);
 	const ga4DailyMetricRepo = new DrizzlePersistence.DrizzleGa4DailyMetricRepository(drizzle.db);
+	const bingPropertyRepo = new DrizzlePersistence.DrizzleBingPropertyRepository(drizzle.db);
+	const bingTrafficObservationRepo = new DrizzlePersistence.DrizzleBingTrafficObservationRepository(
+		drizzle.db,
+	);
 
 	const vault = new Crypto.LibsodiumCredentialVault(env.RANKPULSE_MASTER_KEY);
 	const eventPublisher = new Events.InMemoryEventPublisher();
@@ -97,6 +102,12 @@ async function bootstrap(): Promise<void> {
 		eventPublisher,
 		SystemClock,
 	);
+	const ingestBingTrafficUseCase = new BingWebmasterInsightsUseCases.IngestBingTrafficUseCase(
+		bingPropertyRepo,
+		bingTrafficObservationRepo,
+		eventPublisher,
+		SystemClock,
+	);
 
 	const processor = new ProviderFetchProcessor({
 		registry,
@@ -111,6 +122,7 @@ async function bootstrap(): Promise<void> {
 		wikipediaArticleRepo,
 		trackedPageRepo,
 		ga4PropertyRepo,
+		bingPropertyRepo,
 		vault,
 		resolveCredentialUseCase,
 		recordApiUsageUseCase,
@@ -120,6 +132,7 @@ async function bootstrap(): Promise<void> {
 		ingestWikipediaPageviewsUseCase,
 		recordPageSpeedSnapshotUseCase,
 		ingestGa4RowsUseCase,
+		ingestBingTrafficUseCase,
 		clock: SystemClock,
 		ids: SystemIdGenerator,
 		logger,

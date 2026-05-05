@@ -1,3 +1,4 @@
+export * as BingWebmasterInsights from './bing-webmaster-insights/index.js';
 export * as EntityAwareness from './entity-awareness/index.js';
 export * as IdentityAccess from './identity-access/index.js';
 export * as ProjectManagement from './project-management/index.js';

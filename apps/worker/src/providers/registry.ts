@@ -1,3 +1,4 @@
+import { BingProvider } from '@rankpulse/provider-bing';
 import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
 import { Ga4Provider } from '@rankpulse/provider-ga4';
@@ -16,5 +17,6 @@ export function buildProviderRegistry(options: { dataforseoBaseUrl: string }): P
 	registry.register(new GscProvider());
 	registry.register(new WikipediaProvider());
 	registry.register(new PageSpeedProvider());
+	registry.register(new BingProvider());
 	return registry;
 }

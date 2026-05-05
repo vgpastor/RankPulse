@@ -1,4 +1,5 @@
 import type {
+	BingWebmasterInsights as BingWebmasterInsightsUseCases,
 	EntityAwareness as EntityAwarenessUseCases,
 	ProjectManagement as ProjectManagementUseCases,
 	ProviderConnectivity as ProviderConnectivityUseCases,
@@ -8,6 +9,7 @@ import type {
 	WebPerformance as WebPerformanceUseCases,
 } from '@rankpulse/application';
 import {
+	type BingWebmasterInsights as BingWebmasterInsightsDomain,
 	type EntityAwareness as EntityAwarenessDomain,
 	type ProjectManagement,
 	ProviderConnectivity,
@@ -17,6 +19,11 @@ import {
 	type WebPerformance as WebPerformanceDomain,
 } from '@rankpulse/domain';
 import type { ProviderFetchJobData } from '@rankpulse/infrastructure/queue';
+import {
+	BingApiError,
+	extractDailyRows as extractBingDailyRows,
+	type RankAndTrafficStatsResponse,
+} from '@rankpulse/provider-bing';
 import type { ProviderRegistry } from '@rankpulse/provider-core';
 import {
 	DataForSeoApiError,
@@ -76,6 +83,10 @@ const isQuotaExhaustedError = (err: unknown): boolean => {
 	// GA4 Data API returns 429 RESOURCE_EXHAUSTED when the per-property token
 	// budget (200k/day) is spent; auto-pause until reset.
 	if (err instanceof Ga4ApiError && (err.status === 402 || err.status === 429)) return true;
+	// Bing Webmaster Tools is fair-use rate-limited; 429 is the throttle
+	// signal. Treat it as quota-exhausted so the cron auto-pauses rather than
+	// retrying through the budget for the rest of the day.
+	if (err instanceof BingApiError && err.status === 429) return true;
 	return false;
 };
 
@@ -98,6 +109,7 @@ export interface ProviderFetchProcessorDeps {
 	wikipediaArticleRepo: EntityAwarenessDomain.WikipediaArticleRepository;
 	trackedPageRepo: WebPerformanceDomain.TrackedPageRepository;
 	ga4PropertyRepo: TrafficAnalyticsDomain.Ga4PropertyRepository;
+	bingPropertyRepo: BingWebmasterInsightsDomain.BingPropertyRepository;
 	vault: ProviderConnectivity.CredentialVault;
 	resolveCredentialUseCase: ProviderConnectivityUseCases.ResolveProviderCredentialUseCase;
 	recordApiUsageUseCase: ProviderConnectivityUseCases.RecordApiUsageUseCase;
@@ -107,6 +119,7 @@ export interface ProviderFetchProcessorDeps {
 	ingestWikipediaPageviewsUseCase: EntityAwarenessUseCases.IngestWikipediaPageviewsUseCase;
 	recordPageSpeedSnapshotUseCase: WebPerformanceUseCases.RecordPageSpeedSnapshotUseCase;
 	ingestGa4RowsUseCase: TrafficAnalyticsUseCases.IngestGa4RowsUseCase;
+	ingestBingTrafficUseCase: BingWebmasterInsightsUseCases.IngestBingTrafficUseCase;
 	clock: Clock;
 	ids: IdGenerator;
 	logger: Logger;
@@ -385,6 +398,31 @@ export class ProviderFetchProcessor {
 					});
 					await this.deps.ingestGscRowsUseCase.execute({
 						gscPropertyId: gscParams.gscPropertyId,
+						rawPayloadId,
+						rows,
+					});
+				}
+			}
+
+			if (
+				definition.providerId.value === 'bing-webmaster' &&
+				definition.endpointId.value === 'bing-rank-and-traffic-stats'
+			) {
+				// Issue #20 — Bing daily-traffic ingest. The job's systemParams
+				// must carry `bingPropertyId` (set by LinkBingProperty via
+				// auto-schedule on link). The query-stats endpoint uses a
+				// different aggregation shape and is wired separately when we
+				// add a query-history dispatch.
+				const bingParams = resolvedParams as { bingPropertyId?: string };
+				if (!bingParams.bingPropertyId) {
+					runLog.warn(
+						{},
+						'bing-rank-and-traffic-stats job missing bingPropertyId in systemParams; skipping ingest',
+					);
+				} else {
+					const rows = extractBingDailyRows(fetchResult as RankAndTrafficStatsResponse);
+					await this.deps.ingestBingTrafficUseCase.execute({
+						bingPropertyId: bingParams.bingPropertyId,
 						rawPayloadId,
 						rows,
 					});

@@ -57,6 +57,13 @@
 			"when": 1778015988471,
 			"tag": "0007_black_clea",
 			"breakpoints": true
+		},
+		{
+			"idx": 8,
+			"version": "7",
+			"when": 1778017481538,
+			"tag": "0008_freezing_black_knight",
+			"breakpoints": true
 		}
 	]
 }
