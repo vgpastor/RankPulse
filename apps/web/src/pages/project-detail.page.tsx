@@ -7,6 +7,7 @@ import {
 	CalendarClock,
 	Check,
 	Gauge,
+	Globe2,
 	LineChart,
 	MapPin,
 	Plus,
@@ -20,6 +21,7 @@ import { AddDomainDrawer } from '../components/add-domain-drawer.js';
 import { AddLocationDrawer } from '../components/add-location-drawer.js';
 import { AppShell } from '../components/app-shell.js';
 import { ImportKeywordsDrawer } from '../components/import-keywords-drawer.js';
+import { LinkBingDrawer } from '../components/link-bing-drawer.js';
 import { LinkGa4Drawer } from '../components/link-ga4-drawer.js';
 import { LinkWikipediaDrawer } from '../components/link-wikipedia-drawer.js';
 import { TrackPageDrawer } from '../components/track-page-drawer.js';
@@ -28,7 +30,7 @@ import { api } from '../lib/api.js';
 export const ProjectDetailPage = () => {
 	const { id } = useParams({ from: '/projects/$id' });
 	const [openDrawer, setOpenDrawer] = useState<
-		'competitor' | 'keywords' | 'domain' | 'location' | 'wikipedia' | 'page-speed' | 'ga4' | null
+		'competitor' | 'keywords' | 'domain' | 'location' | 'wikipedia' | 'page-speed' | 'ga4' | 'bing' | null
 	>(null);
 
 	const projectQuery = useQuery({
@@ -69,6 +71,12 @@ export const ProjectDetailPage = () => {
 	const ga4Query = useQuery({
 		queryKey: ['project', id, 'ga4'],
 		queryFn: () => api.ga4.listForProject(id),
+		enabled: Boolean(projectQuery.data),
+	});
+
+	const bingQuery = useQuery({
+		queryKey: ['project', id, 'bing'],
+		queryFn: () => api.bing.listForProject(id),
 		enabled: Boolean(projectQuery.data),
 	});
 
@@ -327,6 +335,46 @@ export const ProjectDetailPage = () => {
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between gap-2">
 							<CardTitle className="flex items-center gap-2 text-base">
+								<Globe2 size={14} className="text-primary" />
+								Bing properties ({bingQuery.data?.length ?? '…'})
+							</CardTitle>
+							<Button variant="ghost" size="sm" onClick={() => setOpenDrawer('bing')}>
+								<Plus size={14} />
+								Link
+							</Button>
+						</CardHeader>
+						<CardContent>
+							{bingQuery.isLoading ? (
+								<Spinner />
+							) : bingQuery.data && bingQuery.data.length > 0 ? (
+								<ul className="space-y-1 text-sm">
+									{bingQuery.data.map((p) => (
+										<li key={p.id} className="break-words">
+											<Badge variant={p.isActive ? 'default' : 'secondary'}>
+												{p.isActive ? 'active' : 'unlinked'}
+											</Badge>{' '}
+											<span className="text-muted-foreground">{p.siteUrl}</span>
+										</li>
+									))}
+								</ul>
+							) : (
+								<EmptyState
+									title="No Bing property linked"
+									description="Link a Bing-verified property to track clicks, impressions, and average position from the Bing search engine."
+									action={
+										<Button size="sm" onClick={() => setOpenDrawer('bing')}>
+											<Plus size={14} />
+											Link property
+										</Button>
+									}
+								/>
+							)}
+						</CardContent>
+					</Card>
+
+					<Card>
+						<CardHeader className="flex flex-row items-center justify-between gap-2">
+							<CardTitle className="flex items-center gap-2 text-base">
 								<Activity size={14} className="text-primary" />
 								GA4 properties ({ga4Query.data?.length ?? '…'})
 							</CardTitle>
@@ -470,6 +518,7 @@ export const ProjectDetailPage = () => {
 				onClose={() => setOpenDrawer(null)}
 			/>
 			<LinkGa4Drawer projectId={id} open={openDrawer === 'ga4'} onClose={() => setOpenDrawer(null)} />
+			<LinkBingDrawer projectId={id} open={openDrawer === 'bing'} onClose={() => setOpenDrawer(null)} />
 		</AppShell>
 	);
 };

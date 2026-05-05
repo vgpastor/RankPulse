@@ -113,6 +113,15 @@ export const Tokens = {
 	UnlinkGa4Property: Symbol('UnlinkGa4PropertyUseCase'),
 	QueryGa4Metrics: Symbol('QueryGa4MetricsUseCase'),
 
+	// Bing-Webmaster-Insights ports
+	BingPropertyRepository: Symbol('BingPropertyRepository'),
+	BingTrafficObservationRepository: Symbol('BingTrafficObservationRepository'),
+
+	// Bing-Webmaster-Insights use cases
+	LinkBingProperty: Symbol('LinkBingPropertyUseCase'),
+	UnlinkBingProperty: Symbol('UnlinkBingPropertyUseCase'),
+	QueryBingTraffic: Symbol('QueryBingTrafficUseCase'),
+
 	// Infrastructure handles
 	DrizzleClient: Symbol('DrizzleClient'),
 	JwtService: Symbol('JwtService'),

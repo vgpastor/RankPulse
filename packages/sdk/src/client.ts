@@ -1,5 +1,6 @@
 import { HttpClient, type HttpClientOptions } from './http.js';
 import { AuthResource } from './resources/auth.js';
+import { BingResource } from './resources/bing.js';
 import { Ga4Resource } from './resources/ga4.js';
 import { GscResource } from './resources/gsc.js';
 import { PageSpeedResource } from './resources/page-speed.js';
@@ -23,6 +24,7 @@ export class RankPulseClient {
 	readonly wikipedia: WikipediaResource;
 	readonly pageSpeed: PageSpeedResource;
 	readonly ga4: Ga4Resource;
+	readonly bing: BingResource;
 
 	constructor(options: RankPulseClientOptions) {
 		const prefix = options.apiPrefix ?? DEFAULT_PREFIX;
@@ -36,5 +38,6 @@ export class RankPulseClient {
 		this.wikipedia = new WikipediaResource(http);
 		this.pageSpeed = new PageSpeedResource(http);
 		this.ga4 = new Ga4Resource(http);
+		this.bing = new BingResource(http);
 	}
 }

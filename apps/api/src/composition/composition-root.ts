@@ -1,5 +1,6 @@
 import type { Provider, ValueProvider } from '@nestjs/common';
 import {
+	BingWebmasterInsights as BWIUseCases,
 	EntityAwareness as EAUseCases,
 	IdentityAccess as IAUseCases,
 	ProviderConnectivity as PCUseCases,
@@ -11,6 +12,7 @@ import {
 } from '@rankpulse/application';
 import type { ProjectManagement } from '@rankpulse/domain';
 import { Crypto, DrizzlePersistence, Events, Queue as QueueAdapters } from '@rankpulse/infrastructure';
+import { BingProvider } from '@rankpulse/provider-bing';
 import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
 import { Ga4Provider } from '@rankpulse/provider-ga4';
@@ -70,6 +72,10 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const pageSpeedSnapshotRepo = new DrizzlePersistence.DrizzlePageSpeedSnapshotRepository(drizzle.db);
 	const ga4PropertyRepo = new DrizzlePersistence.DrizzleGa4PropertyRepository(drizzle.db);
 	const ga4DailyMetricRepo = new DrizzlePersistence.DrizzleGa4DailyMetricRepository(drizzle.db);
+	const bingPropertyRepo = new DrizzlePersistence.DrizzleBingPropertyRepository(drizzle.db);
+	const bingTrafficObservationRepo = new DrizzlePersistence.DrizzleBingTrafficObservationRepository(
+		drizzle.db,
+	);
 
 	const jobScheduler = new QueueAdapters.BullMqJobScheduler({
 		connection: { url: env.REDIS_URL },
@@ -79,6 +85,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	providerRegistry.register(new DataForSeoProvider());
 	providerRegistry.register(new GscProvider());
 	providerRegistry.register(new Ga4Provider());
+	providerRegistry.register(new BingProvider());
 
 	const registerOrganization = new IAUseCases.RegisterOrganizationUseCase(
 		orgRepo,
@@ -282,6 +289,19 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const unlinkGa4Property = new TAUseCases.UnlinkGa4PropertyUseCase(ga4PropertyRepo, SystemClock);
 	const queryGa4Metrics = new TAUseCases.QueryGa4MetricsUseCase(ga4PropertyRepo, ga4DailyMetricRepo);
 
+	// Issue #20 — bing-webmaster-insights use cases
+	const linkBingProperty = new BWIUseCases.LinkBingPropertyUseCase(
+		bingPropertyRepo,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const unlinkBingProperty = new BWIUseCases.UnlinkBingPropertyUseCase(bingPropertyRepo, SystemClock);
+	const queryBingTraffic = new BWIUseCases.QueryBingTrafficUseCase(
+		bingPropertyRepo,
+		bingTrafficObservationRepo,
+	);
+
 	// BACKLOG #23 / #21 — auto-schedule daily GSC fetch on property link.
 	// Subscribes to the in-memory event bus; the handler is fire-and-forget,
 	// errors are swallowed and logged so a scheduler outage doesn't 500 the
@@ -386,6 +406,12 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.LinkGa4Property, linkGa4Property),
 		value(Tokens.UnlinkGa4Property, unlinkGa4Property),
 		value(Tokens.QueryGa4Metrics, queryGa4Metrics),
+
+		value(Tokens.BingPropertyRepository, bingPropertyRepo),
+		value(Tokens.BingTrafficObservationRepository, bingTrafficObservationRepo),
+		value(Tokens.LinkBingProperty, linkBingProperty),
+		value(Tokens.UnlinkBingProperty, unlinkBingProperty),
+		value(Tokens.QueryBingTraffic, queryBingTraffic),
 	];
 
 	return {

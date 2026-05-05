@@ -11,6 +11,11 @@
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"
 		},
+		"./bing-webmaster-insights": {
+			"development": "./src/bing-webmaster-insights/index.ts",
+			"types": "./dist/bing-webmaster-insights/index.d.ts",
+			"default": "./dist/bing-webmaster-insights/index.js"
+		},
 		"./entity-awareness": {
 			"development": "./src/entity-awareness/index.ts",
 			"types": "./dist/entity-awareness/index.d.ts",
