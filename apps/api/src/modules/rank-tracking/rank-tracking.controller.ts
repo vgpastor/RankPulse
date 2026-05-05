@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Inject, Param, Post, Query } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import type { ProviderConnectivity as PCUseCases, RankTracking as RTUseCases } from '@rankpulse/application';
 import { RankTrackingContracts } from '@rankpulse/contracts';
 import type { IdentityAccess, ProjectManagement, RankTracking } from '@rankpulse/domain';
@@ -34,6 +34,7 @@ export class RankTrackingController {
 	}
 
 	@Post('rank-tracking/keywords')
+	@SkipThrottle({ default: true, auth: true })
 	@Throttle({ bulk: { ttl: 60_000, limit: 6_000 } })
 	async start(
 		@Principal() principal: AuthPrincipal,

@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Inject, Param, Post, Query } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
+import { applyDecorators } from '@nestjs/common';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import type { ProjectManagement as PMUseCases } from '@rankpulse/application';
 import { ProjectManagementContracts } from '@rankpulse/contracts';
 import type { IdentityAccess, ProjectManagement } from '@rankpulse/domain';
@@ -11,7 +12,10 @@ import type { IdentityAccess, ProjectManagement } from '@rankpulse/domain';
  * — the auth guard still gates access, so this only loosens the rate, not
  * the authorization.
  */
-const BulkWriteThrottle = Throttle({ bulk: { ttl: 60_000, limit: 6_000 } });
+const BulkWriteThrottle = applyDecorators(
+	SkipThrottle({ default: true, auth: true }),
+	Throttle({ bulk: { ttl: 60_000, limit: 6_000 } }),
+);
 
 type CreateProjectRequest = ProjectManagementContracts.CreateProjectRequest;
 type AddCompetitorRequest = ProjectManagementContracts.AddCompetitorRequest;

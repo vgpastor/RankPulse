@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, Inject, Param, Patch, Post } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import type { ProviderConnectivity as PCUseCases } from '@rankpulse/application';
 import { ProviderConnectivityContracts } from '@rankpulse/contracts';
 import type { IdentityAccess, ProjectManagement, ProviderConnectivity } from '@rankpulse/domain';
@@ -151,6 +151,8 @@ export class ProvidersController {
 		return this.getJob.execute(definitionId);
 	}
 
+	@SkipThrottle({ default: true, auth: true })
+	@Throttle({ bulk: { ttl: 60_000, limit: 6_000 } })
 	@Patch(':providerId/job-definitions/:definitionId')
 	async patchJobDefinition(
 		@Principal() principal: AuthPrincipal,
@@ -173,6 +175,8 @@ export class ProvidersController {
 		return this.listRuns.execute({ definitionId });
 	}
 
+	@SkipThrottle({ default: true, auth: true })
+	@Throttle({ bulk: { ttl: 60_000, limit: 6_000 } })
 	@Delete(':providerId/job-definitions/:definitionId')
 	@HttpCode(204)
 	async deleteJobDefinition(
@@ -185,6 +189,7 @@ export class ProvidersController {
 	}
 
 	@Post(':providerId/endpoints/:endpointId/schedule')
+	@SkipThrottle({ default: true, auth: true })
 	@Throttle({ bulk: { ttl: 60_000, limit: 6_000 } })
 	async scheduleEndpoint(
 		@Principal() principal: AuthPrincipal,
