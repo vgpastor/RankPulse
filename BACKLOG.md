@@ -7,11 +7,11 @@
 
 | Categoría | Cantidad |
 |---|---:|
-| Pendiente arquitectura/UX (devs) | 8 |
+| Pendiente arquitectura/UX (devs) | 7 |
 | Pendiente del usuario (opcional) | 1 |
-| **Total** | **9** |
+| **Total** | **8** |
 
-> Numeración: items 7-14, 17 y 20 ya cerrados. Mantengo el id original
+> Numeración: items 7-14, 17, 20 y 22 ya cerrados. Mantengo el id original
 > para que enlaces externos a "BACKLOG #X" no se rompan; los huecos en la
 > secuencia son a propósito.
 
@@ -116,35 +116,6 @@ se cargue"; el dato ya está ahí.
   provider.
 - **operación:** un proyecto pausado significa todas sus `JobDefinitions`
   con `enabled=false` (lo que ya hicimos para DeaMap/GE/RocStatus).
-
----
-
-### #22 — GSC: soporte de placeholders relativos en params
-**Bloqueante directo de #21 para Google Search Console.**
-
-`SearchAnalyticsParams` exige `startDate`/`endDate` como fechas absolutas
-(`YYYY-MM-DD`). Un cron diario con esos campos hardcodeados re-fetchearía
-siempre la misma ventana. Hay que poder definir un job tipo:
-```
-params: {
-  siteUrl: "sc-domain:patroltech.online",
-  startDate: "{{today-30}}",
-  endDate: "{{today-2}}",
-  dimensions: ["date","query","page"],
-  rowLimit: 25000
-}
-```
-…y que el `ProviderFetchProcessor` resuelva los placeholders justo antes de
-llamar al fetcher (timezone-aware, UTC).
-
-**Capas:**
-- **shared:** util `resolveDateTokens(value, now)`.
-- **application:** hook `onResolveParams` en el use-case `RunJobOnce` que
-  aplica los tokens antes de pasar al provider.
-- **contracts:** la regex de `startDate`/`endDate` en `SearchAnalyticsParams`
-  pasa a aceptar también el patrón `^\{\{today(-\d+)?\}\}$`.
-
-Sin esto no se puede schedule-ar GSC — y la SPA depende de pull on-demand.
 
 ---
 

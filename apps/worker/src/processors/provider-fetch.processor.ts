@@ -21,7 +21,7 @@ import {
 	type SearchAnalyticsParams,
 	type SearchAnalyticsResponse,
 } from '@rankpulse/provider-gsc';
-import { type Clock, type IdGenerator, NotFoundError } from '@rankpulse/shared';
+import { type Clock, type IdGenerator, NotFoundError, resolveDateTokens } from '@rankpulse/shared';
 import type { Logger } from 'pino';
 
 /**
@@ -112,10 +112,20 @@ export class ProviderFetchProcessor {
 		await this.deps.jobRunRepo.save(run);
 
 		const dateBucket = this.deps.clock.now().toISOString().slice(0, 10);
+		// BACKLOG #22: definitions persist relative date tokens (e.g.
+		// `endDate: "{{today-2}}"`). Resolve them ONCE here against the
+		// current wall clock and use the resolved params for both the
+		// request-hash (so idempotency keys differ across days) and the
+		// fetch call. Persisted `definition.params` stays unchanged so the
+		// next cron tick recomputes against tomorrow's date.
+		const resolvedParams = resolveDateTokens(
+			definition.params as Record<string, unknown>,
+			this.deps.clock.now(),
+		);
 		const requestHash = ProviderConnectivity.computeRequestHashFor(
 			definition.providerId,
 			definition.endpointId,
-			definition.params as Record<string, unknown>,
+			resolvedParams,
 			dateBucket,
 		);
 		const existing = await this.deps.rawPayloadRepo.findByRequestHash(requestHash);
@@ -127,7 +137,7 @@ export class ProviderFetchProcessor {
 		}
 
 		try {
-			const fetchResult = await provider.fetch(definition.endpointId.value, definition.params, {
+			const fetchResult = await provider.fetch(definition.endpointId.value, resolvedParams, {
 				credential: { plaintextSecret: resolved.plaintextSecret },
 				logger: {
 					debug: (msg, meta) => this.deps.logger.debug(meta ?? {}, msg),
@@ -141,7 +151,7 @@ export class ProviderFetchProcessor {
 				id: rawPayloadId,
 				providerId: definition.providerId,
 				endpointId: definition.endpointId,
-				params: definition.params as Record<string, unknown>,
+				params: resolvedParams,
 				dateBucket,
 				payload: fetchResult,
 				now: this.deps.clock.now(),
@@ -179,7 +189,10 @@ export class ProviderFetchProcessor {
 				definition.providerId.value === 'google-search-console' &&
 				definition.endpointId.value === 'gsc-search-analytics'
 			) {
-				const gscParams = definition.params as unknown as SearchAnalyticsParams & { gscPropertyId?: string };
+				// Use the RESOLVED params: extractGscRows uses startDate/endDate
+				// to bucket the rows, and the persisted definition keeps the
+				// token form. `gscPropertyId` is a literal string in both.
+				const gscParams = resolvedParams as unknown as SearchAnalyticsParams & { gscPropertyId?: string };
 				if (!gscParams.gscPropertyId) {
 					this.deps.logger.warn(
 						{ defId: definition.id },
