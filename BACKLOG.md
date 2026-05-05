@@ -7,9 +7,13 @@
 
 | Categoría | Cantidad |
 |---|---:|
-| Pendiente arquitectura/UX (devs) | 9 |
+| Pendiente arquitectura/UX (devs) | 8 |
 | Pendiente del usuario (opcional) | 1 |
-| **Total** | **10** |
+| **Total** | **9** |
+
+> Numeración: items 7-14, 17 y 20 ya cerrados. Mantengo el id original
+> para que enlaces externos a "BACKLOG #X" no se rompan; los huecos en la
+> secuencia son a propósito.
 
 ---
 
@@ -43,23 +47,6 @@ Migrar a multi-stage build → `tsc → dist/`.
 ### A9 — Bootstrap UX: post-registro debería pedir credenciales primero
 Tras registro la SPA va a /projects vacía. Mejor: asistente que pida
 (1) credencial DataForSEO, (2) primer proyecto, (3) primer keyword + schedule.
-
----
-
----
-
-### #17 — Throttle inconsistente en PATCH/DELETE de job-definitions
-**Problema:** `PATCH /providers/:p/job-definitions/:d` y `DELETE` de la misma
-ruta no llevan `@Throttle({ bulk: ... })`, así que heredan el throttler global
-más estricto (`auth: 20/min`). Cualquier operador haciendo bulk-pause /
-bulk-disable choca con 429 tras 20 llamadas.
-
-**Síntoma observado:** pausar 47 job_definitions de tres proyectos no-PatrolTech
-necesitó 4 tandas separadas con sleep 60s entre medias.
-
-**Acción:** alinear estos dos endpoints con el resto de bulk-writes
-administrativos (decorar con `@Throttle({ bulk: { ttl: 60_000, limit: 6_000 } })`).
-Mismo patrón que ya usan `addCompetitorToProject` y `addKeywordToProject`.
 
 ---
 
