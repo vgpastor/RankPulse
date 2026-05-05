@@ -13,7 +13,7 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
 import { useAuthStore } from '../lib/auth-store.js';
 
@@ -75,6 +75,21 @@ export const OnboardingPage = () => {
 		enabled: Boolean(session),
 	});
 	const orgId = meQuery.data?.memberships[0]?.organizationId;
+
+	// Re-entry guard: if the org already has projects, the user has
+	// either completed the wizard or set things up manually elsewhere.
+	// Sending them through it again risks duplicate credentials/projects
+	// on form resubmits (e.g. accidental refresh after partial success).
+	const projectsQuery = useQuery({
+		queryKey: ['projects', orgId],
+		queryFn: () => (orgId ? api.projects.list(orgId) : Promise.resolve([])),
+		enabled: Boolean(orgId),
+	});
+	useEffect(() => {
+		if (projectsQuery.data && projectsQuery.data.length > 0) {
+			void navigate({ to: '/projects' });
+		}
+	}, [projectsQuery.data, navigate]);
 
 	const [step, setStep] = useState<Step>('credential');
 	const [secret, setSecret] = useState('');
@@ -174,7 +189,7 @@ export const OnboardingPage = () => {
 		keywordMutation.mutate();
 	};
 
-	if (meQuery.isLoading) {
+	if (meQuery.isLoading || projectsQuery.isLoading) {
 		return (
 			<div className="flex min-h-screen items-center justify-center">
 				<Spinner size="lg" />

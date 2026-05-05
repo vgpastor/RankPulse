@@ -65,6 +65,7 @@ async function bootstrap(): Promise<void> {
 			competitorSuggestionRepo,
 			SystemClock,
 			SystemIdGenerator,
+			{ warn: (meta, msg) => logger.warn(meta, msg) },
 		);
 
 	const processor = new ProviderFetchProcessor({

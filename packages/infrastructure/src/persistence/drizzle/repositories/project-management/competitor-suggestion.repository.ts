@@ -26,6 +26,41 @@ export class DrizzleCompetitorSuggestionRepository
 
 	async save(suggestion: ProjectManagement.CompetitorSuggestion): Promise<void> {
 		const keywords = [...suggestion.keywordsInTop10];
+		// Transitions out of PENDING (promote/dismiss) need an optimistic
+		// lock — without it, two concurrent promote calls both load
+		// PENDING, both call `promote()` in memory and both UPSERT,
+		// producing duplicate Competitor rows downstream. Gate the
+		// terminal write on `status = 'PENDING'`; if zero rows match, the
+		// other writer already won and we throw ConflictError.
+		if (suggestion.status !== ProjectManagement.SuggestionStatuses.PENDING) {
+			const result = await this.db
+				.update(competitorSuggestions)
+				.set({
+					keywordsInTop10: keywords,
+					totalTop10Hits: suggestion.totalTop10Hits,
+					lastSeenAt: suggestion.lastSeenAt,
+					status: suggestion.status,
+					promotedAt: suggestion.promotedAt,
+					dismissedAt: suggestion.dismissedAt,
+				})
+				.where(
+					and(
+						eq(competitorSuggestions.id, suggestion.id),
+						eq(competitorSuggestions.status, ProjectManagement.SuggestionStatuses.PENDING),
+					),
+				)
+				.returning({ id: competitorSuggestions.id });
+			if (result.length === 0) {
+				throw new ConflictError(
+					`Suggestion ${suggestion.id} is no longer PENDING (concurrent promote/dismiss)`,
+				);
+			}
+			return;
+		}
+
+		// PENDING save: either first insert or incremental hit recording.
+		// Hits are idempotent — `onConflictDoUpdate(target: id)` keeps
+		// the latest tally without resetting status.
 		try {
 			await this.db
 				.insert(competitorSuggestions)
@@ -47,18 +82,14 @@ export class DrizzleCompetitorSuggestionRepository
 						keywordsInTop10: keywords,
 						totalTop10Hits: suggestion.totalTop10Hits,
 						lastSeenAt: suggestion.lastSeenAt,
-						status: suggestion.status,
-						promotedAt: suggestion.promotedAt,
-						dismissedAt: suggestion.dismissedAt,
 					},
 				});
 		} catch (err) {
-			// BACKLOG #1 fix — race: two parallel SERP jobs of the same project
-			// can each `observe` the same external domain with DIFFERENT ids.
-			// `onConflictDoUpdate(target: id)` only fires on PK collision, so
-			// the second insert hits the (project_id, domain) unique. Surface
-			// it as ConflictError so the use case can refetch + retry the
-			// recordTop10Hit branch.
+			// Race: two parallel SERP jobs of the same project each
+			// `observe` the same external domain with DIFFERENT ids. The
+			// PK conflict handler doesn't fire (different ids), so the
+			// (project_id, domain) unique catches it. Surface as
+			// ConflictError so the use case refetches + retries.
 			if (isProjectDomainUniqueViolation(err)) {
 				throw new ConflictError(
 					`Suggestion for (${suggestion.projectId}, ${suggestion.domain.value}) already exists`,

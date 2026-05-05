@@ -168,10 +168,25 @@ export class ProviderFetchProcessor {
 			// BACKLOG #4 fix — endpoints that bill per item (e.g. search-volume
 			// at $0.005/keyword) declare a `costFor(params)` that returns the
 			// real cost for THIS call. Falls back to `cost.amount` (worst-case)
-			// for endpoints with flat per-call billing.
-			const realCostCents = endpointDescriptor.costFor
-				? endpointDescriptor.costFor(resolvedParams)
-				: endpointDescriptor.cost.amount;
+			// for endpoints with flat per-call billing OR if costFor throws
+			// on a malformed params shape (we charge worst-case AND log so
+			// the operator sees the misconfigure).
+			let realCostCents = endpointDescriptor.cost.amount;
+			if (endpointDescriptor.costFor) {
+				try {
+					realCostCents = endpointDescriptor.costFor(resolvedParams);
+				} catch (err) {
+					this.deps.logger.warn(
+						{
+							defId: definition.id,
+							providerId: definition.providerId.value,
+							endpointId: definition.endpointId.value,
+							err: err instanceof Error ? err.message : String(err),
+						},
+						'costFor() threw on resolvedParams — billing worst-case for this run',
+					);
+				}
+			}
 			await this.deps.recordApiUsageUseCase.execute({
 				organizationId: orgId,
 				credentialId: resolved.credentialId,
