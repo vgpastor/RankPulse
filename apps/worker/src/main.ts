@@ -4,6 +4,7 @@ import {
 	ProviderConnectivity as ProviderConnectivityUseCases,
 	RankTracking as RankTrackingUseCases,
 	SearchConsoleInsights as SearchConsoleInsightsUseCases,
+	TrafficAnalytics as TrafficAnalyticsUseCases,
 	WebPerformance as WebPerformanceUseCases,
 } from '@rankpulse/application';
 import { Crypto, DrizzlePersistence, Events, Queue as QueueAdapters } from '@rankpulse/infrastructure';
@@ -38,6 +39,8 @@ async function bootstrap(): Promise<void> {
 	);
 	const trackedPageRepo = new DrizzlePersistence.DrizzleTrackedPageRepository(drizzle.db);
 	const pageSpeedSnapshotRepo = new DrizzlePersistence.DrizzlePageSpeedSnapshotRepository(drizzle.db);
+	const ga4PropertyRepo = new DrizzlePersistence.DrizzleGa4PropertyRepository(drizzle.db);
+	const ga4DailyMetricRepo = new DrizzlePersistence.DrizzleGa4DailyMetricRepository(drizzle.db);
 
 	const vault = new Crypto.LibsodiumCredentialVault(env.RANKPULSE_MASTER_KEY);
 	const eventPublisher = new Events.InMemoryEventPublisher();
@@ -87,6 +90,13 @@ async function bootstrap(): Promise<void> {
 		pageSpeedSnapshotRepo,
 		eventPublisher,
 	);
+	const ingestGa4RowsUseCase = new TrafficAnalyticsUseCases.IngestGa4RowsUseCase(
+		ga4PropertyRepo,
+		ga4DailyMetricRepo,
+		SystemIdGenerator,
+		eventPublisher,
+		SystemClock,
+	);
 
 	const processor = new ProviderFetchProcessor({
 		registry,
@@ -100,6 +110,7 @@ async function bootstrap(): Promise<void> {
 		gscPropertyRepo,
 		wikipediaArticleRepo,
 		trackedPageRepo,
+		ga4PropertyRepo,
 		vault,
 		resolveCredentialUseCase,
 		recordApiUsageUseCase,
@@ -108,6 +119,7 @@ async function bootstrap(): Promise<void> {
 		ingestGscRowsUseCase,
 		ingestWikipediaPageviewsUseCase,
 		recordPageSpeedSnapshotUseCase,
+		ingestGa4RowsUseCase,
 		clock: SystemClock,
 		ids: SystemIdGenerator,
 		logger,

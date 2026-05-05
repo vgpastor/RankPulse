@@ -2,6 +2,7 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, Sp
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import {
+	Activity,
 	BookOpen,
 	CalendarClock,
 	Check,
@@ -19,6 +20,7 @@ import { AddDomainDrawer } from '../components/add-domain-drawer.js';
 import { AddLocationDrawer } from '../components/add-location-drawer.js';
 import { AppShell } from '../components/app-shell.js';
 import { ImportKeywordsDrawer } from '../components/import-keywords-drawer.js';
+import { LinkGa4Drawer } from '../components/link-ga4-drawer.js';
 import { LinkWikipediaDrawer } from '../components/link-wikipedia-drawer.js';
 import { TrackPageDrawer } from '../components/track-page-drawer.js';
 import { api } from '../lib/api.js';
@@ -26,7 +28,7 @@ import { api } from '../lib/api.js';
 export const ProjectDetailPage = () => {
 	const { id } = useParams({ from: '/projects/$id' });
 	const [openDrawer, setOpenDrawer] = useState<
-		'competitor' | 'keywords' | 'domain' | 'location' | 'wikipedia' | 'page-speed' | null
+		'competitor' | 'keywords' | 'domain' | 'location' | 'wikipedia' | 'page-speed' | 'ga4' | null
 	>(null);
 
 	const projectQuery = useQuery({
@@ -61,6 +63,12 @@ export const ProjectDetailPage = () => {
 	const pageSpeedQuery = useQuery({
 		queryKey: ['project', id, 'page-speed'],
 		queryFn: () => api.pageSpeed.listForProject(id),
+		enabled: Boolean(projectQuery.data),
+	});
+
+	const ga4Query = useQuery({
+		queryKey: ['project', id, 'ga4'],
+		queryFn: () => api.ga4.listForProject(id),
 		enabled: Boolean(projectQuery.data),
 	});
 
@@ -319,6 +327,46 @@ export const ProjectDetailPage = () => {
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between gap-2">
 							<CardTitle className="flex items-center gap-2 text-base">
+								<Activity size={14} className="text-primary" />
+								GA4 properties ({ga4Query.data?.length ?? '…'})
+							</CardTitle>
+							<Button variant="ghost" size="sm" onClick={() => setOpenDrawer('ga4')}>
+								<Plus size={14} />
+								Link
+							</Button>
+						</CardHeader>
+						<CardContent>
+							{ga4Query.isLoading ? (
+								<Spinner />
+							) : ga4Query.data && ga4Query.data.length > 0 ? (
+								<ul className="space-y-1 text-sm">
+									{ga4Query.data.map((p) => (
+										<li key={p.id} className="break-words">
+											<Badge variant={p.isActive ? 'default' : 'secondary'}>
+												{p.isActive ? 'active' : 'unlinked'}
+											</Badge>{' '}
+											<span className="font-medium">properties/{p.propertyHandle}</span>
+										</li>
+									))}
+								</ul>
+							) : (
+								<EmptyState
+									title="No GA4 property linked"
+									description="Link a property to pull sessions, users, and pageviews from your real GA4 traffic."
+									action={
+										<Button size="sm" onClick={() => setOpenDrawer('ga4')}>
+											<Plus size={14} />
+											Link property
+										</Button>
+									}
+								/>
+							)}
+						</CardContent>
+					</Card>
+
+					<Card>
+						<CardHeader className="flex flex-row items-center justify-between gap-2">
+							<CardTitle className="flex items-center gap-2 text-base">
 								<BookOpen size={14} className="text-primary" />
 								Wikipedia entities ({wikipediaQuery.data?.length ?? '…'})
 							</CardTitle>
@@ -421,6 +469,7 @@ export const ProjectDetailPage = () => {
 				open={openDrawer === 'page-speed'}
 				onClose={() => setOpenDrawer(null)}
 			/>
+			<LinkGa4Drawer projectId={id} open={openDrawer === 'ga4'} onClose={() => setOpenDrawer(null)} />
 		</AppShell>
 	);
 };

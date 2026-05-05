@@ -4,6 +4,7 @@ import type {
 	ProviderConnectivity as ProviderConnectivityUseCases,
 	RankTracking as RankTrackingUseCases,
 	SearchConsoleInsights as SearchConsoleInsightsUseCases,
+	TrafficAnalytics as TrafficAnalyticsUseCases,
 	WebPerformance as WebPerformanceUseCases,
 } from '@rankpulse/application';
 import {
@@ -12,6 +13,7 @@ import {
 	ProviderConnectivity,
 	type RankTracking as RankTrackingDomain,
 	type SearchConsoleInsights as SearchConsoleInsightsDomain,
+	type TrafficAnalytics as TrafficAnalyticsDomain,
 	type WebPerformance as WebPerformanceDomain,
 } from '@rankpulse/domain';
 import type { ProviderFetchJobData } from '@rankpulse/infrastructure/queue';
@@ -21,6 +23,12 @@ import {
 	extractTop10Domains,
 	type SerpLiveResponse,
 } from '@rankpulse/provider-dataforseo';
+import {
+	extractRows as extractGa4Rows,
+	Ga4ApiError,
+	type RunReportParams,
+	type RunReportResponse,
+} from '@rankpulse/provider-ga4';
 import {
 	extractGscRows,
 	GscApiError,
@@ -65,6 +73,9 @@ const isQuotaExhaustedError = (err: unknown): boolean => {
 	// PSI returns 429 once the API key burns through its 25k/day. Treat as
 	// quota-exhausted so the JobDefinition auto-pauses until next day.
 	if (err instanceof PageSpeedApiError && (err.status === 402 || err.status === 429)) return true;
+	// GA4 Data API returns 429 RESOURCE_EXHAUSTED when the per-property token
+	// budget (200k/day) is spent; auto-pause until reset.
+	if (err instanceof Ga4ApiError && (err.status === 402 || err.status === 429)) return true;
 	return false;
 };
 
@@ -86,6 +97,7 @@ export interface ProviderFetchProcessorDeps {
 	gscPropertyRepo: SearchConsoleInsightsDomain.GscPropertyRepository;
 	wikipediaArticleRepo: EntityAwarenessDomain.WikipediaArticleRepository;
 	trackedPageRepo: WebPerformanceDomain.TrackedPageRepository;
+	ga4PropertyRepo: TrafficAnalyticsDomain.Ga4PropertyRepository;
 	vault: ProviderConnectivity.CredentialVault;
 	resolveCredentialUseCase: ProviderConnectivityUseCases.ResolveProviderCredentialUseCase;
 	recordApiUsageUseCase: ProviderConnectivityUseCases.RecordApiUsageUseCase;
@@ -94,6 +106,7 @@ export interface ProviderFetchProcessorDeps {
 	ingestGscRowsUseCase: SearchConsoleInsightsUseCases.IngestGscRowsUseCase;
 	ingestWikipediaPageviewsUseCase: EntityAwarenessUseCases.IngestWikipediaPageviewsUseCase;
 	recordPageSpeedSnapshotUseCase: WebPerformanceUseCases.RecordPageSpeedSnapshotUseCase;
+	ingestGa4RowsUseCase: TrafficAnalyticsUseCases.IngestGa4RowsUseCase;
 	clock: Clock;
 	ids: IdGenerator;
 	logger: Logger;
@@ -374,6 +387,34 @@ export class ProviderFetchProcessor {
 						gscPropertyId: gscParams.gscPropertyId,
 						rawPayloadId,
 						rows,
+					});
+				}
+			}
+
+			if (
+				definition.providerId.value === 'google-analytics-4' &&
+				definition.endpointId.value === 'ga4-run-report'
+			) {
+				// Issue #17 — GA4 ingest. The job's systemParams must carry
+				// `ga4PropertyId` (set when the operator links a GA4 property
+				// via the API/UI; the LinkGa4PropertyUseCase auto-schedules
+				// the cron and stamps that id into the params).
+				const ga4Params = resolvedParams as unknown as RunReportParams & { ga4PropertyId?: string };
+				if (!ga4Params.ga4PropertyId) {
+					runLog.warn({}, 'ga4-run-report job missing ga4PropertyId param; skipping ingest');
+				} else {
+					const rows = extractGa4Rows(fetchResult as RunReportResponse, {
+						startDate: ga4Params.startDate,
+						endDate: ga4Params.endDate,
+					});
+					await this.deps.ingestGa4RowsUseCase.execute({
+						ga4PropertyId: ga4Params.ga4PropertyId,
+						rawPayloadId,
+						rows: rows.map((r) => ({
+							observedDate: r.observedDate,
+							dimensions: r.dimensions,
+							metrics: r.metrics,
+						})),
 					});
 				}
 			}

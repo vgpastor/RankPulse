@@ -46,6 +46,11 @@
 			"types": "./dist/shared-kernel/index.d.ts",
 			"default": "./dist/shared-kernel/index.js"
 		},
+		"./traffic-analytics": {
+			"development": "./src/traffic-analytics/index.ts",
+			"types": "./dist/traffic-analytics/index.d.ts",
+			"default": "./dist/traffic-analytics/index.js"
+		},
 		"./web-performance": {
 			"development": "./src/web-performance/index.ts",
 			"types": "./dist/web-performance/index.d.ts",

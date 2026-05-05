@@ -1,5 +1,6 @@
 import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
+import { Ga4Provider } from '@rankpulse/provider-ga4';
 import { GscProvider } from '@rankpulse/provider-gsc';
 import { PageSpeedProvider } from '@rankpulse/provider-pagespeed';
 import { WikipediaProvider } from '@rankpulse/provider-wikipedia';
@@ -11,6 +12,7 @@ import { WikipediaProvider } from '@rankpulse/provider-wikipedia';
 export function buildProviderRegistry(options: { dataforseoBaseUrl: string }): ProviderRegistry {
 	const registry = new ProviderRegistry();
 	registry.register(new DataForSeoProvider({ baseUrl: options.dataforseoBaseUrl }));
+	registry.register(new Ga4Provider());
 	registry.register(new GscProvider());
 	registry.register(new WikipediaProvider());
 	registry.register(new PageSpeedProvider());

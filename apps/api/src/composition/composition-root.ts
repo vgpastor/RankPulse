@@ -6,12 +6,14 @@ import {
 	ProjectManagement as PMUseCases,
 	RankTracking as RTUseCases,
 	SearchConsoleInsights as SCIUseCases,
+	TrafficAnalytics as TAUseCases,
 	WebPerformance as WPUseCases,
 } from '@rankpulse/application';
 import type { ProjectManagement } from '@rankpulse/domain';
 import { Crypto, DrizzlePersistence, Events, Queue as QueueAdapters } from '@rankpulse/infrastructure';
 import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
+import { Ga4Provider } from '@rankpulse/provider-ga4';
 import { GscProvider } from '@rankpulse/provider-gsc';
 import { InvalidInputError, SystemClock, SystemIdGenerator } from '@rankpulse/shared';
 import { JwtService } from '../common/auth/jwt.service.js';
@@ -66,6 +68,8 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	);
 	const trackedPageRepo = new DrizzlePersistence.DrizzleTrackedPageRepository(drizzle.db);
 	const pageSpeedSnapshotRepo = new DrizzlePersistence.DrizzlePageSpeedSnapshotRepository(drizzle.db);
+	const ga4PropertyRepo = new DrizzlePersistence.DrizzleGa4PropertyRepository(drizzle.db);
+	const ga4DailyMetricRepo = new DrizzlePersistence.DrizzleGa4DailyMetricRepository(drizzle.db);
 
 	const jobScheduler = new QueueAdapters.BullMqJobScheduler({
 		connection: { url: env.REDIS_URL },
@@ -74,6 +78,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const providerRegistry = new ProviderRegistry();
 	providerRegistry.register(new DataForSeoProvider());
 	providerRegistry.register(new GscProvider());
+	providerRegistry.register(new Ga4Provider());
 
 	const registerOrganization = new IAUseCases.RegisterOrganizationUseCase(
 		orgRepo,
@@ -267,6 +272,16 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		pageSpeedSnapshotRepo,
 	);
 
+	// Issue #17 — traffic-analytics (GA4) use cases
+	const linkGa4Property = new TAUseCases.LinkGa4PropertyUseCase(
+		ga4PropertyRepo,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const unlinkGa4Property = new TAUseCases.UnlinkGa4PropertyUseCase(ga4PropertyRepo, SystemClock);
+	const queryGa4Metrics = new TAUseCases.QueryGa4MetricsUseCase(ga4PropertyRepo, ga4DailyMetricRepo);
+
 	// BACKLOG #23 / #21 — auto-schedule daily GSC fetch on property link.
 	// Subscribes to the in-memory event bus; the handler is fire-and-forget,
 	// errors are swallowed and logged so a scheduler outage doesn't 500 the
@@ -365,6 +380,12 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.LinkWikipediaArticle, linkWikipediaArticle),
 		value(Tokens.UnlinkWikipediaArticle, unlinkWikipediaArticle),
 		value(Tokens.QueryWikipediaPageviews, queryWikipediaPageviews),
+
+		value(Tokens.Ga4PropertyRepository, ga4PropertyRepo),
+		value(Tokens.Ga4DailyMetricRepository, ga4DailyMetricRepo),
+		value(Tokens.LinkGa4Property, linkGa4Property),
+		value(Tokens.UnlinkGa4Property, unlinkGa4Property),
+		value(Tokens.QueryGa4Metrics, queryGa4Metrics),
 	];
 
 	return {

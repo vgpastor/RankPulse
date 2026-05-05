@@ -22,6 +22,8 @@ export { DrizzleRankingObservationRepository } from './repositories/rank-trackin
 export { DrizzleTrackedKeywordRepository } from './repositories/rank-tracking/tracked-keyword.repository.js';
 export { DrizzleGscPerformanceObservationRepository } from './repositories/search-console-insights/gsc-performance-observation.repository.js';
 export { DrizzleGscPropertyRepository } from './repositories/search-console-insights/gsc-property.repository.js';
+export { DrizzleGa4DailyMetricRepository } from './repositories/traffic-analytics/ga4-daily-metric.repository.js';
+export { DrizzleGa4PropertyRepository } from './repositories/traffic-analytics/ga4-property.repository.js';
 export { DrizzlePageSpeedSnapshotRepository } from './repositories/web-performance/page-speed-snapshot.repository.js';
 export { DrizzleTrackedPageRepository } from './repositories/web-performance/tracked-page.repository.js';
 export * as schema from './schema/index.js';
