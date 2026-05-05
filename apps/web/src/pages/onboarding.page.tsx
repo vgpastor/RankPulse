@@ -29,8 +29,11 @@ interface CountryOption {
  * dictionary has 99k+ entries; for the wizard we only need a quick-pick of
  * the markets RankPulse customers most commonly target. Operators that need
  * more granularity can edit the project locations afterwards.
+ *
+ * Tuple typing (`as const`) so `DEFAULT_COUNTRY` is statically known to
+ * exist — no `!` non-null assertion needed.
  */
-const COUNTRIES: readonly CountryOption[] = [
+const COUNTRIES = [
 	{ iso: 'ES', dataforseoCode: 2724, defaultLanguage: 'es', label: 'Spain (es)' },
 	{ iso: 'US', dataforseoCode: 2840, defaultLanguage: 'en', label: 'United States (en)' },
 	{ iso: 'GB', dataforseoCode: 2826, defaultLanguage: 'en', label: 'United Kingdom (en)' },
@@ -40,7 +43,9 @@ const COUNTRIES: readonly CountryOption[] = [
 	{ iso: 'MX', dataforseoCode: 2484, defaultLanguage: 'es', label: 'Mexico (es)' },
 	{ iso: 'AR', dataforseoCode: 2032, defaultLanguage: 'es', label: 'Argentina (es)' },
 	{ iso: 'BR', dataforseoCode: 2076, defaultLanguage: 'pt', label: 'Brazil (pt)' },
-];
+] as const satisfies readonly CountryOption[];
+
+const DEFAULT_COUNTRY: CountryOption = COUNTRIES[0];
 
 type Step = 'credential' | 'project' | 'keyword' | 'done';
 
@@ -81,7 +86,7 @@ export const OnboardingPage = () => {
 	const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
-	const country = COUNTRIES.find((c) => c.iso === countryIso) ?? COUNTRIES[0]!;
+	const country: CountryOption = COUNTRIES.find((c) => c.iso === countryIso) ?? DEFAULT_COUNTRY;
 
 	const skip = async (): Promise<void> => {
 		const target = createdProjectId ? `/projects/${createdProjectId}` : '/projects';
@@ -296,7 +301,11 @@ export const OnboardingPage = () => {
 									/>
 								)}
 							</FormField>
-							<FormField label="Market" hint="Country + default language for the SERP." error={error ?? undefined}>
+							<FormField
+								label="Market"
+								hint="Country + default language for the SERP."
+								error={error ?? undefined}
+							>
 								{(id) => (
 									<Select id={id} value={countryIso} onChange={(e) => setCountryIso(e.target.value)}>
 										{COUNTRIES.map((c) => (
@@ -322,7 +331,10 @@ export const OnboardingPage = () => {
 
 					{step === 'keyword' && (
 						<form onSubmit={onKeywordSubmit} className="flex flex-col gap-4">
-							<FormField label="First keyword to track" hint={`Will be tracked on ${primaryDomain} in ${country.label}.`}>
+							<FormField
+								label="First keyword to track"
+								hint={`Will be tracked on ${primaryDomain} in ${country.label}.`}
+							>
 								{(id) => (
 									<Input
 										id={id}

@@ -67,7 +67,12 @@ export const fetchRelatedKeywords = async (
 	ctx: FetchContext,
 ): Promise<RelatedKeywordsResponse> => {
 	const body = buildRelatedKeywordsBody(params);
-	const raw = (await http.post(PATH, body, ctx.credential.plaintextSecret, ctx.signal)) as RelatedKeywordsResponse;
+	const raw = (await http.post(
+		PATH,
+		body,
+		ctx.credential.plaintextSecret,
+		ctx.signal,
+	)) as RelatedKeywordsResponse;
 	if (raw.status_code !== 20000) {
 		ctx.logger.warn('DataForSEO related-keywords returned a non-success status', {
 			status: raw.status_code,

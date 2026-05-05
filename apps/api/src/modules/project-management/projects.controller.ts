@@ -21,7 +21,7 @@ type AddCompetitorRequest = ProjectManagementContracts.AddCompetitorRequest;
 type ImportKeywordsRequest = ProjectManagementContracts.ImportKeywordsRequest;
 type ProjectDto = ProjectManagementContracts.ProjectDto;
 
-import { NotFoundError } from '@rankpulse/shared';
+import { ForbiddenError, NotFoundError } from '@rankpulse/shared';
 import { z } from 'zod';
 import type { AuthPrincipal } from '../../common/auth/jwt.service.js';
 import { OrgMembership } from '../../common/auth/org-membership.guard.js';
@@ -187,6 +187,15 @@ export class ProjectsController {
 		return { ok: true };
 	}
 
+	/**
+	 * Loads a suggestion AND verifies the caller belongs to its
+	 * organization. To prevent cross-tenant enumeration via timing /
+	 * status-code differences, both "not found" and "found but forbidden"
+	 * surface as the SAME `NotFoundError` (404). A legitimate operator
+	 * never sees a 404 because they own the URL they call; an attacker
+	 * sondoeing UUIDs cannot distinguish "doesn't exist" from "exists
+	 * elsewhere".
+	 */
 	private async requireAccessToSuggestion(principal: AuthPrincipal, suggestionId: string): Promise<void> {
 		const suggestion = await this.suggestions.findById(
 			suggestionId as ProjectManagement.CompetitorSuggestionId,
@@ -194,8 +203,18 @@ export class ProjectsController {
 		if (!suggestion) {
 			throw new NotFoundError(`Suggestion ${suggestionId} not found`);
 		}
-		const project = await this.loadProject(suggestion.projectId);
-		await this.orgMembership.require(principal, project.organizationId);
+		const project = await this.projects.findById(suggestion.projectId);
+		if (!project) {
+			throw new NotFoundError(`Suggestion ${suggestionId} not found`);
+		}
+		try {
+			await this.orgMembership.require(principal, project.organizationId);
+		} catch (err) {
+			if (err instanceof ForbiddenError) {
+				throw new NotFoundError(`Suggestion ${suggestionId} not found`);
+			}
+			throw err;
+		}
 	}
 
 	@Post(':id/keywords')

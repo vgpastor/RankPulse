@@ -56,7 +56,12 @@ export const fetchKeywordDifficulty = async (
 	ctx: FetchContext,
 ): Promise<KeywordDifficultyResponse> => {
 	const body = buildKeywordDifficultyBody(params);
-	const raw = (await http.post(PATH, body, ctx.credential.plaintextSecret, ctx.signal)) as KeywordDifficultyResponse;
+	const raw = (await http.post(
+		PATH,
+		body,
+		ctx.credential.plaintextSecret,
+		ctx.signal,
+	)) as KeywordDifficultyResponse;
 	if (raw.status_code !== 20000) {
 		ctx.logger.warn('DataForSEO keyword-difficulty returned a non-success status', {
 			status: raw.status_code,

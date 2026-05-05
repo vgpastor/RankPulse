@@ -10,12 +10,14 @@ export const KeywordsDataSearchVolumeParams = z.object({
 export type KeywordsDataSearchVolumeParams = z.infer<typeof KeywordsDataSearchVolumeParams>;
 
 /**
- * $0.05/1000 keywords (live) — DataForSEO publishes 0.05¢/keyword for the
- * Google-Ads search-volume task. Cost is per-call so the descriptor's
- * `cost.amount` represents 1000 keywords. Operators batching <1000 still
- * pay the full call cost.
+ * DataForSEO bills $0.05 per 1000 keywords (= 0.005 cents/keyword) for the
+ * Google-Ads search-volume task. `cost.amount` advertises the max
+ * worst-case (5¢ for the full 1000-batch); `costFor` computes the real
+ * per-call cost from the batch size so the api_usage ledger matches the
+ * provider's invoice.
  */
-export const SEARCH_VOLUME_COST_CENTS = 5;
+export const SEARCH_VOLUME_COST_CENTS_PER_KEYWORD = 0.005;
+export const SEARCH_VOLUME_COST_CENTS_MAX = 5;
 
 export const keywordsDataSearchVolumeDescriptor: EndpointDescriptor = {
 	id: 'keywords-data-search-volume',
@@ -24,8 +26,19 @@ export const keywordsDataSearchVolumeDescriptor: EndpointDescriptor = {
 	description:
 		'Monthly search volume, CPC and competition for up to 1000 keywords in a country/language. Underpins keyword prioritisation.',
 	paramsSchema: KeywordsDataSearchVolumeParams,
-	cost: { unit: 'usd_cents', amount: SEARCH_VOLUME_COST_CENTS },
-	defaultCron: '0 7 * * *',
+	cost: { unit: 'usd_cents', amount: SEARCH_VOLUME_COST_CENTS_MAX },
+	costFor: (raw) => {
+		// Reuses the descriptor's own zod schema for safety: a malformed
+		// JobDefinition shouldn't bypass billing entirely. On parse fail
+		// we charge the worst-case so we never under-report.
+		const parsed = KeywordsDataSearchVolumeParams.safeParse(raw);
+		if (!parsed.success) return SEARCH_VOLUME_COST_CENTS_MAX;
+		return parsed.data.keywords.length * SEARCH_VOLUME_COST_CENTS_PER_KEYWORD;
+	},
+	// BACKLOG #4 fix — Google Ads search volume is updated MONTHLY upstream;
+	// running daily wasted budget against unchanging data. Day 1 of every
+	// month at 07:00 UTC.
+	defaultCron: '0 7 1 * *',
 	rateLimit: { max: 2_000, durationMs: 60_000 },
 };
 
@@ -67,7 +80,12 @@ export const fetchKeywordsDataSearchVolume = async (
 	ctx: FetchContext,
 ): Promise<SearchVolumeResponse> => {
 	const body = buildSearchVolumeBody(params);
-	const raw = (await http.post(PATH, body, ctx.credential.plaintextSecret, ctx.signal)) as SearchVolumeResponse;
+	const raw = (await http.post(
+		PATH,
+		body,
+		ctx.credential.plaintextSecret,
+		ctx.signal,
+	)) as SearchVolumeResponse;
 	if (raw.status_code !== 20000) {
 		ctx.logger.warn('DataForSEO search-volume returned a non-success status', {
 			status: raw.status_code,

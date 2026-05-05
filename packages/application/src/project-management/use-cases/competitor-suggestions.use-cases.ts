@@ -1,5 +1,5 @@
 import { ProjectManagement, type SharedKernel } from '@rankpulse/domain';
-import { type Clock, type IdGenerator, NotFoundError } from '@rankpulse/shared';
+import { type Clock, ConflictError, type IdGenerator, NotFoundError } from '@rankpulse/shared';
 
 /**
  * BACKLOG #18 — eligibility policy. Centralised so the domain stays
@@ -40,7 +40,11 @@ const toView = (s: ProjectManagement.CompetitorSuggestion): SuggestionView => ({
 	status: s.status,
 });
 
-const normalize = (raw: string): string => raw.trim().toLowerCase().replace(/^www\./, '');
+const normalize = (raw: string): string =>
+	raw
+		.trim()
+		.toLowerCase()
+		.replace(/^www\./, '');
 
 export interface RecordTop10HitsCommand {
 	projectId: string;
@@ -74,21 +78,45 @@ export class RecordTop10HitsForSuggestionsUseCase {
 			const key = normalize(raw);
 			if (seen.has(key)) continue;
 			seen.add(key);
+			await this.recordSingleDomain(projectId, key, cmd.keyword);
+		}
+	}
 
-			const existing = await this.suggestions.findByProjectAndDomain(projectId, key);
-			if (existing) {
-				existing.recordTop10Hit(cmd.keyword, this.clock.now());
-				await this.suggestions.save(existing);
-				continue;
-			}
-			const suggestion = ProjectManagement.CompetitorSuggestion.observe({
-				id: this.ids.generate() as ProjectManagement.CompetitorSuggestionId,
-				projectId,
-				domain: ProjectManagement.DomainName.create(key),
-				firstSeenKeyword: cmd.keyword,
-				now: this.clock.now(),
-			});
-			await this.suggestions.save(suggestion);
+	/**
+	 * find-or-observe + record, with one retry on the unique-violation race.
+	 * The race: two parallel SERP jobs of the same project both see "no row"
+	 * for the same external domain → both call `observe` → second `save`
+	 * hits `competitor_suggestions_project_domain_unique` and the repo
+	 * throws `ConflictError`. We refetch and apply the hit on the row that
+	 * the other writer just created. One retry is enough — after the row
+	 * exists, every subsequent caller takes the find-existing branch.
+	 */
+	private async recordSingleDomain(
+		projectId: ProjectManagement.ProjectId,
+		domainKey: string,
+		keyword: string,
+	): Promise<void> {
+		const existing = await this.suggestions.findByProjectAndDomain(projectId, domainKey);
+		if (existing) {
+			existing.recordTop10Hit(keyword, this.clock.now());
+			await this.suggestions.save(existing);
+			return;
+		}
+		const fresh = ProjectManagement.CompetitorSuggestion.observe({
+			id: this.ids.generate() as ProjectManagement.CompetitorSuggestionId,
+			projectId,
+			domain: ProjectManagement.DomainName.create(domainKey),
+			firstSeenKeyword: keyword,
+			now: this.clock.now(),
+		});
+		try {
+			await this.suggestions.save(fresh);
+		} catch (err) {
+			if (!(err instanceof ConflictError)) throw err;
+			const winner = await this.suggestions.findByProjectAndDomain(projectId, domainKey);
+			if (!winner) throw err;
+			winner.recordTop10Hit(keyword, this.clock.now());
+			await this.suggestions.save(winner);
 		}
 	}
 }
@@ -142,14 +170,20 @@ export interface PromoteSuggestionCommand {
 
 /**
  * Promotes a suggestion to a real `Competitor` in the same bounded
- * context. Marks the suggestion as PROMOTED so it stops showing up in
- * the eligible list. Both writes happen but are NOT in a single
- * transaction — the application-level repository protocol exposes
- * `save`, not `tx`. If the second `save` fails the first is still
- * committed; the next call would re-create with a duplicate competitor
- * domain. The Competitor.add invariant + `findExisting` could prevent
- * that on retry; for v1 we accept the failure mode and rely on the
- * unique `(project_id, domain)` index on `competitors`.
+ * context.
+ *
+ * Order matters: the suggestion is marked PROMOTED FIRST, then the
+ * Competitor row is created. If creating the Competitor fails:
+ *   - The suggestion stays PROMOTED (terminal), so it never appears in
+ *     the eligible list again — operators won't try to promote it
+ *     twice and double-write the same Competitor.
+ *   - A competitor row may be missing for the domain; the operator
+ *     can re-add it manually via POST /projects/:id/competitors. The
+ *     repo throws ConflictError on the unique (project_id, domain)
+ *     index so a retry from a stale UI doesn't generate a 500.
+ *
+ * If the suggestion is already promoted/dismissed, `suggestion.promote`
+ * throws ConflictError → controller returns 409.
  */
 export class PromoteCompetitorSuggestionUseCase {
 	constructor(
@@ -166,6 +200,16 @@ export class PromoteCompetitorSuggestionUseCase {
 		);
 		if (!suggestion) throw new NotFoundError(`Suggestion ${cmd.suggestionId} not found`);
 
+		// 1. Mark PROMOTED first. If this fails (already promoted/dismissed),
+		// we never get to create a Competitor — clean.
+		suggestion.promote(this.clock.now());
+		await this.suggestions.save(suggestion);
+
+		// 2. Create the Competitor row. If the domain is already a
+		// Competitor (rare: operator added it manually between steps),
+		// the repo throws ConflictError — the controller returns 409 and
+		// the suggestion stays PROMOTED, which is the desired terminal
+		// state anyway.
 		const competitorId = this.ids.generate() as ProjectManagement.CompetitorId;
 		const competitor = ProjectManagement.Competitor.add({
 			id: competitorId,
@@ -185,8 +229,6 @@ export class PromoteCompetitorSuggestionUseCase {
 			}),
 		]);
 
-		suggestion.promote(this.clock.now());
-		await this.suggestions.save(suggestion);
 		return { competitorId };
 	}
 }

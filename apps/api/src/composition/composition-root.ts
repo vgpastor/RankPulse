@@ -131,10 +131,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	// tracked-keyword repo so suggestions stay project-management-pure.
 	const listCompetitorSuggestions = new PMUseCases.ListCompetitorSuggestionsUseCase(
 		competitorSuggestionRepo,
-		async (projectId) => {
-			const tracked = await trackedKeywordRepo.listForProject(projectId as ProjectManagement.ProjectId);
-			return tracked.length;
-		},
+		(projectId) => trackedKeywordRepo.countForProject(projectId as ProjectManagement.ProjectId),
 	);
 	const promoteCompetitorSuggestion = new PMUseCases.PromoteCompetitorSuggestionUseCase(
 		competitorSuggestionRepo,

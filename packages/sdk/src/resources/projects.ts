@@ -76,10 +76,7 @@ export class ProjectsResource {
 	}
 
 	dismissCompetitorSuggestion(suggestionId: string): Promise<{ ok: true }> {
-		return this.http.post(
-			`/projects/competitor-suggestions/${encodeURIComponent(suggestionId)}/dismiss`,
-			{},
-		);
+		return this.http.post(`/projects/competitor-suggestions/${encodeURIComponent(suggestionId)}/dismiss`, {});
 	}
 
 	importKeywords(

@@ -74,7 +74,12 @@ export const fetchOnPageInstantPages = async (
 	ctx: FetchContext,
 ): Promise<OnPageInstantResponse> => {
 	const body = buildOnPageInstantBody(params);
-	const raw = (await http.post(PATH, body, ctx.credential.plaintextSecret, ctx.signal)) as OnPageInstantResponse;
+	const raw = (await http.post(
+		PATH,
+		body,
+		ctx.credential.plaintextSecret,
+		ctx.signal,
+	)) as OnPageInstantResponse;
 	if (raw.status_code !== 20000) {
 		ctx.logger.warn('DataForSEO on-page instant returned a non-success status', {
 			status: raw.status_code,

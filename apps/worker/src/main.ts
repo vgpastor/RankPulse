@@ -60,11 +60,12 @@ async function bootstrap(): Promise<void> {
 		SystemIdGenerator,
 		eventPublisher,
 	);
-	const recordTop10HitsForSuggestionsUseCase = new ProjectManagementUseCases.RecordTop10HitsForSuggestionsUseCase(
-		competitorSuggestionRepo,
-		SystemClock,
-		SystemIdGenerator,
-	);
+	const recordTop10HitsForSuggestionsUseCase =
+		new ProjectManagementUseCases.RecordTop10HitsForSuggestionsUseCase(
+			competitorSuggestionRepo,
+			SystemClock,
+			SystemIdGenerator,
+		);
 
 	const processor = new ProviderFetchProcessor({
 		registry,

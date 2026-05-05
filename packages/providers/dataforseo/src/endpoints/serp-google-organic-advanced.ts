@@ -73,7 +73,12 @@ export const fetchSerpGoogleOrganicAdvanced = async (
 	ctx: FetchContext,
 ): Promise<SerpAdvancedResponse> => {
 	const body = buildSerpAdvancedBody(params);
-	const raw = (await http.post(PATH, body, ctx.credential.plaintextSecret, ctx.signal)) as SerpAdvancedResponse;
+	const raw = (await http.post(
+		PATH,
+		body,
+		ctx.credential.plaintextSecret,
+		ctx.signal,
+	)) as SerpAdvancedResponse;
 	if (raw.status_code !== 20000) {
 		ctx.logger.warn('DataForSEO SERP advanced returned a non-success status', {
 			status: raw.status_code,

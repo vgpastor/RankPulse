@@ -229,7 +229,10 @@ export const competitorSuggestions = pgTable(
 		dismissedAt: timestamp('dismissed_at', { withTimezone: true }),
 	},
 	(t) => ({
-		projectDomainUnique: uniqueIndex('competitor_suggestions_project_domain_unique').on(t.projectId, t.domain),
+		projectDomainUnique: uniqueIndex('competitor_suggestions_project_domain_unique').on(
+			t.projectId,
+			t.domain,
+		),
 		projectStatusIdx: index('competitor_suggestions_project_status_idx').on(t.projectId, t.status),
 	}),
 );

@@ -1,6 +1,6 @@
 import { type IdentityAccess, ProjectManagement, RankTracking } from '@rankpulse/domain';
 import { InvalidInputError } from '@rankpulse/shared';
-import { and, eq } from 'drizzle-orm';
+import { and, count, eq } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { trackedKeywords } from '../../schema/index.js';
 
@@ -64,6 +64,14 @@ export class DrizzleTrackedKeywordRepository implements RankTracking.TrackedKeyw
 	): Promise<readonly RankTracking.TrackedKeyword[]> {
 		const rows = await this.db.select().from(trackedKeywords).where(eq(trackedKeywords.projectId, projectId));
 		return rows.map((r) => this.toAggregate(r));
+	}
+
+	async countForProject(projectId: ProjectManagement.ProjectId): Promise<number> {
+		const [row] = await this.db
+			.select({ value: count() })
+			.from(trackedKeywords)
+			.where(eq(trackedKeywords.projectId, projectId));
+		return row?.value ?? 0;
 	}
 
 	async listForOrganization(

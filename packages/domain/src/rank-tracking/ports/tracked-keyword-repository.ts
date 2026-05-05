@@ -17,6 +17,12 @@ export interface TrackedKeywordRepository {
 	listForProject(projectId: ProjectId): Promise<readonly TrackedKeyword[]>;
 	listForOrganization(orgId: OrganizationId): Promise<readonly TrackedKeyword[]>;
 	/**
+	 * BACKLOG #18 read model: the eligibility ratio for competitor
+	 * suggestions divides keywordsInTop10 by the project's tracked-keyword
+	 * count. This avoids hydrating every aggregate just to read `.length`.
+	 */
+	countForProject(projectId: ProjectId): Promise<number>;
+	/**
 	 * BACKLOG #15: returns every tracked keyword sharing the same SERP query
 	 * (project + phrase + country + language + device). The processor uses
 	 * this to fan one SERP fetch into N RankingObservations — one per

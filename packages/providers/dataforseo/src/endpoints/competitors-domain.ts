@@ -61,7 +61,12 @@ export const fetchCompetitorsDomain = async (
 	ctx: FetchContext,
 ): Promise<CompetitorsDomainResponse> => {
 	const body = buildCompetitorsDomainBody(params);
-	const raw = (await http.post(PATH, body, ctx.credential.plaintextSecret, ctx.signal)) as CompetitorsDomainResponse;
+	const raw = (await http.post(
+		PATH,
+		body,
+		ctx.credential.plaintextSecret,
+		ctx.signal,
+	)) as CompetitorsDomainResponse;
 	if (raw.status_code !== 20000) {
 		ctx.logger.warn('DataForSEO competitors-domain returned a non-success status', {
 			status: raw.status_code,

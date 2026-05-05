@@ -66,7 +66,12 @@ export const fetchKeywordsForSite = async (
 	ctx: FetchContext,
 ): Promise<KeywordsForSiteResponse> => {
 	const body = buildKeywordsForSiteBody(params);
-	const raw = (await http.post(PATH, body, ctx.credential.plaintextSecret, ctx.signal)) as KeywordsForSiteResponse;
+	const raw = (await http.post(
+		PATH,
+		body,
+		ctx.credential.plaintextSecret,
+		ctx.signal,
+	)) as KeywordsForSiteResponse;
 	if (raw.status_code !== 20000) {
 		ctx.logger.warn('DataForSEO keywords-for-site returned a non-success status', {
 			status: raw.status_code,

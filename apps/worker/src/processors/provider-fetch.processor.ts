@@ -12,7 +12,11 @@ import {
 } from '@rankpulse/domain';
 import type { ProviderFetchJobData } from '@rankpulse/infrastructure/queue';
 import type { ProviderRegistry } from '@rankpulse/provider-core';
-import { DataForSeoApiError, extractTop10Domains, type SerpLiveResponse } from '@rankpulse/provider-dataforseo';
+import {
+	DataForSeoApiError,
+	extractTop10Domains,
+	type SerpLiveResponse,
+} from '@rankpulse/provider-dataforseo';
 import {
 	extractGscRows,
 	GscApiError,
@@ -37,7 +41,11 @@ const isQuotaExhaustedError = (err: unknown): boolean => {
 	return false;
 };
 
-const normalize = (raw: string): string => raw.trim().toLowerCase().replace(/^www\./, '');
+const normalize = (raw: string): string =>
+	raw
+		.trim()
+		.toLowerCase()
+		.replace(/^www\./, '');
 
 export interface ProviderFetchProcessorDeps {
 	registry: ProviderRegistry;
@@ -157,6 +165,13 @@ export class ProviderFetchProcessor {
 			});
 			await this.deps.rawPayloadRepo.save(rawPayload);
 
+			// BACKLOG #4 fix — endpoints that bill per item (e.g. search-volume
+			// at $0.005/keyword) declare a `costFor(params)` that returns the
+			// real cost for THIS call. Falls back to `cost.amount` (worst-case)
+			// for endpoints with flat per-call billing.
+			const realCostCents = endpointDescriptor.costFor
+				? endpointDescriptor.costFor(resolvedParams)
+				: endpointDescriptor.cost.amount;
 			await this.deps.recordApiUsageUseCase.execute({
 				organizationId: orgId,
 				credentialId: resolved.credentialId,
@@ -164,7 +179,7 @@ export class ProviderFetchProcessor {
 				providerId: definition.providerId.value,
 				endpointId: definition.endpointId.value,
 				calls: 1,
-				costCents: endpointDescriptor.cost.amount,
+				costCents: realCostCents,
 			});
 
 			if (

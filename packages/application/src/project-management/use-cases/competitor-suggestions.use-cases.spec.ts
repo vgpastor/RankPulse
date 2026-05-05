@@ -1,5 +1,5 @@
 import { ProjectManagement } from '@rankpulse/domain';
-import { FakeClock, FixedIdGenerator, NotFoundError, type Uuid } from '@rankpulse/shared';
+import { ConflictError, FakeClock, FixedIdGenerator, NotFoundError, type Uuid } from '@rankpulse/shared';
 import { RecordingEventPublisher } from '@rankpulse/testing';
 import { describe, expect, it } from 'vitest';
 import {
@@ -56,11 +56,7 @@ const buildIds = (...uuids: string[]) => new FixedIdGenerator(uuids as Uuid[]);
 describe('RecordTop10HitsForSuggestionsUseCase', () => {
 	it('creates a new PENDING suggestion the first time a domain shows up', async () => {
 		const repo = new InMemorySuggestionRepo();
-		const useCase = new RecordTop10HitsForSuggestionsUseCase(
-			repo,
-			buildClock(),
-			buildIds('sugg-1' as never),
-		);
+		const useCase = new RecordTop10HitsForSuggestionsUseCase(repo, buildClock(), buildIds('sugg-1' as never));
 
 		await useCase.execute({
 			projectId: PROJECT_ID,
@@ -102,11 +98,7 @@ describe('RecordTop10HitsForSuggestionsUseCase', () => {
 
 	it('normalizes domains (lowercase + strips www.) so Foo.com and www.foo.com collapse', async () => {
 		const repo = new InMemorySuggestionRepo();
-		const useCase = new RecordTop10HitsForSuggestionsUseCase(
-			repo,
-			buildClock(),
-			buildIds('sugg-1' as never),
-		);
+		const useCase = new RecordTop10HitsForSuggestionsUseCase(repo, buildClock(), buildIds('sugg-1' as never));
 
 		await useCase.execute({
 			projectId: PROJECT_ID,
@@ -118,13 +110,80 @@ describe('RecordTop10HitsForSuggestionsUseCase', () => {
 		expect([...repo.store.values()][0]?.domain.value).toBe('foo.com');
 	});
 
+	it('recovers from a (project, domain) unique-violation race by recording on the winner row', async () => {
+		// Simulates a parallel insert: the repo's `save` throws ConflictError
+		// the FIRST time the use case tries to persist a freshly-observed
+		// suggestion (because another worker beat it to the unique
+		// (project_id, domain) row). The use case must refetch + apply the
+		// hit on the now-existing row instead of propagating the error.
+		const repo = new InMemorySuggestionRepo();
+		// Seed the row that the "other worker" supposedly created first.
+		const winner = ProjectManagement.CompetitorSuggestion.observe({
+			id: 'sugg-winner' as ProjectManagement.CompetitorSuggestionId,
+			projectId: PROJECT_ID,
+			domain: ProjectManagement.DomainName.create('competitor.com'),
+			firstSeenKeyword: 'kw-other-worker',
+			now: new Date('2026-05-04T09:59:00Z'),
+		});
+		await repo.save(winner);
+
+		let raisedConflict = false;
+		const racingRepo: ProjectManagement.CompetitorSuggestionRepository = {
+			...repo,
+			save: async (s) => {
+				// Trigger the race only on the new row the use case is trying
+				// to persist (different id from the seeded winner). Existing
+				// row updates and the retry path go through unchanged.
+				if (!raisedConflict && s.id !== winner.id && !repo.store.has(s.id)) {
+					raisedConflict = true;
+					throw new ConflictError('Suggestion for (proj, competitor.com) already exists');
+				}
+				await repo.save(s);
+			},
+			findById: (id) => repo.findById(id),
+			findByProjectAndDomain: (projectId, domain) => repo.findByProjectAndDomain(projectId, domain),
+			listForProject: (projectId) => repo.listForProject(projectId),
+		};
+
+		// First call sees no row in `findByProjectAndDomain` (we'll force the
+		// race by emptying the store before save).
+		repo.store.clear();
+		await repo.save(winner);
+		repo.store.delete(winner.id);
+		repo.store.set(winner.id, winner);
+
+		const useCase = new RecordTop10HitsForSuggestionsUseCase(
+			racingRepo,
+			buildClock(),
+			buildIds('sugg-loser' as never),
+		);
+
+		// Override findByProjectAndDomain to return null on first call (race
+		// window) and the winner on retry.
+		let firstFind = true;
+		racingRepo.findByProjectAndDomain = async (projectId, domain) => {
+			if (firstFind) {
+				firstFind = false;
+				return null;
+			}
+			return repo.findByProjectAndDomain(projectId, domain);
+		};
+
+		await useCase.execute({
+			projectId: PROJECT_ID,
+			keyword: 'kw-this-worker',
+			externalDomainsInTop10: ['competitor.com'],
+		});
+
+		expect(raisedConflict).toBe(true);
+		const final = repo.store.get(winner.id);
+		expect(final?.keywordsInTop10.has('kw-this-worker')).toBe(true);
+		expect(final?.keywordsInTop10.has('kw-other-worker')).toBe(true);
+	});
+
 	it('skips already-promoted suggestions (no resurrection)', async () => {
 		const repo = new InMemorySuggestionRepo();
-		const useCase = new RecordTop10HitsForSuggestionsUseCase(
-			repo,
-			buildClock(),
-			buildIds('sugg-1' as never),
-		);
+		const useCase = new RecordTop10HitsForSuggestionsUseCase(repo, buildClock(), buildIds('sugg-1' as never));
 		await useCase.execute({
 			projectId: PROJECT_ID,
 			keyword: 'kw-a',
@@ -147,7 +206,10 @@ describe('RecordTop10HitsForSuggestionsUseCase', () => {
 });
 
 describe('ListCompetitorSuggestionsUseCase', () => {
-	const seedSuggestions = async (repo: InMemorySuggestionRepo, hits: { domain: string; keywords: string[] }[]) => {
+	const seedSuggestions = async (
+		repo: InMemorySuggestionRepo,
+		hits: { domain: string; keywords: string[] }[],
+	) => {
 		const ids = buildIds(...hits.map((_, i) => `sugg-${i}` as never));
 		const recorder = new RecordTop10HitsForSuggestionsUseCase(repo, buildClock(), ids);
 		for (const h of hits) {

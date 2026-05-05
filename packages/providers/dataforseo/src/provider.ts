@@ -94,19 +94,13 @@ export class DataForSeoProvider implements Provider {
 			case serpGoogleOrganicAdvancedDescriptor.id:
 				return await fetchSerpGoogleOrganicAdvanced(
 					this.http,
-					this.parseParams(
-						serpGoogleOrganicAdvancedDescriptor,
-						params,
-					) as SerpGoogleOrganicAdvancedParams,
+					this.parseParams(serpGoogleOrganicAdvancedDescriptor, params) as SerpGoogleOrganicAdvancedParams,
 					ctx,
 				);
 			case keywordsDataSearchVolumeDescriptor.id:
 				return await fetchKeywordsDataSearchVolume(
 					this.http,
-					this.parseParams(
-						keywordsDataSearchVolumeDescriptor,
-						params,
-					) as KeywordsDataSearchVolumeParams,
+					this.parseParams(keywordsDataSearchVolumeDescriptor, params) as KeywordsDataSearchVolumeParams,
 					ctx,
 				);
 			case keywordDifficultyDescriptor.id:

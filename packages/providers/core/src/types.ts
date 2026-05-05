@@ -30,6 +30,15 @@ export interface EndpointDescriptor {
 	readonly paramsSchema: ZodTypeAny;
 	readonly cost: { unit: 'usd_cents'; amount: number };
 	/**
+	 * Optional dynamic cost calculator. Endpoints that scale per item
+	 * (e.g. DataForSEO search-volume bills per-keyword on a 1000-keyword
+	 * batch) implement this so the api_usage ledger reflects the real
+	 * upstream cost instead of the worst-case `cost.amount`.
+	 *
+	 * If absent, the worker falls back to `cost.amount`.
+	 */
+	readonly costFor?: (params: unknown) => number;
+	/**
 	 * BACKLOG #21 — DIRECTIVA: every endpoint MUST declare a default cron
 	 * so the scheduling layer can auto-wire a JobDefinition without the
 	 * caller having to pick one. The UI never live-fetches; the cron is

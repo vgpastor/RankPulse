@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { SerpLiveResponse } from '../endpoints/serp-google-organic-live.js';
-import { extractRankingForDomain, extractRankingsForDomains, extractTop10Domains } from './serp-to-ranking.acl.js';
+import {
+	extractRankingForDomain,
+	extractRankingsForDomains,
+	extractTop10Domains,
+} from './serp-to-ranking.acl.js';
 
 const fixture: SerpLiveResponse = {
 	status_code: 20000,

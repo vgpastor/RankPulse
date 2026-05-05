@@ -62,7 +62,12 @@ export const fetchDomainWhoisOverview = async (
 	ctx: FetchContext,
 ): Promise<DomainWhoisResponse> => {
 	const body = buildDomainWhoisBody(params);
-	const raw = (await http.post(PATH, body, ctx.credential.plaintextSecret, ctx.signal)) as DomainWhoisResponse;
+	const raw = (await http.post(
+		PATH,
+		body,
+		ctx.credential.plaintextSecret,
+		ctx.signal,
+	)) as DomainWhoisResponse;
 	if (raw.status_code !== 20000) {
 		ctx.logger.warn('DataForSEO whois-overview returned a non-success status', {
 			status: raw.status_code,
