@@ -1,6 +1,6 @@
 import type { EndpointDescriptor, FetchContext } from '@rankpulse/provider-core';
 import { z } from 'zod';
-import type { DataForSeoHttp } from '../http.js';
+import { type DataForSeoHttp, ensureTaskOk } from '../http.js';
 
 export const KeywordsDataSearchVolumeParams = z.object({
 	keywords: z.array(z.string().min(1).max(700)).min(1).max(1000),
@@ -28,11 +28,18 @@ export const keywordsDataSearchVolumeDescriptor: EndpointDescriptor = {
 	paramsSchema: KeywordsDataSearchVolumeParams,
 	cost: { unit: 'usd_cents', amount: SEARCH_VOLUME_COST_CENTS_MAX },
 	costFor: (raw) => {
-		// Reuses the descriptor's own zod schema for safety: a malformed
-		// JobDefinition shouldn't bypass billing entirely. On parse fail
-		// we charge the worst-case so we never under-report.
+		// Reuses the descriptor's own zod schema for safety. The processor
+		// already validated `params` against this schema before dispatch,
+		// so a parse failure here means the resolvedParams object lost
+		// its shape between scheduling and billing — surface it loudly so
+		// the operator notices rather than silently absorbing the worst-
+		// case cost forever.
 		const parsed = KeywordsDataSearchVolumeParams.safeParse(raw);
-		if (!parsed.success) return SEARCH_VOLUME_COST_CENTS_MAX;
+		if (!parsed.success) {
+			throw new Error(
+				`keywords-data-search-volume costFor: malformed params (${parsed.error.message}); falling back to worst-case`,
+			);
+		}
 		return parsed.data.keywords.length * SEARCH_VOLUME_COST_CENTS_PER_KEYWORD;
 	},
 	// BACKLOG #4 fix — Google Ads search volume is updated MONTHLY upstream;
@@ -86,11 +93,6 @@ export const fetchKeywordsDataSearchVolume = async (
 		ctx.credential.plaintextSecret,
 		ctx.signal,
 	)) as SearchVolumeResponse;
-	if (raw.status_code !== 20000) {
-		ctx.logger.warn('DataForSEO search-volume returned a non-success status', {
-			status: raw.status_code,
-			message: raw.status_message,
-		});
-	}
+	ensureTaskOk(PATH, raw);
 	return raw;
 };

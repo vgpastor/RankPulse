@@ -8,19 +8,24 @@ export class DrizzleGscPerformanceObservationRepository
 {
 	constructor(private readonly db: DrizzleDatabase) {}
 
-	async saveAll(observations: readonly SearchConsoleInsights.GscPerformanceObservation[]): Promise<void> {
-		if (observations.length === 0) return;
-		await this.db
+	async saveAll(
+		observations: readonly SearchConsoleInsights.GscPerformanceObservation[],
+	): Promise<{ inserted: number }> {
+		if (observations.length === 0) return { inserted: 0 };
+		// Domain models the absence of a dimension as `null`; the table
+		// stores `''` so the natural-key PK can cover every row without
+		// COALESCE indexes. Bridge between the two here.
+		const inserted = await this.db
 			.insert(gscObservations)
 			.values(
 				observations.map((o) => ({
 					observedAt: o.observedAt,
 					gscPropertyId: o.gscPropertyId,
 					projectId: o.projectId,
-					query: o.query,
-					page: o.page,
-					country: o.country,
-					device: o.device,
+					query: o.query ?? '',
+					page: o.page ?? '',
+					country: o.country ?? '',
+					device: o.device ?? '',
 					clicks: o.metrics.clicks,
 					impressions: o.metrics.impressions,
 					ctr: o.metrics.ctr,
@@ -28,7 +33,18 @@ export class DrizzleGscPerformanceObservationRepository
 					rawPayloadId: o.rawPayloadId,
 				})),
 			)
-			.onConflictDoNothing();
+			.onConflictDoNothing({
+				target: [
+					gscObservations.observedAt,
+					gscObservations.gscPropertyId,
+					gscObservations.query,
+					gscObservations.page,
+					gscObservations.country,
+					gscObservations.device,
+				],
+			})
+			.returning({ id: gscObservations.observedAt });
+		return { inserted: inserted.length };
 	}
 
 	async listForProperty(
@@ -39,10 +55,12 @@ export class DrizzleGscPerformanceObservationRepository
 			eq(gscObservations.gscPropertyId, propertyId),
 			between(gscObservations.observedAt, query.from, query.to),
 		];
-		if (query.query) conditions.push(eq(gscObservations.query, query.query));
-		if (query.page) conditions.push(eq(gscObservations.page, query.page));
-		if (query.country) conditions.push(eq(gscObservations.country, query.country));
-		if (query.device) conditions.push(eq(gscObservations.device, query.device));
+		// Empty-string filter = "rows where this dimension was absent in
+		// the GSC API response", consistent with the saveAll bridge.
+		if (query.query !== undefined) conditions.push(eq(gscObservations.query, query.query ?? ''));
+		if (query.page !== undefined) conditions.push(eq(gscObservations.page, query.page ?? ''));
+		if (query.country !== undefined) conditions.push(eq(gscObservations.country, query.country ?? ''));
+		if (query.device !== undefined) conditions.push(eq(gscObservations.device, query.device ?? ''));
 
 		const rows = await this.db
 			.select()
@@ -69,14 +87,15 @@ export class DrizzleGscPerformanceObservationRepository
 		row: typeof gscObservations.$inferSelect,
 	): SearchConsoleInsights.GscPerformanceObservation {
 		return SearchConsoleInsights.GscPerformanceObservation.rehydrate({
-			id: `${row.observedAt.toISOString()}#${row.gscPropertyId}#${row.query ?? ''}#${row.page ?? ''}` as SearchConsoleInsights.GscObservationId,
+			id: `${row.observedAt.toISOString()}#${row.gscPropertyId}#${row.query}#${row.page}` as SearchConsoleInsights.GscObservationId,
 			gscPropertyId: row.gscPropertyId as SearchConsoleInsights.GscPropertyId,
 			projectId: row.projectId as ProjectManagement.ProjectId,
 			observedAt: row.observedAt,
-			query: row.query,
-			page: row.page,
-			country: row.country,
-			device: row.device,
+			// Empty strings in storage = absent dimension in the domain.
+			query: row.query === '' ? null : row.query,
+			page: row.page === '' ? null : row.page,
+			country: row.country === '' ? null : row.country,
+			device: row.device === '' ? null : row.device,
 			metrics: SearchConsoleInsights.PerformanceMetrics.create({
 				clicks: row.clicks,
 				impressions: row.impressions,

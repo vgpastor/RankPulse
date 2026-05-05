@@ -40,6 +40,7 @@ export class StartTrackingKeywordUseCase {
 			country: location.country,
 			language: location.language,
 			device,
+			searchEngine: RankTracking.SearchEngines.GOOGLE,
 		});
 		if (existing) {
 			throw new ConflictError(

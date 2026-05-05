@@ -454,6 +454,13 @@ export const gscProperties = pgTable(
 /**
  * GSC search-analytics rows. Promoted to a Timescale hypertable when the
  * extension is available (see migration 0003).
+ *
+ * Natural key is the (observedAt, gscPropertyId, query, page, country,
+ * device) tuple. We can't use a composite PK directly because the GSC
+ * dimensions are sometimes absent from a row (the API returns the row
+ * without that dimension key); we coerce the nullable text columns to
+ * empty string with a default so the unique index covers every row
+ * without requiring a separate `COALESCE` index.
  */
 export const gscObservations = pgTable(
 	'gsc_observations',
@@ -461,10 +468,10 @@ export const gscObservations = pgTable(
 		observedAt: timestamp('observed_at', { withTimezone: true }).notNull(),
 		gscPropertyId: uuid('gsc_property_id').notNull(),
 		projectId: uuid('project_id').notNull(),
-		query: text('query'),
-		page: text('page'),
-		country: text('country'),
-		device: text('device'),
+		query: text('query').notNull().default(''),
+		page: text('page').notNull().default(''),
+		country: text('country').notNull().default(''),
+		device: text('device').notNull().default(''),
 		clicks: integer('clicks').notNull(),
 		impressions: integer('impressions').notNull(),
 		ctr: doublePrecision('ctr').notNull(),
@@ -472,7 +479,12 @@ export const gscObservations = pgTable(
 		rawPayloadId: uuid('raw_payload_id'),
 	},
 	(t) => ({
-		propertyIdx: index('gsc_observations_property_idx').on(t.gscPropertyId, t.observedAt),
+		// PK over the natural key — re-running the same fetch on the same
+		// day with the same dimension breakdown is idempotent (the repo
+		// uses `onConflictDoNothing` against this PK target).
+		pk: primaryKey({
+			columns: [t.observedAt, t.gscPropertyId, t.query, t.page, t.country, t.device],
+		}),
 		projectIdx: index('gsc_observations_project_idx').on(t.projectId, t.observedAt),
 	}),
 );

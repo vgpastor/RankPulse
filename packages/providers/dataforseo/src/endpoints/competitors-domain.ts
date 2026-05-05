@@ -1,6 +1,6 @@
 import type { EndpointDescriptor, FetchContext } from '@rankpulse/provider-core';
 import { z } from 'zod';
-import type { DataForSeoHttp } from '../http.js';
+import { type DataForSeoHttp, ensureTaskOk } from '../http.js';
 
 export const CompetitorsDomainParams = z.object({
 	target: z.string().min(3).max(253),
@@ -67,11 +67,6 @@ export const fetchCompetitorsDomain = async (
 		ctx.credential.plaintextSecret,
 		ctx.signal,
 	)) as CompetitorsDomainResponse;
-	if (raw.status_code !== 20000) {
-		ctx.logger.warn('DataForSEO competitors-domain returned a non-success status', {
-			status: raw.status_code,
-			message: raw.status_message,
-		});
-	}
+	ensureTaskOk(PATH, raw);
 	return raw;
 };

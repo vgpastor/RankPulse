@@ -1,5 +1,5 @@
 import { SearchConsoleInsights, type SharedKernel } from '@rankpulse/domain';
-import { type IdGenerator, NotFoundError } from '@rankpulse/shared';
+import { type Clock, type IdGenerator, NotFoundError } from '@rankpulse/shared';
 
 export interface GscRowInput {
 	observedAt: Date;
@@ -34,6 +34,7 @@ export class IngestGscRowsUseCase {
 		private readonly observations: SearchConsoleInsights.GscPerformanceObservationRepository,
 		private readonly ids: IdGenerator,
 		private readonly events: SharedKernel.EventPublisher,
+		private readonly clock: Clock,
 	) {}
 
 	async execute(cmd: IngestGscRowsCommand): Promise<IngestGscRowsResult> {
@@ -48,8 +49,12 @@ export class IngestGscRowsUseCase {
 			return { ingested: 0 };
 		}
 
-		const observations = cmd.rows.map((row) =>
-			SearchConsoleInsights.GscPerformanceObservation.record({
+		let totalClicks = 0;
+		let totalImpressions = 0;
+		const observations = cmd.rows.map((row) => {
+			totalClicks += row.clicks;
+			totalImpressions += row.impressions;
+			return SearchConsoleInsights.GscPerformanceObservation.record({
 				id: this.ids.generate() as SearchConsoleInsights.GscObservationId,
 				gscPropertyId: property.id,
 				projectId: property.projectId,
@@ -65,17 +70,29 @@ export class IngestGscRowsUseCase {
 					position: row.position,
 				}),
 				rawPayloadId: cmd.rawPayloadId,
+			});
+		});
+
+		// `inserted` is the count after `onConflictDoNothing` — it
+		// excludes idempotent re-fetches that collided with the natural-
+		// key PK. Reporting the raw `observations.length` here would
+		// inflate the metric in dashboards on every retry.
+		const { inserted } = await this.observations.saveAll(observations);
+
+		// One summary event for the whole batch instead of N per-row events.
+		// Subscribers (alerting, weekly reports) aggregate anyway, and a
+		// 25k-row GSC fetch shouldn't blow up the event bus.
+		await this.events.publish([
+			new SearchConsoleInsights.GscPerformanceBatchIngested({
+				projectId: property.projectId,
+				gscPropertyId: property.id,
+				rowsCount: inserted,
+				totalClicks,
+				totalImpressions,
+				occurredAt: this.clock.now(),
 			}),
-		);
+		]);
 
-		await this.observations.saveAll(observations);
-
-		const allEvents: SharedKernel.DomainEvent[] = [];
-		for (const o of observations) {
-			allEvents.push(...o.pullEvents());
-		}
-		await this.events.publish(allEvents);
-
-		return { ingested: observations.length };
+		return { ingested: inserted };
 	}
 }

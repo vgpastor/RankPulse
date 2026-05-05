@@ -3,8 +3,9 @@
 export * from './entities/gsc-performance-observation.js';
 // Entities / aggregates
 export * from './entities/gsc-property.js';
-export * from './events/gsc-performance-ingested.js';
 // Events
+export * from './events/gsc-performance-batch-ingested.js';
+export * from './events/gsc-performance-ingested.js';
 export * from './events/gsc-property-linked.js';
 export * from './ports/gsc-performance-observation-repository.js';
 // Ports

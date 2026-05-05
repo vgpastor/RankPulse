@@ -34,8 +34,16 @@ export class Position {
 		return this.value !== null && this.value <= 10;
 	}
 
+	/**
+	 * Today, "first page" and "top ten" coincide for desktop Google
+	 * organic — we keep both names as semantic aliases so call sites
+	 * read naturally for the metric they care about. If the rank
+	 * tracker ever supports SERP variants where the boundary differs
+	 * (mobile compact, AI overviews squeezing organic, etc.), this
+	 * method becomes the place to encode the new threshold.
+	 */
 	isOnFirstPage(): boolean {
-		return this.value !== null && this.value <= 10;
+		return this.isInTopTen();
 	}
 
 	delta(other: Position): number | null {

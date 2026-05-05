@@ -4,7 +4,7 @@ import {
 	SearchConsoleInsights,
 	type SharedKernel,
 } from '@rankpulse/domain';
-import { FixedIdGenerator, type Uuid } from '@rankpulse/shared';
+import { FakeClock, FixedIdGenerator, type Uuid } from '@rankpulse/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { IngestGscRowsUseCase } from './ingest-gsc-rows.use-case.js';
 
@@ -44,8 +44,11 @@ class PropertyRepo implements SearchConsoleInsights.GscPropertyRepository {
 
 class ObservationRepo implements SearchConsoleInsights.GscPerformanceObservationRepository {
 	saved: SearchConsoleInsights.GscPerformanceObservation[] = [];
-	async saveAll(observations: readonly SearchConsoleInsights.GscPerformanceObservation[]): Promise<void> {
+	async saveAll(
+		observations: readonly SearchConsoleInsights.GscPerformanceObservation[],
+	): Promise<{ inserted: number }> {
 		this.saved.push(...observations);
+		return { inserted: observations.length };
 	}
 	async listForProperty(): Promise<readonly SearchConsoleInsights.GscPerformanceObservation[]> {
 		return this.saved;
@@ -78,10 +81,16 @@ describe('IngestGscRowsUseCase', () => {
 		obsRepo = new ObservationRepo();
 		publisher = new CapturingPublisher();
 		await propertyRepo.save(buildProperty(new Date('2026-04-01T00:00:00Z')));
-		useCase = new IngestGscRowsUseCase(propertyRepo, obsRepo, ids(50), publisher);
+		useCase = new IngestGscRowsUseCase(
+			propertyRepo,
+			obsRepo,
+			ids(50),
+			publisher,
+			new FakeClock('2026-05-02T12:00:00Z'),
+		);
 	});
 
-	it('persists each row as a typed observation and emits one event per row', async () => {
+	it('persists each row and emits one summary event for the whole batch', async () => {
 		const result = await useCase.execute({
 			gscPropertyId: propertyId,
 			rawPayloadId: null,
@@ -112,7 +121,12 @@ describe('IngestGscRowsUseCase', () => {
 		});
 		expect(result.ingested).toBe(2);
 		expect(obsRepo.saved).toHaveLength(2);
-		expect(publisher.events.map((e) => e.type)).toEqual(['GscPerformanceIngested', 'GscPerformanceIngested']);
+		expect(publisher.events).toHaveLength(1);
+		const [event] = publisher.events as [SearchConsoleInsights.GscPerformanceBatchIngested];
+		expect(event.type).toBe('GscPerformanceBatchIngested');
+		expect(event.rowsCount).toBe(2);
+		expect(event.totalClicks).toBe(12 + 5);
+		expect(event.totalImpressions).toBe(340 + 120);
 	});
 
 	it('returns 0 and does not call repos when rows is empty', async () => {

@@ -1,4 +1,4 @@
-CREATE TABLE "competitor_suggestions" (
+CREATE TABLE IF NOT EXISTS "competitor_suggestions" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"project_id" uuid NOT NULL,
 	"domain" text NOT NULL,
@@ -11,6 +11,10 @@ CREATE TABLE "competitor_suggestions" (
 	"dismissed_at" timestamp with time zone
 );
 --> statement-breakpoint
-ALTER TABLE "competitor_suggestions" ADD CONSTRAINT "competitor_suggestions_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE UNIQUE INDEX "competitor_suggestions_project_domain_unique" ON "competitor_suggestions" USING btree ("project_id","domain");--> statement-breakpoint
-CREATE INDEX "competitor_suggestions_project_status_idx" ON "competitor_suggestions" USING btree ("project_id","status");
+DO $$ BEGIN
+ ALTER TABLE "competitor_suggestions" ADD CONSTRAINT "competitor_suggestions_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "competitor_suggestions_project_domain_unique" ON "competitor_suggestions" USING btree ("project_id","domain");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "competitor_suggestions_project_status_idx" ON "competitor_suggestions" USING btree ("project_id","status");

@@ -31,12 +31,24 @@ import { extractMultiDomainRankings, isMultiDomainSerpJob } from './extract-mult
  * BACKLOG #14: detect provider-side "out of quota / payment required" so the
  * processor stops retrying AND the job definition is auto-paused — otherwise
  * BullMQ keeps hammering the upstream and the same error fills the run log.
- * 402 (Payment Required) is the universal "you ran out of credit" code; we
- * also accept 429 from quota-style providers (vs throttling 429s, which are
- * retryable — provider implementations can subclass to disambiguate later).
+ *
+ * Covers:
+ *   - HTTP 402 from any provider (universal "out of credit" code).
+ *   - DataForSEO body status_code in the 402xx / 403xx / 405xx ranges.
+ *     DataForSEO returns HTTP 200 with body status_code 40402 ("no
+ *     balance"), 40501 ("monthly limit reached") and similar — these are
+ *     surfaced as DataForSeoApiError by `ensureTaskOk`. Without this
+ *     check the worker treats them as transient and retries forever.
  */
 const isQuotaExhaustedError = (err: unknown): boolean => {
-	if (err instanceof DataForSeoApiError && err.status === 402) return true;
+	if (err instanceof DataForSeoApiError) {
+		if (err.status === 402) return true;
+		// Body status codes: 40402, 40403, 40501, 40502 — quota / billing.
+		// 40000-40399 are validation / auth which ARE worth retrying after
+		// the operator fixes them.
+		if (err.status >= 40400 && err.status < 41000) return true;
+		if (err.status >= 40500 && err.status < 41000) return true;
+	}
 	if (err instanceof GscApiError && err.status === 402) return true;
 	return false;
 };
@@ -85,8 +97,18 @@ export class ProviderFetchProcessor {
 		if (!definition) {
 			throw new NotFoundError(`Job definition ${data.definitionId} not found`);
 		}
+		// Pre-bind defId/runId/providerId/endpointId on a child logger so
+		// every line emitted during this run carries the same correlation
+		// keys. Without this, debugging concurrent runs (default
+		// WORKER_CONCURRENCY=4) means cross-referencing interleaved logs
+		// by hand.
+		const log = this.deps.logger.child({
+			defId: definition.id,
+			providerId: definition.providerId.value,
+			endpointId: definition.endpointId.value,
+		});
 		if (!definition.enabled) {
-			this.deps.logger.info({ defId: definition.id }, 'job definition disabled, skipping');
+			log.info({}, 'job definition disabled, skipping');
 			return;
 		}
 
@@ -110,6 +132,7 @@ export class ProviderFetchProcessor {
 		});
 
 		const runId = (data.runId ?? this.deps.ids.generate()) as ProviderConnectivity.ProviderJobRunId;
+		const runLog = log.child({ runId });
 		const run = ProviderConnectivity.ProviderJobRun.start({
 			id: runId,
 			definitionId: definition.id,
@@ -137,19 +160,26 @@ export class ProviderFetchProcessor {
 		);
 		const existing = await this.deps.rawPayloadRepo.findByRequestHash(requestHash);
 		if (existing) {
-			this.deps.logger.info({ defId: definition.id, requestHash }, 'idempotent skip');
+			runLog.info({ requestHash }, 'idempotent skip');
 			run.complete(existing.id, this.deps.clock.now());
 			await this.deps.jobRunRepo.save(run);
 			return;
 		}
 
+		// Hard timeout per fetch. Without this a hung provider (DNS,
+		// stuck TCP, infinite redirect) holds a BullMQ concurrency slot
+		// indefinitely — eventually starves the worker. 60s is generous
+		// for the slowest endpoints (on-page audit) and tight enough for
+		// the fast ones (SERP).
+		const timeoutSignal = AbortSignal.timeout(60_000);
 		try {
 			const fetchResult = await provider.fetch(definition.endpointId.value, resolvedParams, {
 				credential: { plaintextSecret: resolved.plaintextSecret },
 				logger: {
-					debug: (msg, meta) => this.deps.logger.debug(meta ?? {}, msg),
-					warn: (msg, meta) => this.deps.logger.warn(meta ?? {}, msg),
+					debug: (msg, meta) => runLog.debug(meta ?? {}, msg),
+					warn: (msg, meta) => runLog.warn(meta ?? {}, msg),
 				},
+				signal: timeoutSignal,
 				now: () => this.deps.clock.now(),
 			});
 
@@ -168,10 +198,20 @@ export class ProviderFetchProcessor {
 			// BACKLOG #4 fix — endpoints that bill per item (e.g. search-volume
 			// at $0.005/keyword) declare a `costFor(params)` that returns the
 			// real cost for THIS call. Falls back to `cost.amount` (worst-case)
-			// for endpoints with flat per-call billing.
-			const realCostCents = endpointDescriptor.costFor
-				? endpointDescriptor.costFor(resolvedParams)
-				: endpointDescriptor.cost.amount;
+			// for endpoints with flat per-call billing OR if costFor throws
+			// on a malformed params shape (we charge worst-case AND log so
+			// the operator sees the misconfigure).
+			let realCostCents = endpointDescriptor.cost.amount;
+			if (endpointDescriptor.costFor) {
+				try {
+					realCostCents = endpointDescriptor.costFor(resolvedParams);
+				} catch (err) {
+					runLog.warn(
+						{ err: err instanceof Error ? err.message : String(err) },
+						'costFor() threw on resolvedParams — billing worst-case for this run',
+					);
+				}
+			}
 			await this.deps.recordApiUsageUseCase.execute({
 				organizationId: orgId,
 				credentialId: resolved.credentialId,
@@ -250,10 +290,7 @@ export class ProviderFetchProcessor {
 				// token form. `gscPropertyId` is a literal string in both.
 				const gscParams = resolvedParams as unknown as SearchAnalyticsParams & { gscPropertyId?: string };
 				if (!gscParams.gscPropertyId) {
-					this.deps.logger.warn(
-						{ defId: definition.id },
-						'gsc-search-analytics job missing gscPropertyId param; skipping ingest',
-					);
+					runLog.warn({}, 'gsc-search-analytics job missing gscPropertyId param; skipping ingest');
 				} else {
 					const rows = extractGscRows(fetchResult as SearchAnalyticsResponse, {
 						dimensions: gscParams.dimensions ?? ['date'],
@@ -283,9 +320,9 @@ export class ProviderFetchProcessor {
 				await this.deps.jobDefRepo.save(definition);
 				run.fail({ code: 'QUOTA_EXCEEDED', message, retryable: false }, this.deps.clock.now());
 				await this.deps.jobRunRepo.save(run);
-				this.deps.logger.warn(
-					{ defId: definition.id, providerId: definition.providerId.value },
-					'provider returned 402 — definition auto-paused, top up credit and re-enable from the UI',
+				runLog.warn(
+					{},
+					'provider returned quota-exhausted error — definition auto-paused, top up credit and re-enable from the UI',
 				);
 				return;
 			}

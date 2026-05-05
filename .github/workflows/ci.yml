@@ -68,10 +68,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: build
-    # Production deploy uses PM2 host-side (see ops/DEPLOY.md), not
-    # containers — Dockerfiles for the apps are intentionally deferred.
-    # The job stays defined so it auto-activates when `docker/` lands.
-    if: ${{ hashFiles('docker/api.Dockerfile', 'docker/worker.Dockerfile', 'docker/web.Dockerfile') != '' }}
     strategy:
       fail-fast: false
       matrix:

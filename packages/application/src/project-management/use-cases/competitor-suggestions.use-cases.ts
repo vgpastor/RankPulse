@@ -58,6 +58,12 @@ export interface RecordTop10HitsCommand {
 	externalDomainsInTop10: readonly string[];
 }
 
+export interface SuggestionRecorderLogger {
+	warn(meta: object, msg: string): void;
+}
+
+const NOOP_LOGGER: SuggestionRecorderLogger = { warn: () => {} };
+
 /**
  * Side-effect of a SERP fetch (called from the worker after extraction).
  * For every external domain in top-10, find-or-create the suggestion
@@ -69,6 +75,7 @@ export class RecordTop10HitsForSuggestionsUseCase {
 		private readonly suggestions: ProjectManagement.CompetitorSuggestionRepository,
 		private readonly clock: Clock,
 		private readonly ids: IdGenerator,
+		private readonly logger: SuggestionRecorderLogger = NOOP_LOGGER,
 	) {}
 
 	async execute(cmd: RecordTop10HitsCommand): Promise<void> {
@@ -78,7 +85,22 @@ export class RecordTop10HitsForSuggestionsUseCase {
 			const key = normalize(raw);
 			if (seen.has(key)) continue;
 			seen.add(key);
-			await this.recordSingleDomain(projectId, key, cmd.keyword);
+			// One bad domain (transient DB error, etc.) shouldn't abort the
+			// rest of the batch. Recording suggestions is a side-effect of
+			// the SERP fetch — the rank observations are already persisted.
+			try {
+				await this.recordSingleDomain(projectId, key, cmd.keyword);
+			} catch (err) {
+				this.logger.warn(
+					{
+						projectId,
+						domain: key,
+						keyword: cmd.keyword,
+						err: err instanceof Error ? err.message : String(err),
+					},
+					'failed to record top-10 hit for suggestion; continuing batch',
+				);
+			}
 		}
 	}
 

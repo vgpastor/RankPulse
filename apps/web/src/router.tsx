@@ -32,15 +32,38 @@ const indexRoute = createRoute({
 	},
 });
 
+// Both auth routes redirect away when there's already a VALID session
+// — the previous behaviour let an authenticated user re-submit /login
+// and silently overwrite their existing session, or hit /register and
+// register a fresh org while keeping the prior session alive in
+// localStorage. Either flow could orphan in-flight work.
+//
+// Expired sessions (token TTL passed) are treated as no session: they
+// flow through to /login normally instead of getting bounced to
+// /projects where every API call returns 401 and the user is trapped.
+const redirectIfAuthed = (): void => {
+	const session = useAuthStore.getState().session;
+	if (!session) return;
+	const expiresAt = new Date(session.expiresAt).getTime();
+	if (Number.isFinite(expiresAt) && expiresAt > Date.now()) {
+		throw redirect({ to: '/projects' });
+	}
+	// Session is expired — clear it so the in-app guards don't trip on
+	// the stale token and so the user lands on the login page cleanly.
+	useAuthStore.getState().clear();
+};
+
 const loginRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/login',
+	beforeLoad: redirectIfAuthed,
 	component: LoginPage,
 });
 
 const registerRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/register',
+	beforeLoad: redirectIfAuthed,
 	component: RegisterPage,
 });
 
