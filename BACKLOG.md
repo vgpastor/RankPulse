@@ -165,15 +165,14 @@ aceptó con 201. El worker, al procesar, falla con
 sin contraste contra el descriptor del endpoint. La validación cae en el worker
 en time-of-fetch, demasiado tarde.
 
-**Workaround aplicado:** `UPDATE provider_job_definitions SET params = jsonb_build_object(...)`
-para reescribir las 34 filas a la shape correcta.
+**Fix aplicado:** `ScheduleEndpointFetchUseCase` recibe ahora un
+`EndpointParamsValidator` (puerto sobre `ProviderRegistry.endpoint().paramsSchema`)
+y valida los `params` antes de persistir; si fallan, lanza `InvalidInputError`
+(→ 400). Como el `safeParse` strippea claves desconocidas, los campos
+inyectados por el sistema (`organizationId`, `trackedKeywordId`) viajan ahora
+en `cmd.systemParams` y se mergean tras la validación.
 
-**Tarea para devs (alta prioridad):**
-1. Que cada `EndpointDescriptor` exponga su `paramsSchema` (Zod).
-2. `ScheduleEndpointFetchUseCase` valida `params` contra ese schema antes de
-   guardar. Si falla, devuelve 400 con los errores Zod.
-
-**Estado:** ✅ workaround. **Bloquea cualquier scheduling vía API.**
+**Estado:** ✅ resuelto.
 
 ---
 
@@ -185,15 +184,15 @@ para reescribir las 34 filas a la shape correcta.
 **Causa:** `RegisterProviderCredentialUseCase` guarda `plaintextSecret` cifrado
 sin pedirle al provider que lo valide.
 
-**Workaround aplicado:** registrar una segunda credencial con el separador
-correcto y borrar la antigua via SQL.
+**Fix aplicado:** la interfaz `Provider` ahora expone
+`validateCredentialPlaintext(plain: string): void` (lanza `InvalidInputError`
+si el formato no encaja). DataForSEO delega en `parseCredential`, GSC en
+`parseServiceAccount`. `RegisterProviderCredentialUseCase` recibe un
+`CredentialFormatValidator` (puerto sobre `ProviderRegistry`) y lo invoca
+antes de cifrar — credenciales mal formadas fallan en POST con 400 en lugar
+de quemarse en el worker en el primer fetch.
 
-**Tarea para devs:**
-- Cada `Provider` expone `validateCredentialPlaintext(plain: string): Result<void, Error>`.
-- `RegisterProviderCredentialUseCase` lo invoca antes de cifrar. Si falla, 400.
-
-**Estado:** ✅ workaround. **Confunde al usuario** (la credencial parece OK
-hasta que el primer job falla).
+**Estado:** ✅ resuelto.
 
 ---
 
@@ -206,18 +205,19 @@ procesó los 34 SERPs OK pero NO grabó NINGUNA `RankingObservation`.
 `params.trackedKeywordId` está presente. `ScheduleEndpointFetchUseCase` no
 sabe nada de tracked keywords — son contextos separados.
 
-**Workaround aplicado:** SQL UPDATE para inyectar `trackedKeywordId` en cada
-def matcheando por `(project_id, domain, phrase, country, language)`. Tras
-eso, los 34 SERPs siguientes generaron 34 ranking_observations correctas.
+**Fix aplicado (opción B, mínimo viable):** `ScheduleEndpointRequest` admite
+ahora un `trackedKeywordId` opcional. El controller lo añade a `systemParams`,
+que el use case mergea tras la validación. Con el campo presente, el
+processor materializará la `RankingObservation` correspondiente; sin él, el
+fetch sigue siendo válido como auditoría one-off (raw payload sin
+observación).
 
-**Tarea para devs (alta prioridad):**
-- Opción A: que `StartTrackingKeywordUseCase` también cree el JobDefinition
-  asociado, con cron por defecto y `trackedKeywordId` ya en params.
-- Opción B: nuevo endpoint `POST /rank-tracking/keywords/:id/schedule` que
-  envuelva `ScheduleEndpointFetchUseCase` y rellene `trackedKeywordId` solo.
+**Pendiente (no bloqueante, mejora UX):** opción A — que
+`StartTrackingKeywordUseCase` cree por defecto el JobDefinition asociado con
+cron semanal y el `trackedKeywordId` precargado, para evitar que el caller
+tenga que componer dos requests.
 
-**Estado:** ✅ workaround. **Bug crítico de UX**: scheduling sin
-trackedKeywordId gasta API quota sin generar datos visibles.
+**Estado:** ✅ resuelto a nivel API.
 
 ---
 
@@ -226,14 +226,22 @@ trackedKeywordId gasta API quota sin generar datos visibles.
 a `provider_job_definitions` para reescribir params. La API solo expone POST
 para crear, no GET/PUT/DELETE.
 
-**Tarea para devs (alta prioridad — convergente con A8):**
-- `GET /projects/:projectId/schedules` para listar todas las definiciones.
-- `GET /providers/:id/job-definitions/:defId` para inspeccionar.
-- `PATCH /providers/:id/job-definitions/:defId` para actualizar params/cron/enabled.
-- `DELETE /providers/:id/job-definitions/:defId` para des-programar.
+**Fix aplicado:** cuatro endpoints nuevos en `ProvidersController` (con
+chequeo de pertenencia al proyecto/org reutilizando un helper
+`loadDefinitionAndAuthorize`):
+- `GET /providers/job-definitions/by-project/:projectId` — lista.
+- `GET /providers/:providerId/job-definitions/:defId` — inspeccionar.
+- `PATCH /providers/:providerId/job-definitions/:defId` — actualizar
+  `cron` / `params` / `enabled` (re-registra el repeatable en BullMQ con el
+  nuevo patrón).
+- `DELETE /providers/:providerId/job-definitions/:defId` — des-programar
+  (unregister + delete row).
 
-**Estado:** ❌ pendiente. **Sin esto, cualquier corrección post-mortem requiere
-acceso DB directo.**
+Use cases en `manage-job-definition.use-cases.ts`. SDK actualizado con los
+métodos `listJobDefinitions / getJobDefinition / updateJobDefinition /
+deleteJobDefinition / runJobDefinitionNow`.
+
+**Estado:** ✅ resuelto a nivel API/SDK.
 
 ---
 
@@ -564,6 +572,7 @@ un proyecto vacío".
   `POST /providers/:providerId/job-definitions/:defId/run-now`. Use case
   `TriggerJobDefinitionRunUseCase` con test unitario. Genera un runId fresco
   y delega en `JobScheduler.enqueueOnce(definition, runId)`.
+- **SDK:** ✅ `api.providers.runJobDefinitionNow(...)` añadido en esta PR.
 - Verificado en producción: ya he disparado los 181 jobs vía este endpoint.
 
 ### A4b. Botón "Run now" en la UI ❌ PENDING
@@ -591,9 +600,12 @@ un proyecto vacío".
   está en otros proyectos del stack).
 
 ### A8. Vista de schedules y job runs
-- **API:** falta — solo hay POST schedule, no GET/DELETE.
-- **Falta:** todo. Sin esto el operador no sabe qué fetches están programados
-  ni sus runs pasados.
+- **API schedules:** ✅ resuelto por el item 10 (GET/PATCH/DELETE).
+- **API job runs:** falta endpoint `GET /providers/.../job-definitions/:defId/runs`
+  (la tabla `provider_job_runs` ya existe; solo hay que exponerla).
+- **UI:** todo pendiente — tabla de schedules con acciones (run-now, edit
+  cron, pause/disable, delete) y, por fila, un drawer con el historial de
+  runs (status, cost, duration, runId).
 
 ### A9. Bootstrap UX: post-registro debería pedir credenciales primero
 - **Hoy:** registras, te metes en /projects, ves vacío con un botón "+ Nuevo

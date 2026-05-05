@@ -14,4 +14,5 @@ export interface JobDefinitionRepository {
 		paramsHash: string,
 	): Promise<ProviderJobDefinition | null>;
 	listForProject(projectId: ProjectId): Promise<readonly ProviderJobDefinition[]>;
+	delete(id: ProviderJobDefinitionId): Promise<void>;
 }

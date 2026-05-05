@@ -20,6 +20,7 @@ const stubProvider = (idValue: string): Provider => ({
 			rateLimit: { max: 60, durationMs: 60_000 },
 		},
 	],
+	validateCredentialPlaintext() {},
 	async fetch() {
 		return { ok: true };
 	},

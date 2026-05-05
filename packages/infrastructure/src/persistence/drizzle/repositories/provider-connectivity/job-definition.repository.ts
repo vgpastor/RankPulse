@@ -92,6 +92,10 @@ export class DrizzleJobDefinitionRepository implements ProviderConnectivity.JobD
 		return rows.map((r) => this.toAggregate(r));
 	}
 
+	async delete(id: ProviderConnectivity.ProviderJobDefinitionId): Promise<void> {
+		await this.db.delete(providerJobDefinitions).where(eq(providerJobDefinitions.id, id));
+	}
+
 	private toAggregate(
 		row: typeof providerJobDefinitions.$inferSelect,
 	): ProviderConnectivity.ProviderJobDefinition {

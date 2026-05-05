@@ -15,6 +15,16 @@ describe('DataForSeoProvider', () => {
 		expect(ids).toContain('serp-google-organic-live');
 	});
 
+	it('validateCredentialPlaintext rejects the wrong separator', () => {
+		const provider = new DataForSeoProvider();
+		expect(() => provider.validateCredentialPlaintext('foo@x.com:password')).toThrow();
+	});
+
+	it('validateCredentialPlaintext accepts the email|password format', () => {
+		const provider = new DataForSeoProvider();
+		expect(() => provider.validateCredentialPlaintext('foo@x.com|secret')).not.toThrow();
+	});
+
 	it('rejects unknown endpoint ids', async () => {
 		const provider = new DataForSeoProvider();
 		await expect(provider.fetch('bogus', {}, stubContext())).rejects.toThrowError(/no endpoint/);

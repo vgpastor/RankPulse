@@ -1,6 +1,15 @@
 import { type IdentityAccess, ProviderConnectivity, type SharedKernel } from '@rankpulse/domain';
 import { type Clock, ConflictError, type IdGenerator } from '@rankpulse/shared';
 
+/**
+ * Minimal port over `ProviderRegistry` so this use case stays in the
+ * application layer without depending on `@rankpulse/provider-core` directly.
+ * The composition root passes a thin adapter around the real registry.
+ */
+export interface CredentialFormatValidator {
+	validate(providerId: string, plaintextSecret: string): void;
+}
+
 export interface RegisterProviderCredentialCommand {
 	organizationId: string;
 	providerId: string;
@@ -19,6 +28,7 @@ export class RegisterProviderCredentialUseCase {
 	constructor(
 		private readonly credentials: ProviderConnectivity.CredentialRepository,
 		private readonly vault: ProviderConnectivity.CredentialVault,
+		private readonly formatValidator: CredentialFormatValidator,
 		private readonly clock: Clock,
 		private readonly ids: IdGenerator,
 		private readonly events: SharedKernel.EventPublisher,
@@ -28,6 +38,8 @@ export class RegisterProviderCredentialUseCase {
 		const orgId = cmd.organizationId as IdentityAccess.OrganizationId;
 		const providerId = ProviderConnectivity.ProviderId.create(cmd.providerId);
 		const scope = ProviderConnectivity.CredentialScope.fromRaw(cmd.scope);
+
+		this.formatValidator.validate(providerId.value, cmd.plaintextSecret);
 
 		const existing = await this.credentials.findByScope(orgId, providerId, scope, cmd.label);
 		if (existing) {

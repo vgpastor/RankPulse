@@ -22,6 +22,9 @@ class StubDefinitionRepo implements ProviderConnectivity.JobDefinitionRepository
 	async listForProject(): Promise<readonly ProviderConnectivity.ProviderJobDefinition[]> {
 		return [...this.store.values()];
 	}
+	async delete(id: ProviderConnectivity.ProviderJobDefinitionId): Promise<void> {
+		this.store.delete(id);
+	}
 }
 
 class RecordingScheduler implements ProviderConnectivity.JobScheduler {
