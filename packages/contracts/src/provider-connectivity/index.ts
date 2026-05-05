@@ -11,7 +11,7 @@ export const RegisterCredentialRequest = z.object({
 	providerId: z.string().min(1).max(40),
 	scope: CredentialScopeRequest,
 	label: z.string().min(1).max(80),
-	plaintextSecret: z.string().min(1).max(2000),
+	plaintextSecret: z.string().min(1).max(8192),
 	expiresAt: z.string().datetime().nullable().optional(),
 });
 export type RegisterCredentialRequest = z.infer<typeof RegisterCredentialRequest>;
