@@ -70,6 +70,8 @@ jobs:
             git reset --hard origin/main
             echo ">>> pnpm install"
             pnpm install --frozen-lockfile
+            echo ">>> Build all workspace packages + apps to dist/ (BACKLOG #16)"
+            pnpm -r build
             echo ">>> Drizzle migrate (loads .env + .env.local via Node --env-file)"
             pnpm --filter @rankpulse/infrastructure db:migrate
             echo ">>> Replace web bundle in httpdocs"

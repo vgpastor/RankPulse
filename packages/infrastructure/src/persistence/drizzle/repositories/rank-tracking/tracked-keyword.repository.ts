@@ -1,6 +1,6 @@
 import { type IdentityAccess, ProjectManagement, RankTracking } from '@rankpulse/domain';
 import { InvalidInputError } from '@rankpulse/shared';
-import { and, eq } from 'drizzle-orm';
+import { and, count, eq } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { trackedKeywords } from '../../schema/index.js';
 
@@ -66,6 +66,14 @@ export class DrizzleTrackedKeywordRepository implements RankTracking.TrackedKeyw
 		return rows.map((r) => this.toAggregate(r));
 	}
 
+	async countForProject(projectId: ProjectManagement.ProjectId): Promise<number> {
+		const [row] = await this.db
+			.select({ value: count() })
+			.from(trackedKeywords)
+			.where(eq(trackedKeywords.projectId, projectId));
+		return row?.value ?? 0;
+	}
+
 	async listForOrganization(
 		orgId: IdentityAccess.OrganizationId,
 	): Promise<readonly RankTracking.TrackedKeyword[]> {
@@ -73,6 +81,28 @@ export class DrizzleTrackedKeywordRepository implements RankTracking.TrackedKeyw
 			.select()
 			.from(trackedKeywords)
 			.where(eq(trackedKeywords.organizationId, orgId));
+		return rows.map((r) => this.toAggregate(r));
+	}
+
+	async listByProjectQuery(input: {
+		projectId: ProjectManagement.ProjectId;
+		phrase: string;
+		country: string;
+		language: string;
+		device: string;
+	}): Promise<readonly RankTracking.TrackedKeyword[]> {
+		const rows = await this.db
+			.select()
+			.from(trackedKeywords)
+			.where(
+				and(
+					eq(trackedKeywords.projectId, input.projectId),
+					eq(trackedKeywords.phrase, input.phrase),
+					eq(trackedKeywords.country, input.country),
+					eq(trackedKeywords.language, input.language),
+					eq(trackedKeywords.device, input.device),
+				),
+			);
 		return rows.map((r) => this.toAggregate(r));
 	}
 

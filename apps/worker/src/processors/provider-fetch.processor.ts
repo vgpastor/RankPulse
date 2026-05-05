@@ -1,9 +1,11 @@
 import type {
+	ProjectManagement as ProjectManagementUseCases,
 	ProviderConnectivity as ProviderConnectivityUseCases,
 	RankTracking as RankTrackingUseCases,
 	SearchConsoleInsights as SearchConsoleInsightsUseCases,
 } from '@rankpulse/application';
 import {
+	type ProjectManagement,
 	ProviderConnectivity,
 	type RankTracking as RankTrackingDomain,
 	type SearchConsoleInsights as SearchConsoleInsightsDomain,
@@ -12,7 +14,7 @@ import type { ProviderFetchJobData } from '@rankpulse/infrastructure/queue';
 import type { ProviderRegistry } from '@rankpulse/provider-core';
 import {
 	DataForSeoApiError,
-	extractRankingForDomain,
+	extractTop10Domains,
 	type SerpLiveResponse,
 } from '@rankpulse/provider-dataforseo';
 import {
@@ -21,8 +23,9 @@ import {
 	type SearchAnalyticsParams,
 	type SearchAnalyticsResponse,
 } from '@rankpulse/provider-gsc';
-import { type Clock, type IdGenerator, NotFoundError } from '@rankpulse/shared';
+import { type Clock, type IdGenerator, NotFoundError, resolveDateTokens } from '@rankpulse/shared';
 import type { Logger } from 'pino';
+import { extractMultiDomainRankings, isMultiDomainSerpJob } from './extract-multi-domain-rankings.js';
 
 /**
  * BACKLOG #14: detect provider-side "out of quota / payment required" so the
@@ -38,6 +41,12 @@ const isQuotaExhaustedError = (err: unknown): boolean => {
 	return false;
 };
 
+const normalize = (raw: string): string =>
+	raw
+		.trim()
+		.toLowerCase()
+		.replace(/^www\./, '');
+
 export interface ProviderFetchProcessorDeps {
 	registry: ProviderRegistry;
 	credentialRepo: ProviderConnectivity.CredentialRepository;
@@ -46,11 +55,13 @@ export interface ProviderFetchProcessorDeps {
 	rawPayloadRepo: ProviderConnectivity.RawPayloadRepository;
 	apiUsageRepo: ProviderConnectivity.ApiUsageRepository;
 	trackedKeywordRepo: RankTrackingDomain.TrackedKeywordRepository;
+	competitorRepo: ProjectManagement.CompetitorRepository;
 	gscPropertyRepo: SearchConsoleInsightsDomain.GscPropertyRepository;
 	vault: ProviderConnectivity.CredentialVault;
 	resolveCredentialUseCase: ProviderConnectivityUseCases.ResolveProviderCredentialUseCase;
 	recordApiUsageUseCase: ProviderConnectivityUseCases.RecordApiUsageUseCase;
 	recordRankingObservationUseCase: RankTrackingUseCases.RecordRankingObservationUseCase;
+	recordTop10HitsForSuggestionsUseCase: ProjectManagementUseCases.RecordTop10HitsForSuggestionsUseCase;
 	ingestGscRowsUseCase: SearchConsoleInsightsUseCases.IngestGscRowsUseCase;
 	clock: Clock;
 	ids: IdGenerator;
@@ -84,21 +95,17 @@ export class ProviderFetchProcessor {
 			definition.providerId.value,
 			definition.endpointId.value,
 		);
-		const params = definition.params as {
-			domain?: string;
-			organizationId?: string;
-			trackedKeywordId?: string;
-		};
+		const params = definition.params as { organizationId?: string };
 
 		const orgId = params.organizationId;
 		if (!orgId) {
-			throw new Error(`Job definition ${definition.id} missing organizationId param`);
+			throw new Error(`Job definition ${definition.id} missing organizationId in systemParams`);
 		}
 
 		const resolved = await this.deps.resolveCredentialUseCase.execute({
 			organizationId: orgId,
 			providerId: definition.providerId.value,
-			hints: { domain: params.domain, projectId: definition.projectId },
+			hints: { projectId: definition.projectId },
 			overrideCredentialId: definition.credentialOverrideId,
 		});
 
@@ -112,10 +119,20 @@ export class ProviderFetchProcessor {
 		await this.deps.jobRunRepo.save(run);
 
 		const dateBucket = this.deps.clock.now().toISOString().slice(0, 10);
+		// BACKLOG #22: definitions persist relative date tokens (e.g.
+		// `endDate: "{{today-2}}"`). Resolve them ONCE here against the
+		// current wall clock and use the resolved params for both the
+		// request-hash (so idempotency keys differ across days) and the
+		// fetch call. Persisted `definition.params` stays unchanged so the
+		// next cron tick recomputes against tomorrow's date.
+		const resolvedParams = resolveDateTokens(
+			definition.params as Record<string, unknown>,
+			this.deps.clock.now(),
+		);
 		const requestHash = ProviderConnectivity.computeRequestHashFor(
 			definition.providerId,
 			definition.endpointId,
-			definition.params as Record<string, unknown>,
+			resolvedParams,
 			dateBucket,
 		);
 		const existing = await this.deps.rawPayloadRepo.findByRequestHash(requestHash);
@@ -127,7 +144,7 @@ export class ProviderFetchProcessor {
 		}
 
 		try {
-			const fetchResult = await provider.fetch(definition.endpointId.value, definition.params, {
+			const fetchResult = await provider.fetch(definition.endpointId.value, resolvedParams, {
 				credential: { plaintextSecret: resolved.plaintextSecret },
 				logger: {
 					debug: (msg, meta) => this.deps.logger.debug(meta ?? {}, msg),
@@ -141,13 +158,20 @@ export class ProviderFetchProcessor {
 				id: rawPayloadId,
 				providerId: definition.providerId,
 				endpointId: definition.endpointId,
-				params: definition.params as Record<string, unknown>,
+				params: resolvedParams,
 				dateBucket,
 				payload: fetchResult,
 				now: this.deps.clock.now(),
 			});
 			await this.deps.rawPayloadRepo.save(rawPayload);
 
+			// BACKLOG #4 fix — endpoints that bill per item (e.g. search-volume
+			// at $0.005/keyword) declare a `costFor(params)` that returns the
+			// real cost for THIS call. Falls back to `cost.amount` (worst-case)
+			// for endpoints with flat per-call billing.
+			const realCostCents = endpointDescriptor.costFor
+				? endpointDescriptor.costFor(resolvedParams)
+				: endpointDescriptor.cost.amount;
 			await this.deps.recordApiUsageUseCase.execute({
 				organizationId: orgId,
 				credentialId: resolved.credentialId,
@@ -155,31 +179,76 @@ export class ProviderFetchProcessor {
 				providerId: definition.providerId.value,
 				endpointId: definition.endpointId.value,
 				calls: 1,
-				costCents: endpointDescriptor.cost.amount,
+				costCents: realCostCents,
 			});
 
 			if (
 				definition.providerId.value === 'dataforseo' &&
-				definition.endpointId.value === 'serp-google-organic-live' &&
-				params.domain &&
-				params.trackedKeywordId
+				definition.endpointId.value === 'serp-google-organic-live'
 			) {
-				const extracted = extractRankingForDomain(fetchResult as SerpLiveResponse, params.domain);
-				await this.deps.recordRankingObservationUseCase.execute({
-					trackedKeywordId: params.trackedKeywordId,
-					position: extracted.position,
-					url: extracted.url,
-					serpFeatures: extracted.serpFeatures,
-					sourceProvider: definition.providerId.value,
-					rawPayloadId,
-				});
+				// BACKLOG #15 — fan-out: 1 SERP fetch → N RankingObservations,
+				// one per project domain currently tracked for this query.
+				// `(projectId, phrase, country, language, device)` arrives via
+				// `systemParams` (merged into resolvedParams). The Zod schema
+				// of the endpoint already validated the DataForSEO query
+				// fields (`keyword`, `locationCode`, `languageCode`, `device`,
+				// `depth`); fan-out fields are orchestration-only and live in
+				// systemParams.
+				if (!isMultiDomainSerpJob(resolvedParams as Record<string, string>)) {
+					throw new Error(
+						`SERP job ${definition.id} missing fan-out systemParams ` +
+							`(projectId, phrase, country, language, device)`,
+					);
+				}
+				const fanOutKey = resolvedParams as {
+					projectId: ProjectManagement.ProjectId;
+					phrase: string;
+					country: string;
+					language: string;
+					device: string;
+				};
+				const tracked = await this.deps.trackedKeywordRepo.listByProjectQuery(fanOutKey);
+				const extractions = extractMultiDomainRankings(fetchResult as SerpLiveResponse, tracked);
+				for (const e of extractions) {
+					await this.deps.recordRankingObservationUseCase.execute({
+						trackedKeywordId: e.trackedKeywordId,
+						position: e.extraction.position,
+						url: e.extraction.url,
+						serpFeatures: e.extraction.serpFeatures,
+						sourceProvider: definition.providerId.value,
+						rawPayloadId,
+					});
+				}
+
+				// BACKLOG #18 — auto-discover competitors. Top-10 domains that
+				// are NOT in the project's own tracked set AND NOT already
+				// promoted competitors get recorded as suggestions. The use
+				// case is idempotent on (project, domain): it bumps the
+				// existing tally or starts a new PENDING row.
+				const top10 = extractTop10Domains(fetchResult as SerpLiveResponse);
+				if (top10.length > 0) {
+					const ownDomains = new Set(tracked.map((tk) => normalize(tk.domain.value)));
+					const competitors = await this.deps.competitorRepo.listForProject(fanOutKey.projectId);
+					const competitorDomains = new Set(competitors.map((c) => normalize(c.domain.value)));
+					const external = top10.filter((d) => !ownDomains.has(d) && !competitorDomains.has(d));
+					if (external.length > 0) {
+						await this.deps.recordTop10HitsForSuggestionsUseCase.execute({
+							projectId: fanOutKey.projectId,
+							keyword: fanOutKey.phrase,
+							externalDomainsInTop10: external,
+						});
+					}
+				}
 			}
 
 			if (
 				definition.providerId.value === 'google-search-console' &&
 				definition.endpointId.value === 'gsc-search-analytics'
 			) {
-				const gscParams = definition.params as unknown as SearchAnalyticsParams & { gscPropertyId?: string };
+				// Use the RESOLVED params: extractGscRows uses startDate/endDate
+				// to bucket the rows, and the persisted definition keeps the
+				// token form. `gscPropertyId` is a literal string in both.
+				const gscParams = resolvedParams as unknown as SearchAnalyticsParams & { gscPropertyId?: string };
 				if (!gscParams.gscPropertyId) {
 					this.deps.logger.warn(
 						{ defId: definition.id },

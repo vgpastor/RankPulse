@@ -56,6 +56,29 @@ export class ProjectsResource {
 		return this.http.get(`/projects/${encodeURIComponent(projectId)}/competitors`);
 	}
 
+	listCompetitorSuggestions(
+		projectId: string,
+		options?: { eligibleOnly?: boolean },
+	): Promise<ProjectManagementContracts.CompetitorSuggestionDto[]> {
+		const query: Record<string, string> = {};
+		if (options?.eligibleOnly === false) query.eligibleOnly = 'false';
+		return this.http.get(`/projects/${encodeURIComponent(projectId)}/competitor-suggestions`, { query });
+	}
+
+	promoteCompetitorSuggestion(
+		suggestionId: string,
+		body: ProjectManagementContracts.PromoteCompetitorSuggestionRequest = {},
+	): Promise<{ competitorId: string }> {
+		return this.http.post(
+			`/projects/competitor-suggestions/${encodeURIComponent(suggestionId)}/promote`,
+			body,
+		);
+	}
+
+	dismissCompetitorSuggestion(suggestionId: string): Promise<{ ok: true }> {
+		return this.http.post(`/projects/competitor-suggestions/${encodeURIComponent(suggestionId)}/dismiss`, {});
+	}
+
 	importKeywords(
 		projectId: string,
 		body: ProjectManagementContracts.ImportKeywordsRequest,

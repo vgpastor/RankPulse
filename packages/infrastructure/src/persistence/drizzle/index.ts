@@ -4,6 +4,7 @@ export { DrizzleMembershipRepository } from './repositories/identity-access/memb
 export { DrizzleOrganizationRepository } from './repositories/identity-access/organization.repository.js';
 export { DrizzleUserRepository } from './repositories/identity-access/user.repository.js';
 export { DrizzleCompetitorRepository } from './repositories/project-management/competitor.repository.js';
+export { DrizzleCompetitorSuggestionRepository } from './repositories/project-management/competitor-suggestion.repository.js';
 export { DrizzleKeywordListRepository } from './repositories/project-management/keyword-list.repository.js';
 export { DrizzlePortfolioRepository } from './repositories/project-management/portfolio.repository.js';
 export { DrizzleProjectRepository } from './repositories/project-management/project.repository.js';

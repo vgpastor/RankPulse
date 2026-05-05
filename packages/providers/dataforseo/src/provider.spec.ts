@@ -15,6 +15,34 @@ describe('DataForSeoProvider', () => {
 		expect(ids).toContain('serp-google-organic-live');
 	});
 
+	it('exposes the BACKLOG #19 endpoint catalogue (9 endpoints, no backlinks)', () => {
+		const provider = new DataForSeoProvider();
+		const ids = provider.discover().map((e) => e.id);
+		expect(ids).toEqual(
+			expect.arrayContaining([
+				'serp-google-organic-live',
+				'serp-google-organic-advanced',
+				'keywords-data-search-volume',
+				'dataforseo-labs-keyword-difficulty',
+				'dataforseo-labs-keywords-for-site',
+				'dataforseo-labs-related-keywords',
+				'dataforseo-labs-competitors-domain',
+				'domain-analytics-whois-overview',
+				'on-page-instant-pages',
+			]),
+		);
+		// Backlinks is the user-pending optional addon ($100/mo) — must NOT
+		// appear until that subscription is active.
+		expect(ids.some((id) => id.includes('backlinks'))).toBe(false);
+	});
+
+	it('every descriptor declares a non-empty defaultCron (BACKLOG #21)', () => {
+		const provider = new DataForSeoProvider();
+		for (const descriptor of provider.discover()) {
+			expect(descriptor.defaultCron).toMatch(/^\S+ \S+ \S+ \S+ \S+$/);
+		}
+	});
+
 	it('validateCredentialPlaintext rejects the wrong separator', () => {
 		const provider = new DataForSeoProvider();
 		expect(() => provider.validateCredentialPlaintext('foo@x.com:password')).toThrow();

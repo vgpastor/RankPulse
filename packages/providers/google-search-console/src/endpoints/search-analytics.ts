@@ -1,13 +1,21 @@
 import type { EndpointDescriptor, FetchContext } from '@rankpulse/provider-core';
+import { DATE_OR_TOKEN_REGEX } from '@rankpulse/shared';
 import { z } from 'zod';
 import type { GscHttp } from '../http.js';
 
 const DimensionEnum = z.enum(['date', 'query', 'page', 'country', 'device', 'searchAppearance']);
 
+/**
+ * `startDate` / `endDate` accept either an absolute `YYYY-MM-DD` (legacy
+ * one-off use) or a relative token like `{{today}}` / `{{today-30}}`
+ * (BACKLOG #22). The processor resolves tokens against the wall clock
+ * just before invoking the fetcher, so a daily cron with
+ * `endDate: "{{today-2}}"` always queries the right rolling window.
+ */
 export const SearchAnalyticsParams = z.object({
 	siteUrl: z.string().min(1),
-	startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-	endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+	startDate: z.string().regex(DATE_OR_TOKEN_REGEX),
+	endDate: z.string().regex(DATE_OR_TOKEN_REGEX),
 	dimensions: z.array(DimensionEnum).min(1).max(4).default(['date']),
 	rowLimit: z.number().int().min(1).max(25000).default(1000),
 	startRow: z.number().int().min(0).default(0),

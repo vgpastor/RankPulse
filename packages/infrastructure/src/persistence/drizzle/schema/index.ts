@@ -207,6 +207,36 @@ export const competitors = pgTable(
 	}),
 );
 
+// BACKLOG #18 — auto-discovered candidates from SERP top-10 hits.
+// Stored separately from `competitors` so promotion is an explicit action
+// (write to `competitors`, mark suggestion PROMOTED). The keywords-in-top-10
+// set is jsonb because the cardinality is bounded by the project's tracked
+// keywords (typically <500) and we never query INTO the array.
+export const competitorSuggestions = pgTable(
+	'competitor_suggestions',
+	{
+		id: uuid('id').primaryKey(),
+		projectId: uuid('project_id')
+			.notNull()
+			.references(() => projects.id, { onDelete: 'cascade' }),
+		domain: text('domain').notNull(),
+		keywordsInTop10: jsonb('keywords_in_top10').notNull().$type<readonly string[]>().default([]),
+		totalTop10Hits: integer('total_top10_hits').notNull().default(0),
+		firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull(),
+		lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull(),
+		status: text('status').notNull().default('PENDING'),
+		promotedAt: timestamp('promoted_at', { withTimezone: true }),
+		dismissedAt: timestamp('dismissed_at', { withTimezone: true }),
+	},
+	(t) => ({
+		projectDomainUnique: uniqueIndex('competitor_suggestions_project_domain_unique').on(
+			t.projectId,
+			t.domain,
+		),
+		projectStatusIdx: index('competitor_suggestions_project_status_idx').on(t.projectId, t.status),
+	}),
+);
+
 // ---- provider-connectivity ----
 
 export const providerCredentials = pgTable(
@@ -458,6 +488,7 @@ export type ProjectLocationRow = typeof projectLocations.$inferSelect;
 export type KeywordListRow = typeof keywordLists.$inferSelect;
 export type KeywordRow = typeof keywords.$inferSelect;
 export type CompetitorRow = typeof competitors.$inferSelect;
+export type CompetitorSuggestionRow = typeof competitorSuggestions.$inferSelect;
 export type ProviderCredentialRow = typeof providerCredentials.$inferSelect;
 export type ProviderJobDefinitionRow = typeof providerJobDefinitions.$inferSelect;
 export type ProviderJobRunRow = typeof providerJobRuns.$inferSelect;

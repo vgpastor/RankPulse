@@ -135,6 +135,10 @@ docker run -d --name rankpulse-redis \
    - `git fetch + reset --hard origin/main` in `app/`.
    - `source .env.local`.
    - `pnpm install --frozen-lockfile`.
+   - `pnpm -r build` (BACKLOG #16) — turbo builds every workspace
+     package + apps to `dist/` in topological order. The PM2
+     ecosystem then runs `node dist/main.js` directly, no
+     @swc-node/register on the prod hot path.
    - `pnpm --filter @rankpulse/infrastructure db:migrate` (Drizzle).
    - Replace `httpdocs/*` with the new bundle.
    - `pm2 reload ops/ecosystem.config.cjs --update-env`.

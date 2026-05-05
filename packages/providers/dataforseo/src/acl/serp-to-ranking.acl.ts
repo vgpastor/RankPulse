@@ -67,6 +67,31 @@ export const extractRankingsForDomains = (
 	return targets;
 };
 
+/**
+ * BACKLOG #18: every distinct organic domain in the top-10 of the payload,
+ * normalized (lowercase, no `www.`). Used by competitor-suggestion to tally
+ * how often a domain shows up across a project's SERPs. Order matches the
+ * SERP order so callers can short-circuit if needed; we only emit domains
+ * with rank ≤ 10 and `type === 'organic'` (paid/snippet/people-also-ask are
+ * not competitor signals).
+ */
+export const extractTop10Domains = (payload: SerpLiveResponse): readonly string[] => {
+	const items = payload.tasks?.[0]?.result?.[0]?.items ?? [];
+	const seen = new Set<string>();
+	const out: string[] = [];
+	for (const item of items) {
+		if (item.type !== 'organic') continue;
+		const rank = item.rank_absolute ?? item.rank_group;
+		if (typeof rank !== 'number' || rank <= 0 || rank > 10) continue;
+		if (!item.domain) continue;
+		const key = normalizeDomain(item.domain);
+		if (seen.has(key)) continue;
+		seen.add(key);
+		out.push(key);
+	}
+	return out;
+};
+
 const collectFeatures = (payload: SerpLiveResponse): readonly string[] => {
 	const items = payload.tasks?.[0]?.result?.[0]?.items ?? [];
 	const features = new Set<string>();

@@ -204,11 +204,15 @@ export class ProvidersController {
 		}
 		await this.orgMembership.require(principal, project.organizationId);
 		// `systemParams` are merged after Zod validation so they survive the
-		// endpoint's paramsSchema strip (organizationId scopes the run for the
-		// worker; trackedKeywordId tells the processor to materialize a
-		// RankingObservation per fetched SERP — see BACKLOG #9).
-		const systemParams: Record<string, unknown> = { organizationId: project.organizationId };
-		if (body.trackedKeywordId) systemParams.trackedKeywordId = body.trackedKeywordId;
+		// endpoint's paramsSchema strip. `organizationId` is forced from the
+		// project (not user-supplied — security boundary); the rest of the
+		// orchestration fields (projectId/phrase/country/language/device for
+		// SERP fan-out, gscPropertyId for GSC, etc.) come from the request
+		// body so the caller has explicit control.
+		const systemParams: Record<string, unknown> = {
+			...(body.systemParams ?? {}),
+			organizationId: project.organizationId,
+		};
 		return this.schedule.execute({
 			projectId: body.projectId,
 			providerId,

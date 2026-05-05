@@ -1,4 +1,5 @@
 import {
+	ProjectManagement as ProjectManagementUseCases,
 	ProviderConnectivity as ProviderConnectivityUseCases,
 	RankTracking as RankTrackingUseCases,
 	SearchConsoleInsights as SearchConsoleInsightsUseCases,
@@ -25,6 +26,8 @@ async function bootstrap(): Promise<void> {
 	const apiUsageRepo = new DrizzlePersistence.DrizzleApiUsageRepository(drizzle.db);
 	const trackedKeywordRepo = new DrizzlePersistence.DrizzleTrackedKeywordRepository(drizzle.db);
 	const observationRepo = new DrizzlePersistence.DrizzleRankingObservationRepository(drizzle.db);
+	const competitorRepo = new DrizzlePersistence.DrizzleCompetitorRepository(drizzle.db);
+	const competitorSuggestionRepo = new DrizzlePersistence.DrizzleCompetitorSuggestionRepository(drizzle.db);
 	const gscPropertyRepo = new DrizzlePersistence.DrizzleGscPropertyRepository(drizzle.db);
 	const gscObservationRepo = new DrizzlePersistence.DrizzleGscPerformanceObservationRepository(drizzle.db);
 
@@ -57,6 +60,12 @@ async function bootstrap(): Promise<void> {
 		SystemIdGenerator,
 		eventPublisher,
 	);
+	const recordTop10HitsForSuggestionsUseCase =
+		new ProjectManagementUseCases.RecordTop10HitsForSuggestionsUseCase(
+			competitorSuggestionRepo,
+			SystemClock,
+			SystemIdGenerator,
+		);
 
 	const processor = new ProviderFetchProcessor({
 		registry,
@@ -66,11 +75,13 @@ async function bootstrap(): Promise<void> {
 		rawPayloadRepo,
 		apiUsageRepo,
 		trackedKeywordRepo,
+		competitorRepo,
 		gscPropertyRepo,
 		vault,
 		resolveCredentialUseCase,
 		recordApiUsageUseCase,
 		recordRankingObservationUseCase,
+		recordTop10HitsForSuggestionsUseCase,
 		ingestGscRowsUseCase,
 		clock: SystemClock,
 		ids: SystemIdGenerator,

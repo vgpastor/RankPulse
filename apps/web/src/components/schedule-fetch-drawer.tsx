@@ -7,13 +7,47 @@ export interface ScheduleFetchDrawerProps {
 	open: boolean;
 	onClose: () => void;
 	projectId: string;
-	/** Optional pre-filled trackedKeywordId to wire into systemParams (BACKLOG #9). */
-	trackedKeywordId?: string;
 }
 
 const DEFAULT_PARAMS_HINT: Record<string, string> = {
 	'serp-google-organic-live': JSON.stringify(
 		{ keyword: 'control de rondas', locationCode: 2724, languageCode: 'es', device: 'desktop', depth: 20 },
+		null,
+		2,
+	),
+	'serp-google-organic-advanced': JSON.stringify(
+		{ keyword: 'control de rondas', locationCode: 2724, languageCode: 'es', device: 'desktop', depth: 20 },
+		null,
+		2,
+	),
+	'keywords-data-search-volume': JSON.stringify(
+		{ keywords: ['keyword 1', 'keyword 2'], locationCode: 2724, languageCode: 'es' },
+		null,
+		2,
+	),
+	'dataforseo-labs-keyword-difficulty': JSON.stringify(
+		{ keywords: ['keyword 1', 'keyword 2'], locationCode: 2724, languageCode: 'es' },
+		null,
+		2,
+	),
+	'dataforseo-labs-keywords-for-site': JSON.stringify(
+		{ target: 'example.com', locationCode: 2724, languageCode: 'es', limit: 100 },
+		null,
+		2,
+	),
+	'dataforseo-labs-related-keywords': JSON.stringify(
+		{ keyword: 'control de rondas', locationCode: 2724, languageCode: 'es', depth: 2, limit: 100 },
+		null,
+		2,
+	),
+	'dataforseo-labs-competitors-domain': JSON.stringify(
+		{ target: 'example.com', locationCode: 2724, languageCode: 'es', limit: 50 },
+		null,
+		2,
+	),
+	'domain-analytics-whois-overview': JSON.stringify({ target: 'example.com', limit: 1 }, null, 2),
+	'on-page-instant-pages': JSON.stringify(
+		{ url: 'https://example.com/', enableJavascript: false, loadResources: false },
 		null,
 		2,
 	),
@@ -24,12 +58,7 @@ const DEFAULT_PARAMS_HINT: Record<string, string> = {
 	),
 };
 
-export const ScheduleFetchDrawer = ({
-	open,
-	onClose,
-	projectId,
-	trackedKeywordId,
-}: ScheduleFetchDrawerProps) => {
+export const ScheduleFetchDrawer = ({ open, onClose, projectId }: ScheduleFetchDrawerProps) => {
 	const qc = useQueryClient();
 	const [providerId, setProviderId] = useState('dataforseo');
 	const [endpointId, setEndpointId] = useState('serp-google-organic-live');
@@ -51,7 +80,7 @@ export const ScheduleFetchDrawer = ({
 			const first = endpoints[0];
 			if (first) {
 				setEndpointId(first.id);
-				setCron(first.defaultCron ?? '0 6 * * 1');
+				setCron(first.defaultCron);
 				setParamsJson(DEFAULT_PARAMS_HINT[first.id] ?? '{}');
 			}
 		}
@@ -60,7 +89,7 @@ export const ScheduleFetchDrawer = ({
 	const helperHint = useMemo(() => {
 		const ep = endpoints.find((e) => e.id === endpointId);
 		if (!ep) return undefined;
-		return `${ep.displayName} · ${ep.cost.amount} ${ep.cost.unit}/call · default cron: ${ep.defaultCron ?? '—'}`;
+		return `${ep.displayName} · ${ep.cost.amount} ${ep.cost.unit}/call · default cron: ${ep.defaultCron}`;
 	}, [endpoints, endpointId]);
 
 	const mutation = useMutation({
@@ -77,7 +106,6 @@ export const ScheduleFetchDrawer = ({
 				endpointId,
 				params: parsed,
 				cron,
-				trackedKeywordId,
 			});
 		},
 		onSuccess: () => {
@@ -98,7 +126,6 @@ export const ScheduleFetchDrawer = ({
 			open={open}
 			onClose={onClose}
 			title="Schedule recurring fetch"
-			description={trackedKeywordId ? 'Linked to the selected tracked keyword.' : undefined}
 			footer={
 				<>
 					<Button variant="ghost" type="button" onClick={onClose} disabled={mutation.isPending}>
@@ -135,7 +162,7 @@ export const ScheduleFetchDrawer = ({
 										const next = e.target.value;
 										setEndpointId(next);
 										const ep = endpoints.find((x) => x.id === next);
-										if (ep?.defaultCron) setCron(ep.defaultCron);
+										if (ep) setCron(ep.defaultCron);
 										setParamsJson(DEFAULT_PARAMS_HINT[next] ?? '{}');
 									}}
 								>

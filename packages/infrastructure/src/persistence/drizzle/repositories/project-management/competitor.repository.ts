@@ -1,25 +1,49 @@
 import { ProjectManagement } from '@rankpulse/domain';
+import { ConflictError } from '@rankpulse/shared';
 import { and, desc, eq } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { competitors } from '../../schema/index.js';
+
+const UNIQUE_PROJECT_DOMAIN_CONSTRAINT = 'competitors_project_domain_unique';
+
+const isProjectDomainUniqueViolation = (err: unknown): boolean => {
+	if (!err || typeof err !== 'object') return false;
+	const e = err as { code?: string; constraint_name?: string; constraint?: string };
+	if (e.code !== '23505') return false;
+	const constraint = e.constraint_name ?? e.constraint;
+	return constraint === UNIQUE_PROJECT_DOMAIN_CONSTRAINT;
+};
 
 export class DrizzleCompetitorRepository implements ProjectManagement.CompetitorRepository {
 	constructor(private readonly db: DrizzleDatabase) {}
 
 	async save(competitor: ProjectManagement.Competitor): Promise<void> {
-		await this.db
-			.insert(competitors)
-			.values({
-				id: competitor.id,
-				projectId: competitor.projectId,
-				domain: competitor.domain.value,
-				label: competitor.label,
-				createdAt: competitor.createdAt,
-			})
-			.onConflictDoUpdate({
-				target: competitors.id,
-				set: { label: competitor.label },
-			});
+		try {
+			await this.db
+				.insert(competitors)
+				.values({
+					id: competitor.id,
+					projectId: competitor.projectId,
+					domain: competitor.domain.value,
+					label: competitor.label,
+					createdAt: competitor.createdAt,
+				})
+				.onConflictDoUpdate({
+					target: competitors.id,
+					set: { label: competitor.label },
+				});
+		} catch (err) {
+			// BACKLOG #2 fix — promoting the same suggestion twice (or
+			// adding a duplicate domain via the legacy AddCompetitor path)
+			// would otherwise surface as a raw 500. Map it to a typed
+			// ConflictError so the controller can return a clean 409.
+			if (isProjectDomainUniqueViolation(err)) {
+				throw new ConflictError(
+					`Competitor "${competitor.domain.value}" already tracked for project ${competitor.projectId}`,
+				);
+			}
+			throw err;
+		}
 	}
 
 	async findById(id: ProjectManagement.CompetitorId): Promise<ProjectManagement.Competitor | null> {
