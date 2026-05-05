@@ -2,7 +2,7 @@
 
 Open-source self-hosted SEO intelligence platform for **multi-project, multi-domain, multi-country** monitoring.
 
-> Replace Ahrefs/Semrush for multi-project monitoring at a fraction of the cost (~$4-7/month vs $99+/month). Self-hosted, single `docker-compose up`, AGPL-3.0.
+> Replace Ahrefs/Semrush for multi-project monitoring at a fraction of the cost (~$4-7/month vs $99+/month). Self-hosted, AGPL-3.0.
 
 ## Status
 
@@ -27,6 +27,27 @@ Early development. The architecture and roadmap are defined in `docs/architectur
 - Tests: Vitest (unit + integration) + Playwright (e2e) + Testcontainers
 - Tooling: pnpm workspaces + Turborepo + Biome
 - License: **AGPL-3.0**
+
+## Production deployment
+
+The production runtime on srv07 is **PM2 (host) + Plesk Docker (storage)**, not
+Docker Compose. See [`ops/DEPLOY.md`](./ops/DEPLOY.md) for the full runbook
+(topology, server-side setup, day-2 operations).
+
+  - `apps/api` and `apps/worker` run via `pm2` (cluster + fork) under the
+    Plesk vhost user `ingenierosweb`. PM2 ecosystem in
+    [`ops/ecosystem.config.cjs`](./ops/ecosystem.config.cjs), versioned
+    here as IaaC. CI deploys via `pm2 reload --update-env`.
+  - Postgres (TimescaleDB) and Redis run in Plesk-managed Docker
+    containers with bind-mount volumes inside the vhost dir, so Plesk's
+    vhost-level backups recover everything.
+  - The web SPA is a static Vite build dropped into the vhost's
+    `httpdocs/`. Plesk nginx serves it directly and reverse-proxies
+    `/api/*`, `/healthz`, `/readyz`, `/docs`, `/openapi.json` to PM2.
+
+GitHub Actions [`release.yml`](./.github/workflows/release.yml):
+push to `main` → build SPA bundle → SSH to srv07 → `git pull` →
+`pnpm install` → `drizzle-kit migrate` → swap `httpdocs/` → `pm2 reload`.
 
 ## Repository layout
 
