@@ -104,6 +104,15 @@ export const Tokens = {
 	UntrackPage: Symbol('UntrackPageUseCase'),
 	QueryPageSpeedHistory: Symbol('QueryPageSpeedHistoryUseCase'),
 
+	// Traffic-Analytics (GA4) ports
+	Ga4PropertyRepository: Symbol('Ga4PropertyRepository'),
+	Ga4DailyMetricRepository: Symbol('Ga4DailyMetricRepository'),
+
+	// Traffic-Analytics (GA4) use cases
+	LinkGa4Property: Symbol('LinkGa4PropertyUseCase'),
+	UnlinkGa4Property: Symbol('UnlinkGa4PropertyUseCase'),
+	QueryGa4Metrics: Symbol('QueryGa4MetricsUseCase'),
+
 	// Infrastructure handles
 	DrizzleClient: Symbol('DrizzleClient'),
 	JwtService: Symbol('JwtService'),

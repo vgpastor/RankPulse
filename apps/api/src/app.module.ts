@@ -14,6 +14,7 @@ import { ProjectManagementModule } from './modules/project-management/project-ma
 import { ProviderConnectivityModule } from './modules/provider-connectivity/provider-connectivity.module.js';
 import { RankTrackingModule } from './modules/rank-tracking/rank-tracking.module.js';
 import { SearchConsoleInsightsModule } from './modules/search-console-insights/search-console-insights.module.js';
+import { TrafficAnalyticsModule } from './modules/traffic-analytics/traffic-analytics.module.js';
 import { WebPerformanceModule } from './modules/web-performance/web-performance.module.js';
 import { OpenApiModule } from './openapi/openapi.module.js';
 
@@ -46,6 +47,7 @@ export class AppModule {
 			SearchConsoleInsightsModule,
 			EntityAwarenessModule,
 			WebPerformanceModule,
+			TrafficAnalyticsModule,
 		];
 		if (env.OPENAPI_ENABLED) imports.push(OpenApiModule);
 

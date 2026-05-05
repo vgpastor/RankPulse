@@ -50,6 +50,13 @@
 			"when": 1778014293229,
 			"tag": "0006_flowery_shotgun",
 			"breakpoints": true
+		},
+		{
+			"idx": 7,
+			"version": "7",
+			"when": 1778015988471,
+			"tag": "0007_black_clea",
+			"breakpoints": true
 		}
 	]
 }

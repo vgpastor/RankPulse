@@ -26,6 +26,7 @@
 		"@rankpulse/infrastructure": "workspace:*",
 		"@rankpulse/provider-core": "workspace:*",
 		"@rankpulse/provider-dataforseo": "workspace:*",
+		"@rankpulse/provider-ga4": "workspace:*",
 		"@rankpulse/provider-gsc": "workspace:*",
 		"@rankpulse/shared": "workspace:*",
 		"drizzle-orm": "0.45.2",
