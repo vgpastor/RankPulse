@@ -15,6 +15,42 @@ const DEFAULT_PARAMS_HINT: Record<string, string> = {
 		null,
 		2,
 	),
+	'serp-google-organic-advanced': JSON.stringify(
+		{ keyword: 'control de rondas', locationCode: 2724, languageCode: 'es', device: 'desktop', depth: 20 },
+		null,
+		2,
+	),
+	'keywords-data-search-volume': JSON.stringify(
+		{ keywords: ['keyword 1', 'keyword 2'], locationCode: 2724, languageCode: 'es' },
+		null,
+		2,
+	),
+	'dataforseo-labs-keyword-difficulty': JSON.stringify(
+		{ keywords: ['keyword 1', 'keyword 2'], locationCode: 2724, languageCode: 'es' },
+		null,
+		2,
+	),
+	'dataforseo-labs-keywords-for-site': JSON.stringify(
+		{ target: 'example.com', locationCode: 2724, languageCode: 'es', limit: 100 },
+		null,
+		2,
+	),
+	'dataforseo-labs-related-keywords': JSON.stringify(
+		{ keyword: 'control de rondas', locationCode: 2724, languageCode: 'es', depth: 2, limit: 100 },
+		null,
+		2,
+	),
+	'dataforseo-labs-competitors-domain': JSON.stringify(
+		{ target: 'example.com', locationCode: 2724, languageCode: 'es', limit: 50 },
+		null,
+		2,
+	),
+	'domain-analytics-whois-overview': JSON.stringify({ target: 'example.com', limit: 1 }, null, 2),
+	'on-page-instant-pages': JSON.stringify(
+		{ url: 'https://example.com/', enableJavascript: false, loadResources: false },
+		null,
+		2,
+	),
 	'gsc-search-analytics': JSON.stringify(
 		{ propertyId: '<gsc-property-id>', dimensions: ['query', 'page'] },
 		null,
