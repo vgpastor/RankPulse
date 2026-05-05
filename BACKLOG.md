@@ -7,9 +7,13 @@
 
 | Categoría | Cantidad |
 |---|---:|
-| Pendiente arquitectura/UX (devs) | 9 |
+| Pendiente arquitectura/UX (devs) | 8 |
 | Pendiente del usuario (opcional) | 1 |
-| **Total** | **10** |
+| **Total** | **9** |
+
+> Numeración: items 7-14, 17 y 20 ya cerrados (PRs #11, #12, #13 y commit
+> `f5ee1c1`). Mantengo el id original de cada item para que enlaces externos
+> a "BACKLOG #X" no se rompan; los huecos en la secuencia son a propósito.
 
 ---
 
@@ -33,33 +37,30 @@ Más una migración para des-duplicar las `tracked_keywords` actuales.
 
 ---
 
-### #16 — Runtime via `tsx`/swc-node en producción (deuda técnica)
-Los apps usan transpilación on-the-fly (`@swc-node/register`) en lugar de un
-build TS a `dist/`. Funciona pero penaliza arranque (~1-2s) y aumenta tamaño.
-Migrar a multi-stage build → `tsc → dist/`.
+### #16 — Runtime via `@swc-node/register` en producción (deuda técnica)
+**Contexto actual:** desde la migración a PM2 + Plesk Docker (commit `2c5f661`)
+ya no hay Dockerfiles para api/worker — el stack vive en `ops/ecosystem.config.cjs`.
+Pero los `start` scripts siguen siendo
+`node --import @swc-node/register/esm-register src/main.ts`, es decir,
+transpilación on-the-fly en cada arranque.
+
+**Penalización:** ~1-2s extra al boot del worker tras un `pm2 reload`, y
+swc + sus deps cargadas en memoria innecesariamente.
+
+**Acción:**
+1. Añadir `tsc -p tsconfig.build.json` como step de build a cada workspace
+   package que el api/worker consume (hoy varios tienen `main: "./src/index.ts"`
+   y dependen del transpiler runtime).
+2. Cambiar `apps/api` y `apps/worker` `start` a `node dist/main.js`.
+3. Añadir `pnpm -r build` al `predeploy` de PM2.
+4. Quitar `@swc-node/register` de `dependencies` (puede quedar como devDep
+   si lo queremos para `dev` con `--watch`).
 
 ---
 
 ### A9 — Bootstrap UX: post-registro debería pedir credenciales primero
 Tras registro la SPA va a /projects vacía. Mejor: asistente que pida
 (1) credencial DataForSEO, (2) primer proyecto, (3) primer keyword + schedule.
-
----
-
----
-
-### #17 — Throttle inconsistente en PATCH/DELETE de job-definitions
-**Problema:** `PATCH /providers/:p/job-definitions/:d` y `DELETE` de la misma
-ruta no llevan `@Throttle({ bulk: ... })`, así que heredan el throttler global
-más estricto (`auth: 20/min`). Cualquier operador haciendo bulk-pause /
-bulk-disable choca con 429 tras 20 llamadas.
-
-**Síntoma observado:** pausar 47 job_definitions de tres proyectos no-PatrolTech
-necesitó 4 tandas separadas con sleep 60s entre medias.
-
-**Acción:** alinear estos dos endpoints con el resto de bulk-writes
-administrativos (decorar con `@Throttle({ bulk: { ttl: 60_000, limit: 6_000 } })`).
-Mismo patrón que ya usan `addCompetitorToProject` y `addKeywordToProject`.
 
 ---
 
