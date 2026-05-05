@@ -21,6 +21,14 @@ const stableStringify = (value: unknown): string => {
  * 32-bit Bernstein hash that hit collisions under tens of thousands.
  * A collision routed an entire job's cost to the wrong tenant; not
  * acceptable.
+ *
+ * Rollout note: rows persisted with the previous 8-char Bernstein hash
+ * will not be findable via `findFor` after this change. Existing
+ * JobDefinitions still execute correctly (they're located by `id`
+ * everywhere except find-or-create paths). Operators on environments
+ * with prior data should run a one-off rehash script after deploy:
+ *   pnpm --filter @rankpulse/infrastructure exec tsx scripts/rehash-job-definitions.ts
+ * Pre-production environments can ignore this note.
  */
 export const computeParamsHash = (params: Record<string, unknown>): string => {
 	const stable = stableStringify(params);

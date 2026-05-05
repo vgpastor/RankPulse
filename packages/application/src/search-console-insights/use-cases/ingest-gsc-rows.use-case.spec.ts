@@ -44,8 +44,11 @@ class PropertyRepo implements SearchConsoleInsights.GscPropertyRepository {
 
 class ObservationRepo implements SearchConsoleInsights.GscPerformanceObservationRepository {
 	saved: SearchConsoleInsights.GscPerformanceObservation[] = [];
-	async saveAll(observations: readonly SearchConsoleInsights.GscPerformanceObservation[]): Promise<void> {
+	async saveAll(
+		observations: readonly SearchConsoleInsights.GscPerformanceObservation[],
+	): Promise<{ inserted: number }> {
 		this.saved.push(...observations);
+		return { inserted: observations.length };
 	}
 	async listForProperty(): Promise<readonly SearchConsoleInsights.GscPerformanceObservation[]> {
 		return this.saved;

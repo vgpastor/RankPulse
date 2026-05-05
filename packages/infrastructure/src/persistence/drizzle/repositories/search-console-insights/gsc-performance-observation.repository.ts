@@ -8,12 +8,14 @@ export class DrizzleGscPerformanceObservationRepository
 {
 	constructor(private readonly db: DrizzleDatabase) {}
 
-	async saveAll(observations: readonly SearchConsoleInsights.GscPerformanceObservation[]): Promise<void> {
-		if (observations.length === 0) return;
+	async saveAll(
+		observations: readonly SearchConsoleInsights.GscPerformanceObservation[],
+	): Promise<{ inserted: number }> {
+		if (observations.length === 0) return { inserted: 0 };
 		// Domain models the absence of a dimension as `null`; the table
 		// stores `''` so the natural-key PK can cover every row without
 		// COALESCE indexes. Bridge between the two here.
-		await this.db
+		const inserted = await this.db
 			.insert(gscObservations)
 			.values(
 				observations.map((o) => ({
@@ -40,7 +42,9 @@ export class DrizzleGscPerformanceObservationRepository
 					gscObservations.country,
 					gscObservations.device,
 				],
-			});
+			})
+			.returning({ id: gscObservations.observedAt });
+		return { inserted: inserted.length };
 	}
 
 	async listForProperty(

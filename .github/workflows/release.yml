@@ -22,6 +22,15 @@ jobs:
           node-version: '24'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Validate PUBLIC_API_BASE_URL is set
+        # Vite bakes VITE_* env vars into the bundle at build time. An
+        # empty value silently produces a SPA that hits relative paths
+        # (which only work when nginx proxies /api). Fail fast instead.
+        run: |
+          if [ -z "${{ vars.PUBLIC_API_BASE_URL }}" ]; then
+            echo "::error::vars.PUBLIC_API_BASE_URL is not set in the production environment"
+            exit 1
+          fi
       - name: Build web SPA
         run: pnpm --filter @rankpulse/web build
         env:
@@ -71,17 +80,26 @@ jobs:
             echo ">>> pnpm install"
             pnpm install --frozen-lockfile
             echo ">>> Build all workspace packages + apps to dist/ (BACKLOG #16)"
-            pnpm -r build
-            echo ">>> Drizzle migrate (loads .env + .env.local via Node --env-file)"
-            pnpm --filter @rankpulse/infrastructure db:migrate
-            echo ">>> Replace web bundle in httpdocs"
+            pnpm build
+            # Order: reload PM2 BEFORE db:migrate. Migrations occasionally
+            # tighten constraints (e.g. NOT NULL in 0004) that break inserts
+            # from the *previous* code version. Reloading first means the
+            # new code (which writes the new shape) is already running by
+            # the time the migration coerces and locks down the schema.
+            # Brief window of ~5s where new code talks to old schema is
+            # safe — new code is forward-compatible by design.
+            echo ">>> Replace web bundle in httpdocs (before reload so new SPA matches new API)"
             rm -rf $VHOST/httpdocs/*
             tar xzf $VHOST/web-dist.tar.gz -C $VHOST/httpdocs/
             rm -f $VHOST/web-dist.tar.gz
             echo ">>> Reload PM2"
             pm2 reload $APP/ops/ecosystem.config.cjs --update-env
-            echo ">>> Health check"
+            echo ">>> Drizzle migrate (loads .env + .env.local via Node --env-file)"
+            pnpm --filter @rankpulse/infrastructure db:migrate
+            echo ">>> Health check API"
             sleep 5
             curl --fail --silent --show-error --max-time 5 --retry 8 --retry-delay 2 --retry-all-errors http://127.0.0.1:3200/healthz
+            echo ">>> Health check Worker"
+            curl --fail --silent --show-error --max-time 5 --retry 8 --retry-delay 2 --retry-all-errors http://127.0.0.1:3300/healthz
             echo ""
             echo ">>> Deploy OK (sha-${GITHUB_SHA::7})"

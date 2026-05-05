@@ -12,7 +12,16 @@ export interface GscObservationQuery {
 }
 
 export interface GscPerformanceObservationRepository {
-	saveAll(observations: readonly GscPerformanceObservation[]): Promise<void>;
+	/**
+	 * Bulk-insert observations. Implementations MUST be idempotent on
+	 * the natural key (observedAt, propertyId, query, page, country,
+	 * device) — a re-fetch of the same day with the same dimensions
+	 * should not produce duplicate rows. Returns the number of rows
+	 * actually inserted (excludes rows that collided with the unique
+	 * key and were silently dropped) so callers can publish accurate
+	 * batch metrics.
+	 */
+	saveAll(observations: readonly GscPerformanceObservation[]): Promise<{ inserted: number }>;
 	listForProperty(
 		propertyId: GscPropertyId,
 		query: GscObservationQuery,

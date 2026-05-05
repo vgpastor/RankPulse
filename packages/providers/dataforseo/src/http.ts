@@ -49,6 +49,19 @@ export class DataForSeoHttp {
 			body: JSON.stringify(body),
 			signal,
 		});
+		// Pre-flight: reject before buffering if the upstream advertises a
+		// payload over the cap. `text()` would still buffer the whole
+		// thing into RAM otherwise. Some upstreams omit Content-Length on
+		// chunked responses, in which case we fall back to the post-read
+		// guard below — best effort, but covers the common DDOS shape.
+		const contentLength = response.headers.get('content-length');
+		if (contentLength !== null && Number(contentLength) > MAX_RESPONSE_BYTES) {
+			throw new DataForSeoApiError(
+				response.status,
+				null,
+				`DataForSEO ${path} response too large: Content-Length ${contentLength} bytes (cap ${MAX_RESPONSE_BYTES})`,
+			);
+		}
 		const text = await response.text();
 		if (text.length > MAX_RESPONSE_BYTES) {
 			throw new DataForSeoApiError(

@@ -73,7 +73,11 @@ export class IngestGscRowsUseCase {
 			});
 		});
 
-		await this.observations.saveAll(observations);
+		// `inserted` is the count after `onConflictDoNothing` — it
+		// excludes idempotent re-fetches that collided with the natural-
+		// key PK. Reporting the raw `observations.length` here would
+		// inflate the metric in dashboards on every retry.
+		const { inserted } = await this.observations.saveAll(observations);
 
 		// One summary event for the whole batch instead of N per-row events.
 		// Subscribers (alerting, weekly reports) aggregate anyway, and a
@@ -82,13 +86,13 @@ export class IngestGscRowsUseCase {
 			new SearchConsoleInsights.GscPerformanceBatchIngested({
 				projectId: property.projectId,
 				gscPropertyId: property.id,
-				rowsCount: observations.length,
+				rowsCount: inserted,
 				totalClicks,
 				totalImpressions,
 				occurredAt: this.clock.now(),
 			}),
 		]);
 
-		return { ingested: observations.length };
+		return { ingested: inserted };
 	}
 }

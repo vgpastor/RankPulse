@@ -29,14 +29,24 @@
 const path = require('node:path');
 const APP_ROOT = path.resolve(__dirname, '..');
 
+// PM2 cluster mode requires the entry script to be a Node.js module that
+// PM2 can `cluster.fork()` directly — wrapping it through `pnpm` was
+// silently degrading to single-instance behaviour and the three extra
+// "workers" were dying with EADDRINUSE on every reload. Pointing PM2 at
+// the compiled `dist/main.js` lets the Node cluster module distribute
+// the listening socket across all 4 forks. SIGTERM also reaches the
+// Node process directly so NestJS's onModuleDestroy / BullMQ's
+// worker.close() actually run on graceful shutdown.
+const NODE_ARGS = ['--env-file-if-exists=.env', '--env-file-if-exists=.env.local'];
+
 module.exports = {
 	apps: [
 		{
 			name: 'rankpulse-api',
 			cwd: APP_ROOT,
-			script: 'pnpm',
-			args: ['--filter', '@rankpulse/api', 'start:prod'],
-			interpreter: 'none',
+			script: 'apps/api/dist/main.js',
+			node_args: NODE_ARGS,
+			interpreter: 'node',
 			instances: 4,
 			exec_mode: 'cluster',
 			max_memory_restart: '512M',
@@ -49,9 +59,9 @@ module.exports = {
 		{
 			name: 'rankpulse-worker',
 			cwd: APP_ROOT,
-			script: 'pnpm',
-			args: ['--filter', '@rankpulse/worker', 'start:prod'],
-			interpreter: 'none',
+			script: 'apps/worker/dist/main.js',
+			node_args: NODE_ARGS,
+			interpreter: 'node',
 			instances: 1,
 			exec_mode: 'fork',
 			max_memory_restart: '768M',
