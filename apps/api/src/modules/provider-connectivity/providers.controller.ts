@@ -15,6 +15,7 @@ type ScheduleEndpointRequest = ProviderConnectivityContracts.ScheduleEndpointReq
 type UpdateJobDefinitionRequest = ProviderConnectivityContracts.UpdateJobDefinitionRequest;
 type ProviderDto = ProviderConnectivityContracts.ProviderDto;
 type JobDefinitionDto = ProviderConnectivityContracts.JobDefinitionDto;
+type JobRunDto = ProviderConnectivityContracts.JobRunDto;
 
 @Controller('providers')
 export class ProvidersController {
@@ -35,6 +36,8 @@ export class ProvidersController {
 		private readonly updateJob: PCUseCases.UpdateJobDefinitionUseCase,
 		@Inject(Tokens.DeleteJobDefinition)
 		private readonly deleteJob: PCUseCases.DeleteJobDefinitionUseCase,
+		@Inject(Tokens.ListJobRuns)
+		private readonly listRuns: PCUseCases.ListJobRunsUseCase,
 		@Inject(Tokens.JobDefinitionRepository)
 		private readonly jobDefs: ProviderConnectivity.JobDefinitionRepository,
 		@Inject(Tokens.MembershipRepository) memberships: IdentityAccess.MembershipRepository,
@@ -157,6 +160,16 @@ export class ProvidersController {
 	): Promise<JobDefinitionDto> {
 		await this.loadDefinitionAndAuthorize(principal, providerId, definitionId);
 		return this.updateJob.execute({ definitionId, ...body });
+	}
+
+	@Get(':providerId/job-definitions/:definitionId/runs')
+	async listJobRuns(
+		@Principal() principal: AuthPrincipal,
+		@Param('providerId') providerId: string,
+		@Param('definitionId') definitionId: string,
+	): Promise<JobRunDto[]> {
+		await this.loadDefinitionAndAuthorize(principal, providerId, definitionId);
+		return this.listRuns.execute({ definitionId });
 	}
 
 	@Delete(':providerId/job-definitions/:definitionId')

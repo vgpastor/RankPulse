@@ -8,11 +8,14 @@ import {
 } from '@tanstack/react-router';
 import { useAuthStore } from './lib/auth-store.js';
 import { CredentialsPage } from './pages/credentials.page.js';
+import { GscPerformancePage } from './pages/gsc-performance.page.js';
+import { GscPropertiesPage } from './pages/gsc-properties.page.js';
 import { LoginPage } from './pages/login.page.js';
 import { ProjectDetailPage } from './pages/project-detail.page.js';
 import { ProjectsPage } from './pages/projects.page.js';
 import { RankingsPage } from './pages/rankings.page.js';
 import { RegisterPage } from './pages/register.page.js';
+import { SchedulesPage } from './pages/schedules.page.js';
 
 const rootRoute: RootRoute = createRootRoute({
 	component: () => <Outlet />,
@@ -57,6 +60,24 @@ const projectRankingsRoute = createRoute({
 	component: RankingsPage,
 });
 
+const projectSchedulesRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/schedules',
+	component: SchedulesPage,
+});
+
+const projectGscPropertiesRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/gsc',
+	component: GscPropertiesPage,
+});
+
+const projectGscPerformanceRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/gsc/$propertyId',
+	component: GscPerformancePage,
+});
+
 const credentialsRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/credentials',
@@ -70,6 +91,9 @@ const routeTree = rootRoute.addChildren([
 	projectsRoute,
 	projectDetailRoute,
 	projectRankingsRoute,
+	projectSchedulesRoute,
+	projectGscPropertiesRoute,
+	projectGscPerformanceRoute,
 	credentialsRoute,
 ]);
 
