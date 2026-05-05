@@ -44,7 +44,7 @@ export const ScheduleFetchDrawer = ({ open, onClose, projectId }: ScheduleFetchD
 			const first = endpoints[0];
 			if (first) {
 				setEndpointId(first.id);
-				setCron(first.defaultCron ?? '0 6 * * 1');
+				setCron(first.defaultCron);
 				setParamsJson(DEFAULT_PARAMS_HINT[first.id] ?? '{}');
 			}
 		}
@@ -53,7 +53,7 @@ export const ScheduleFetchDrawer = ({ open, onClose, projectId }: ScheduleFetchD
 	const helperHint = useMemo(() => {
 		const ep = endpoints.find((e) => e.id === endpointId);
 		if (!ep) return undefined;
-		return `${ep.displayName} · ${ep.cost.amount} ${ep.cost.unit}/call · default cron: ${ep.defaultCron ?? '—'}`;
+		return `${ep.displayName} · ${ep.cost.amount} ${ep.cost.unit}/call · default cron: ${ep.defaultCron}`;
 	}, [endpoints, endpointId]);
 
 	const mutation = useMutation({
@@ -126,7 +126,7 @@ export const ScheduleFetchDrawer = ({ open, onClose, projectId }: ScheduleFetchD
 										const next = e.target.value;
 										setEndpointId(next);
 										const ep = endpoints.find((x) => x.id === next);
-										if (ep?.defaultCron) setCron(ep.defaultCron);
+										if (ep) setCron(ep.defaultCron);
 										setParamsJson(DEFAULT_PARAMS_HINT[next] ?? '{}');
 									}}
 								>

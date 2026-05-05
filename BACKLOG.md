@@ -7,12 +7,12 @@
 
 | Categoría | Cantidad |
 |---|---:|
-| Pendiente arquitectura/UX (devs) | 4 |
+| Pendiente arquitectura/UX (devs) | 3 |
 | Pendiente del usuario (opcional) | 1 |
-| **Total** | **5** |
+| **Total** | **4** |
 
-> Numeración: items 7-14, 15, 17, 18, 20, 22 y 23 ya cerrados. Mantengo el id
-> original para que enlaces externos a "BACKLOG #X" no se rompan; los
+> Numeración: items 7-14, 15, 17, 18, 20, 21, 22 y 23 ya cerrados. Mantengo
+> el id original para que enlaces externos a "BACKLOG #X" no se rompan; los
 > huecos en la secuencia son a propósito.
 
 ---
@@ -56,25 +56,6 @@ e integrar en el registry. Cada endpoint nuevo trae sus propios `paramsSchema`
 Sin esto el dashboard solo vive de SERP rank tracking; con esto tendríamos
 volume + difficulty para priorización, on-page para auditorías, y
 competidores SERP-overlap para benchmarking.
-
----
-
-### #21 — DIRECTIVA: auto-fetch diario universal para histórico
-**Filosofía:** todas las fuentes de datos (presentes y futuras) se programan
-con cron diario por defecto, persistiendo a la BD. La UI sólo lee del
-histórico — nunca dispara fetches. El usuario no debe "navegar para que algo
-se cargue"; el dato ya está ahí.
-
-**Implicaciones por capa:**
-- **provider-core:** todo `EndpointDescriptor` nuevo lleva `defaultCron: '0 X * * *'`.
-- **scheduling:** al enlazar una nueva property/dominio, el caso de uso
-  correspondiente crea su `JobDefinition` automáticamente. Ej. `LinkGscProperty`
-  debería emitir `GscPropertyLinked` y un listener crear el cron.
-- **UI:** los componentes consumen endpoints que LEEN de hypertables
-  (`ranking_observations`, `gsc_daily_metrics`, etc.), no llamadas live al
-  provider.
-- **operación:** un proyecto pausado significa todas sus `JobDefinitions`
-  con `enabled=false` (lo que ya hicimos para DeaMap/GE/RocStatus).
 
 ---
 

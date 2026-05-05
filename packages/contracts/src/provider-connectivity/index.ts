@@ -38,7 +38,8 @@ export const EndpointDescriptorDto = z.object({
 	category: z.string(),
 	displayName: z.string(),
 	description: z.string(),
-	defaultCron: z.string().nullable(),
+	// BACKLOG #21 — every endpoint declares a default cron (no null fallback).
+	defaultCron: z.string(),
 	cost: z.object({ unit: z.literal('usd_cents'), amount: z.number() }),
 	rateLimit: z.object({ max: z.number(), durationMs: z.number() }),
 });

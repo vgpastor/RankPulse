@@ -19,10 +19,13 @@ export const serpGoogleOrganicLiveDescriptor: EndpointDescriptor = {
 	category: 'rankings',
 	displayName: 'Google Organic SERP — live',
 	description:
-		'Live Google organic SERP results for a keyword in a specific location/language/device. Used to track keyword positions weekly per country.',
+		'Live Google organic SERP results for a keyword in a specific location/language/device. Used to track keyword positions daily per country.',
 	paramsSchema: SerpGoogleOrganicLiveParams,
 	cost: { unit: 'usd_cents', amount: SERP_LIVE_COST_CENTS },
-	defaultCron: '0 6 * * 1', // weekly Monday 06:00
+	// BACKLOG #21 — DIRECTIVA: cron diario por defecto. 06:00 UTC keeps the
+	// fan-out outside European business hours; the rank-tracking history
+	// gains one point per day per (project, phrase, country, language, device).
+	defaultCron: '0 6 * * *',
 	rateLimit: { max: 2_000, durationMs: 60_000 },
 };
 

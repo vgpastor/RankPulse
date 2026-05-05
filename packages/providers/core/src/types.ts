@@ -29,7 +29,13 @@ export interface EndpointDescriptor {
 	 */
 	readonly paramsSchema: ZodTypeAny;
 	readonly cost: { unit: 'usd_cents'; amount: number };
-	readonly defaultCron: string | null;
+	/**
+	 * BACKLOG #21 — DIRECTIVA: every endpoint MUST declare a default cron
+	 * so the scheduling layer can auto-wire a JobDefinition without the
+	 * caller having to pick one. The UI never live-fetches; the cron is
+	 * what populates the read models the UI reads from.
+	 */
+	readonly defaultCron: string;
 	readonly rateLimit: { max: number; durationMs: number };
 }
 
