@@ -45,10 +45,10 @@ module.exports = {
 	apps: [
 		{
 			name: 'rankpulse-api',
-			cwd: path.join(APP_ROOT, 'apps/api'),
+			cwd: APP_ROOT,
 			script: 'pnpm',
-			args: ['exec', 'tsx', 'src/main.ts'],
-			interpreter: 'none', // pnpm is the launcher
+			args: ['--filter', '@rankpulse/api', 'start'],
+			interpreter: 'none',
 			instances: 4,
 			exec_mode: 'cluster',
 			max_memory_restart: '512M',
@@ -67,9 +67,9 @@ module.exports = {
 		},
 		{
 			name: 'rankpulse-worker',
-			cwd: path.join(APP_ROOT, 'apps/worker'),
+			cwd: APP_ROOT,
 			script: 'pnpm',
-			args: ['exec', 'tsx', 'src/main.ts'],
+			args: ['--filter', '@rankpulse/worker', 'start'],
 			interpreter: 'none',
 			instances: 1,
 			exec_mode: 'fork',
