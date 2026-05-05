@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Inject, Param, Post, Query } from '@nestjs/common';
-import type { RankTracking as RTUseCases } from '@rankpulse/application';
+import type { ProviderConnectivity as PCUseCases, RankTracking as RTUseCases } from '@rankpulse/application';
 import { RankTrackingContracts } from '@rankpulse/contracts';
 import type { IdentityAccess, ProjectManagement, RankTracking } from '@rankpulse/domain';
 import { NotFoundError } from '@rankpulse/shared';
@@ -10,6 +10,7 @@ import { ZodValidationPipe } from '../../common/zod-validation.pipe.js';
 import { Tokens } from '../../composition/tokens.js';
 
 type StartTrackingKeywordRequest = RankTrackingContracts.StartTrackingKeywordRequest;
+type StartTrackingKeywordResponse = RankTrackingContracts.StartTrackingKeywordResponse;
 
 @Controller()
 export class RankTrackingController {
@@ -18,6 +19,8 @@ export class RankTrackingController {
 	constructor(
 		@Inject(Tokens.StartTrackingKeyword)
 		private readonly startTracking: RTUseCases.StartTrackingKeywordUseCase,
+		@Inject(Tokens.ScheduleEndpointFetch)
+		private readonly scheduleEndpoint: PCUseCases.ScheduleEndpointFetchUseCase,
 		@Inject(Tokens.QueryRankingHistory) private readonly queryHistory: RTUseCases.QueryRankingHistoryUseCase,
 		@Inject(Tokens.TrackedKeywordRepository)
 		private readonly trackedRepo: RankTracking.TrackedKeywordRepository,
@@ -34,13 +37,13 @@ export class RankTrackingController {
 		@Principal() principal: AuthPrincipal,
 		@Body(new ZodValidationPipe(RankTrackingContracts.StartTrackingKeywordRequest))
 		body: StartTrackingKeywordRequest,
-	): Promise<{ trackedKeywordId: string }> {
+	): Promise<StartTrackingKeywordResponse> {
 		const project = await this.projects.findById(body.projectId as ProjectManagement.ProjectId);
 		if (!project) {
 			throw new NotFoundError(`Project ${body.projectId} not found`);
 		}
 		await this.orgMembership.require(principal, project.organizationId);
-		return this.startTracking.execute({
+		const { trackedKeywordId } = await this.startTracking.execute({
 			organizationId: project.organizationId,
 			projectId: body.projectId,
 			domain: body.domain,
@@ -49,6 +52,28 @@ export class RankTrackingController {
 			language: body.language,
 			device: body.device,
 		});
+
+		// BACKLOG #9 opción A: with `autoSchedule` present, immediately wire a
+		// JobDefinition with `trackedKeywordId` injected so the processor will
+		// materialize RankingObservation rows. The two operations are NOT
+		// transactional — by design, since they live in different bounded
+		// contexts; on partial failure the caller can still trigger the
+		// schedule via POST /providers/.../schedule explicitly.
+		let scheduledDefinitionId: string | null = null;
+		if (body.autoSchedule) {
+			const result = await this.scheduleEndpoint.execute({
+				projectId: body.projectId,
+				providerId: body.autoSchedule.providerId,
+				endpointId: body.autoSchedule.endpointId,
+				params: body.autoSchedule.params,
+				systemParams: { organizationId: project.organizationId, trackedKeywordId },
+				cron: body.autoSchedule.cron,
+				credentialOverrideId: body.autoSchedule.credentialOverrideId ?? null,
+			});
+			scheduledDefinitionId = result.definitionId;
+		}
+
+		return { trackedKeywordId, scheduledDefinitionId };
 	}
 
 	@Get('projects/:projectId/rankings')

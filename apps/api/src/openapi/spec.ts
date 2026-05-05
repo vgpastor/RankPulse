@@ -371,6 +371,22 @@ export function buildOpenApiDocument(): unknown {
 		},
 	});
 
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/providers/{providerId}/job-definitions/{definitionId}/runs',
+		summary: 'List past runs for a job definition (most recent first, max 50)',
+		tags: ['provider-connectivity'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: { params: z.object({ providerId: z.string(), definitionId: z.string().uuid() }) },
+		responses: {
+			200: {
+				description: 'Runs',
+				content: { 'application/json': { schema: z.array(ProviderConnectivityContracts.JobRunDto) } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
 	// ---- rank-tracking ----
 
 	registry.registerPath({
@@ -386,8 +402,10 @@ export function buildOpenApiDocument(): unknown {
 		},
 		responses: {
 			201: {
-				description: 'Tracked keyword id',
-				content: { 'application/json': { schema: z.object({ trackedKeywordId: z.string().uuid() }) } },
+				description: 'Tracked keyword id (and optional auto-scheduled definition id)',
+				content: {
+					'application/json': { schema: RankTrackingContracts.StartTrackingKeywordResponse },
+				},
 			},
 			...errorResponses([400, 401, 403, 404, 409]),
 		},

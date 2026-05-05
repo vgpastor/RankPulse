@@ -69,4 +69,10 @@ export class ProvidersResource {
 			`/providers/${encodeURIComponent(providerId)}/job-definitions/${encodeURIComponent(definitionId)}`,
 		);
 	}
+
+	listJobRuns(providerId: string, definitionId: string): Promise<ProviderConnectivityContracts.JobRunDto[]> {
+		return this.http.get(
+			`/providers/${encodeURIComponent(providerId)}/job-definitions/${encodeURIComponent(definitionId)}/runs`,
+		);
+	}
 }

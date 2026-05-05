@@ -18,7 +18,7 @@ export class RankTrackingResource {
 
 	startTracking(
 		body: RankTrackingContracts.StartTrackingKeywordRequest,
-	): Promise<{ trackedKeywordId: string }> {
+	): Promise<RankTrackingContracts.StartTrackingKeywordResponse> {
 		return this.http.post('/rank-tracking/keywords', body);
 	}
 

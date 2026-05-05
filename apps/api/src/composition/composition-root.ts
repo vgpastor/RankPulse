@@ -139,6 +139,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const getJobDefinition = new PCUseCases.GetJobDefinitionUseCase(jobDefRepo);
 	const updateJobDefinition = new PCUseCases.UpdateJobDefinitionUseCase(jobDefRepo, jobScheduler);
 	const deleteJobDefinition = new PCUseCases.DeleteJobDefinitionUseCase(jobDefRepo, jobScheduler);
+	const listJobRuns = new PCUseCases.ListJobRunsUseCase(jobRunRepo);
 
 	const scheduleEndpointFetch = new PCUseCases.ScheduleEndpointFetchUseCase(
 		jobDefRepo,
@@ -238,6 +239,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.GetJobDefinition, getJobDefinition),
 		value(Tokens.UpdateJobDefinition, updateJobDefinition),
 		value(Tokens.DeleteJobDefinition, deleteJobDefinition),
+		value(Tokens.ListJobRuns, listJobRuns),
 		value(Tokens.RecordApiUsage, recordApiUsage),
 
 		value(Tokens.TrackedKeywordRepository, trackedKeywordRepo),

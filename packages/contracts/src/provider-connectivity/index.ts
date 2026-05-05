@@ -78,3 +78,21 @@ export const UpdateJobDefinitionRequest = z
 		message: 'At least one of cron, params, enabled must be provided',
 	});
 export type UpdateJobDefinitionRequest = z.infer<typeof UpdateJobDefinitionRequest>;
+
+export const JobRunDto = z.object({
+	id: z.string(),
+	definitionId: z.string(),
+	credentialId: z.string().nullable(),
+	status: z.enum(['running', 'succeeded', 'failed', 'skipped']),
+	startedAt: z.string(),
+	finishedAt: z.string().nullable(),
+	rawPayloadId: z.string().nullable(),
+	error: z
+		.object({
+			code: z.string(),
+			message: z.string(),
+			retryable: z.boolean(),
+		})
+		.nullable(),
+});
+export type JobRunDto = z.infer<typeof JobRunDto>;
