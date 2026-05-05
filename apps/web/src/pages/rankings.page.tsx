@@ -16,12 +16,14 @@ import { LineChart, Plus } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppShell } from '../components/app-shell.js';
+import { KeywordHistoryDrawer } from '../components/keyword-history-drawer.js';
 import { api } from '../lib/api.js';
 
 export const RankingsPage = () => {
 	const { id: projectId } = useParams({ from: '/projects/$id/rankings' });
 	const { t } = useTranslation(['common', 'rankings']);
 	const [showForm, setShowForm] = useState(false);
+	const [historyOf, setHistoryOf] = useState<{ trackedKeywordId: string; phrase: string } | null>(null);
 
 	const projectQuery = useQuery({
 		queryKey: ['project', projectId],
@@ -97,7 +99,13 @@ export const RankingsPage = () => {
 									</thead>
 									<tbody className="divide-y divide-border">
 										{rankings.map((r) => (
-											<tr key={`${r.trackedKeywordId}-${r.observedAt}`}>
+											<tr
+												key={`${r.trackedKeywordId}-${r.observedAt}`}
+												onClick={() =>
+													setHistoryOf({ trackedKeywordId: r.trackedKeywordId, phrase: r.phrase })
+												}
+												className="cursor-pointer hover:bg-muted/30"
+											>
 												<td className="py-2">
 													<span className="font-medium">{r.phrase}</span>
 													<span className="text-xs text-muted-foreground"> · {r.domain}</span>
@@ -129,6 +137,12 @@ export const RankingsPage = () => {
 					</Card>
 				)}
 			</div>
+			<KeywordHistoryDrawer
+				open={Boolean(historyOf)}
+				onClose={() => setHistoryOf(null)}
+				trackedKeywordId={historyOf?.trackedKeywordId ?? null}
+				phrase={historyOf?.phrase ?? null}
+			/>
 		</AppShell>
 	);
 };
