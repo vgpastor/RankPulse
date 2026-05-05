@@ -5,8 +5,8 @@
 	"type": "module",
 	"main": "./src/main.ts",
 	"scripts": {
-		"start": "node --import @swc-node/register/esm-register src/main.ts",
-		"dev": "node --import @swc-node/register/esm-register --watch src/main.ts",
+		"start": "node --env-file-if-exists=../../.env --env-file-if-exists=../../.env.local --import @swc-node/register/esm-register src/main.ts",
+		"dev": "node --env-file-if-exists=../../.env --env-file-if-exists=../../.env.local --import @swc-node/register/esm-register --watch src/main.ts",
 		"build": "tsc -p tsconfig.build.json",
 		"typecheck": "tsc --noEmit",
 		"test:unit": "vitest run --passWithNoTests",

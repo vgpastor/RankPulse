@@ -68,11 +68,9 @@ jobs:
             echo ">>> Pull main"
             git fetch --quiet origin main
             git reset --hard origin/main
-            echo ">>> Load env"
-            set -a && source $APP/.env.local && set +a
             echo ">>> pnpm install"
             pnpm install --frozen-lockfile
-            echo ">>> Drizzle migrate"
+            echo ">>> Drizzle migrate (loads .env + .env.local via Node --env-file)"
             pnpm --filter @rankpulse/infrastructure db:migrate
             echo ">>> Replace web bundle in httpdocs"
             rm -rf $VHOST/httpdocs/*

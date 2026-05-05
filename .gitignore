@@ -7,7 +7,8 @@ coverage/
 .nx/workspace-data
 *.log
 .DS_Store
-.env
+# .env is committed (dev defaults, safe values only — no secrets).
+# .env.local is for real secrets and is NEVER committed.
 .env.local
 .env.*.local
 *.tsbuildinfo
