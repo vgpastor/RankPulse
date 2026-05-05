@@ -31,5 +31,11 @@ COPY --from=builder --chown=node:node /app/packages ./packages
 COPY --from=builder --chown=node:node /app/apps/worker ./apps/worker
 
 WORKDIR /app/apps/worker
-EXPOSE 3001
+# Worker exposes a small health server on HEALTH_PORT (default 3300).
+# `/readyz` checks Postgres + Redis + every BullMQ worker is running;
+# `/healthz` just confirms the process is alive (used here so a slow
+# Postgres doesn't take the container down).
+EXPOSE 3300
+HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
+	CMD node -e "fetch('http://127.0.0.1:3300/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "dist/main.js"]

@@ -13,6 +13,7 @@ export interface TrackedKeywordRepository {
 		country: string;
 		language: string;
 		device: string;
+		searchEngine: string;
 	}): Promise<TrackedKeyword | null>;
 	listForProject(projectId: ProjectId): Promise<readonly TrackedKeyword[]>;
 	listForOrganization(orgId: OrganizationId): Promise<readonly TrackedKeyword[]>;

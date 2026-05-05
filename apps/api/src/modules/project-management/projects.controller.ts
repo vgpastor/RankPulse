@@ -162,7 +162,7 @@ export class ProjectsController {
 		// Default behaviour: surface the eligible bucket only — that's the
 		// list the UI shows. The `?eligibleOnly=false` escape hatch is for
 		// debugging the threshold policy.
-		const eligibleOnly = q.eligibleOnly !== false;
+		const eligibleOnly = q.eligibleOnly ?? true;
 		return this.listSuggestions.execute({ projectId: id, eligibleOnly });
 	}
 

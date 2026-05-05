@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { type ProjectManagement, ProviderConnectivity } from '@rankpulse/domain';
 import { and, eq } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
@@ -10,13 +11,20 @@ const stableStringify = (value: unknown): string => {
 	return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(',')}}`;
 };
 
+/**
+ * Stable hash of the canonicalised params, used as the secondary key
+ * for `findFor(projectId, providerId, endpointId, params)` so two
+ * JobDefinitions for the same triple but different params can coexist.
+ *
+ * SHA-256 truncated to 16 hex chars (64 bits) — collision probability
+ * is ~2^-32 even with millions of definitions, vs. the previous
+ * 32-bit Bernstein hash that hit collisions under tens of thousands.
+ * A collision routed an entire job's cost to the wrong tenant; not
+ * acceptable.
+ */
 export const computeParamsHash = (params: Record<string, unknown>): string => {
 	const stable = stableStringify(params);
-	let hash = 0;
-	for (let i = 0; i < stable.length; i++) {
-		hash = (hash * 31 + stable.charCodeAt(i)) | 0;
-	}
-	return Math.abs(hash).toString(16).padStart(8, '0');
+	return createHash('sha256').update(stable).digest('hex').slice(0, 16);
 };
 
 export class DrizzleJobDefinitionRepository implements ProviderConnectivity.JobDefinitionRepository {

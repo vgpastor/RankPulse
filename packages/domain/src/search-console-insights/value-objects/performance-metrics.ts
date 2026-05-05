@@ -28,8 +28,11 @@ export class PerformanceMetrics {
 		if (!Number.isFinite(input.ctr) || input.ctr < 0 || input.ctr > 1) {
 			throw new InvalidInputError('ctr must be in [0, 1]');
 		}
-		if (!Number.isFinite(input.position) || input.position < 0) {
-			throw new InvalidInputError('position must be a non-negative number');
+		// GSC publishes average organic position as a float >= 1.0. A 0
+		// (or negative) here means the parser dropped or zero-initialised
+		// the field — never legitimate, surface it loudly.
+		if (!Number.isFinite(input.position) || input.position < 1) {
+			throw new InvalidInputError('position must be >= 1 (GSC average position is 1-indexed)');
 		}
 		return new PerformanceMetrics(
 			Math.round(input.clicks),

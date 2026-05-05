@@ -1,6 +1,5 @@
 import type { ProjectId } from '../../project-management/value-objects/identifiers.js';
 import { AggregateRoot } from '../../shared-kernel/aggregate-root.js';
-import { GscPerformanceIngested } from '../events/gsc-performance-ingested.js';
 import type { GscObservationId, GscPropertyId } from '../value-objects/identifiers.js';
 import type { PerformanceMetrics } from '../value-objects/performance-metrics.js';
 
@@ -38,18 +37,10 @@ export class GscPerformanceObservation extends AggregateRoot {
 		metrics: PerformanceMetrics;
 		rawPayloadId: string | null;
 	}): GscPerformanceObservation {
-		const observation = new GscPerformanceObservation(input);
-		observation.record(
-			new GscPerformanceIngested({
-				observationId: input.id,
-				projectId: input.projectId,
-				gscPropertyId: input.gscPropertyId,
-				occurredAt: input.observedAt,
-				clicks: input.metrics.clicks,
-				impressions: input.metrics.impressions,
-			}),
-		);
-		return observation;
+		// Pure value-like factory — no per-row events. The
+		// IngestGscRowsUseCase publishes ONE batch summary instead so a
+		// 25k-row fetch doesn't fan out 25k events through the publisher.
+		return new GscPerformanceObservation(input);
 	}
 
 	static rehydrate(props: GscPerformanceObservationProps): GscPerformanceObservation {

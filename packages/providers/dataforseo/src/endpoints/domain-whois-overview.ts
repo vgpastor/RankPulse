@@ -1,6 +1,6 @@
 import type { EndpointDescriptor, FetchContext } from '@rankpulse/provider-core';
 import { z } from 'zod';
-import type { DataForSeoHttp } from '../http.js';
+import { type DataForSeoHttp, ensureTaskOk } from '../http.js';
 
 export const DomainWhoisOverviewParams = z.object({
 	target: z.string().min(3).max(253),
@@ -68,11 +68,6 @@ export const fetchDomainWhoisOverview = async (
 		ctx.credential.plaintextSecret,
 		ctx.signal,
 	)) as DomainWhoisResponse;
-	if (raw.status_code !== 20000) {
-		ctx.logger.warn('DataForSEO whois-overview returned a non-success status', {
-			status: raw.status_code,
-			message: raw.status_message,
-		});
-	}
+	ensureTaskOk(PATH, raw);
 	return raw;
 };

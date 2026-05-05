@@ -1,6 +1,6 @@
 import type { EndpointDescriptor, FetchContext } from '@rankpulse/provider-core';
 import { z } from 'zod';
-import type { DataForSeoHttp } from '../http.js';
+import { type DataForSeoHttp, ensureTaskOk } from '../http.js';
 
 export const SerpGoogleOrganicLiveParams = z.object({
 	keyword: z.string().min(1).max(700),
@@ -83,11 +83,6 @@ export const fetchSerpGoogleOrganicLive = async (
 ): Promise<SerpLiveResponse> => {
 	const body = buildSerpLiveBody(params);
 	const raw = (await http.post(PATH, body, ctx.credential.plaintextSecret, ctx.signal)) as SerpLiveResponse;
-	if (raw.status_code !== 20000) {
-		ctx.logger.warn('DataForSEO SERP live returned a non-success status', {
-			status: raw.status_code,
-			message: raw.status_message,
-		});
-	}
+	ensureTaskOk(PATH, raw);
 	return raw;
 };

@@ -65,10 +65,11 @@ export class UpdateJobDefinitionUseCase {
 		);
 		if (!def) throw new NotFoundError(`Job definition ${cmd.definitionId} not found`);
 
-		// Unregister BEFORE mutating so BullMQ removes the repeatable using the
-		// old cron pattern; a new register() afterwards (re-)installs it under
-		// the new pattern.
-		await this.scheduler.unregister(def);
+		// Snapshot the OLD definition so we can unregister its repeatable
+		// pattern after the DB write succeeds. If we unregistered first
+		// and then `save` failed, BullMQ would have no entry while the DB
+		// still claimed the old cron — silent drift until the next reload.
+		const snapshotBeforeUpdate = def;
 
 		if (cmd.cron !== undefined) def.updateCron(ProviderConnectivity.CronExpression.create(cmd.cron));
 		if (cmd.params !== undefined) def.updateParams(cmd.params);
@@ -76,6 +77,11 @@ export class UpdateJobDefinitionUseCase {
 		if (cmd.enabled === false) def.disable();
 
 		await this.definitions.save(def);
+		// DB is now the source of truth. Swap the BullMQ entry: unregister
+		// the prior pattern, register the new one. If `register` fails the
+		// next worker reboot reconciles from DB; the operator just sees a
+		// missing scheduled run for the upcoming tick.
+		await this.scheduler.unregister(snapshotBeforeUpdate);
 		await this.scheduler.register(def);
 		return toView(def);
 	}

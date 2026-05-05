@@ -1,6 +1,6 @@
 import type { EndpointDescriptor, FetchContext } from '@rankpulse/provider-core';
 import { z } from 'zod';
-import type { DataForSeoHttp } from '../http.js';
+import { type DataForSeoHttp, ensureTaskOk } from '../http.js';
 
 export const KeywordsDataSearchVolumeParams = z.object({
 	keywords: z.array(z.string().min(1).max(700)).min(1).max(1000),
@@ -93,11 +93,6 @@ export const fetchKeywordsDataSearchVolume = async (
 		ctx.credential.plaintextSecret,
 		ctx.signal,
 	)) as SearchVolumeResponse;
-	if (raw.status_code !== 20000) {
-		ctx.logger.warn('DataForSEO search-volume returned a non-success status', {
-			status: raw.status_code,
-			message: raw.status_message,
-		});
-	}
+	ensureTaskOk(PATH, raw);
 	return raw;
 };

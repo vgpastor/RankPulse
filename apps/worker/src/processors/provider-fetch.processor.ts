@@ -143,6 +143,12 @@ export class ProviderFetchProcessor {
 			return;
 		}
 
+		// Hard timeout per fetch. Without this a hung provider (DNS,
+		// stuck TCP, infinite redirect) holds a BullMQ concurrency slot
+		// indefinitely — eventually starves the worker. 60s is generous
+		// for the slowest endpoints (on-page audit) and tight enough for
+		// the fast ones (SERP).
+		const timeoutSignal = AbortSignal.timeout(60_000);
 		try {
 			const fetchResult = await provider.fetch(definition.endpointId.value, resolvedParams, {
 				credential: { plaintextSecret: resolved.plaintextSecret },
@@ -150,6 +156,7 @@ export class ProviderFetchProcessor {
 					debug: (msg, meta) => this.deps.logger.debug(meta ?? {}, msg),
 					warn: (msg, meta) => this.deps.logger.warn(meta ?? {}, msg),
 				},
+				signal: timeoutSignal,
 				now: () => this.deps.clock.now(),
 			});
 

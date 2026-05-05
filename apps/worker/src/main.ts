@@ -59,6 +59,7 @@ async function bootstrap(): Promise<void> {
 		gscObservationRepo,
 		SystemIdGenerator,
 		eventPublisher,
+		SystemClock,
 	);
 	const recordTop10HitsForSuggestionsUseCase =
 		new ProjectManagementUseCases.RecordTop10HitsForSuggestionsUseCase(
@@ -110,6 +111,18 @@ async function bootstrap(): Promise<void> {
 		);
 		worker.on('failed', (job, err) => {
 			logger.error({ queue: queueName, jobId: job?.id, err: err.message }, 'fetch job failed');
+		});
+		// BullMQ marks a job stalled when its lock expires (process killed
+		// mid-handler, GC pause, etc.). Without this listener the run row
+		// in DB stays in `running` forever — surfaces as a never-finishing
+		// fetch in the UI. Logged loudly so the operator knows the run
+		// needs reconciliation; the actual DB cleanup belongs to a
+		// dedicated maintenance task (out of scope here, tracked).
+		worker.on('stalled', (jobId) => {
+			logger.warn(
+				{ queue: queueName, jobId },
+				'fetch job stalled — lock expired, BullMQ will requeue. Associated run row may need manual reconciliation if the worker died mid-handler',
+			);
 		});
 		workers.push(worker);
 		logger.info({ queue: queueName }, 'worker started');

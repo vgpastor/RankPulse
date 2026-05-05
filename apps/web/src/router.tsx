@@ -32,15 +32,27 @@ const indexRoute = createRoute({
 	},
 });
 
+// Both auth routes redirect away when there's already a session — the
+// previous behaviour let an authenticated user re-submit /login and
+// silently overwrite their existing session, or hit /register and
+// register a fresh org while keeping the prior session alive in
+// localStorage. Either flow could orphan in-flight work.
+const redirectIfAuthed = (): void => {
+	const session = useAuthStore.getState().session;
+	if (session) throw redirect({ to: '/projects' });
+};
+
 const loginRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/login',
+	beforeLoad: redirectIfAuthed,
 	component: LoginPage,
 });
 
 const registerRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/register',
+	beforeLoad: redirectIfAuthed,
 	component: RegisterPage,
 });
 

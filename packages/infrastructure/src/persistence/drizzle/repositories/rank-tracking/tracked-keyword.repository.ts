@@ -41,6 +41,7 @@ export class DrizzleTrackedKeywordRepository implements RankTracking.TrackedKeyw
 		country: string;
 		language: string;
 		device: string;
+		searchEngine: string;
 	}): Promise<RankTracking.TrackedKeyword | null> {
 		const [row] = await this.db
 			.select()
@@ -53,6 +54,7 @@ export class DrizzleTrackedKeywordRepository implements RankTracking.TrackedKeyw
 					eq(trackedKeywords.country, input.country),
 					eq(trackedKeywords.language, input.language),
 					eq(trackedKeywords.device, input.device),
+					eq(trackedKeywords.searchEngine, input.searchEngine),
 				),
 			)
 			.limit(1);

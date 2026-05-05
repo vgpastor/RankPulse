@@ -1,6 +1,6 @@
 import type { EndpointDescriptor, FetchContext } from '@rankpulse/provider-core';
 import { z } from 'zod';
-import type { DataForSeoHttp } from '../http.js';
+import { type DataForSeoHttp, ensureTaskOk } from '../http.js';
 
 export const SerpGoogleOrganicAdvancedParams = z.object({
 	keyword: z.string().min(1).max(700),
@@ -79,11 +79,6 @@ export const fetchSerpGoogleOrganicAdvanced = async (
 		ctx.credential.plaintextSecret,
 		ctx.signal,
 	)) as SerpAdvancedResponse;
-	if (raw.status_code !== 20000) {
-		ctx.logger.warn('DataForSEO SERP advanced returned a non-success status', {
-			status: raw.status_code,
-			message: raw.status_message,
-		});
-	}
+	ensureTaskOk(PATH, raw);
 	return raw;
 };

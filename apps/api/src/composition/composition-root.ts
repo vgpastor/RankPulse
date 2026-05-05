@@ -225,6 +225,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		gscObservationRepo,
 		SystemIdGenerator,
 		eventPublisher,
+		SystemClock,
 	);
 	const queryGscPerformance = new SCIUseCases.QueryGscPerformanceUseCase(gscPropertyRepo, gscObservationRepo);
 

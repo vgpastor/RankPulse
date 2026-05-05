@@ -1,6 +1,6 @@
 import type { EndpointDescriptor, FetchContext } from '@rankpulse/provider-core';
 import { z } from 'zod';
-import type { DataForSeoHttp } from '../http.js';
+import { type DataForSeoHttp, ensureTaskOk } from '../http.js';
 
 export const OnPageInstantParams = z.object({
 	url: z.string().url(),
@@ -80,11 +80,6 @@ export const fetchOnPageInstantPages = async (
 		ctx.credential.plaintextSecret,
 		ctx.signal,
 	)) as OnPageInstantResponse;
-	if (raw.status_code !== 20000) {
-		ctx.logger.warn('DataForSEO on-page instant returned a non-success status', {
-			status: raw.status_code,
-			message: raw.status_message,
-		});
-	}
+	ensureTaskOk(PATH, raw);
 	return raw;
 };

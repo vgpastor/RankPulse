@@ -94,10 +94,15 @@ export const CompetitorSuggestionDto = z.object({
 export type CompetitorSuggestionDto = z.infer<typeof CompetitorSuggestionDto>;
 
 export const ListCompetitorSuggestionsQuery = z.object({
+	// Tri-state: undefined (param absent) → controller picks the default;
+	// 'true' / 'false' → explicit override. The previous transform mapped
+	// undefined to `false`, which silently turned the eligible-only filter
+	// OFF for every default request — promoted/dismissed suggestions
+	// leaked into the UI.
 	eligibleOnly: z
 		.union([z.literal('true'), z.literal('false')])
 		.optional()
-		.transform((v) => v === 'true'),
+		.transform((v) => (v === undefined ? undefined : v === 'true')),
 });
 export type ListCompetitorSuggestionsQuery = z.infer<typeof ListCompetitorSuggestionsQuery>;
 
