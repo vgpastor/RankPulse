@@ -11,7 +11,6 @@ export { DrizzleKeywordListRepository } from './repositories/project-management/
 export { DrizzlePortfolioRepository } from './repositories/project-management/portfolio.repository.js';
 export { DrizzleProjectRepository } from './repositories/project-management/project.repository.js';
 export { DrizzleApiUsageRepository } from './repositories/provider-connectivity/api-usage.repository.js';
-
 export { DrizzleCredentialRepository } from './repositories/provider-connectivity/credential.repository.js';
 export {
 	computeParamsHash,
@@ -20,9 +19,9 @@ export {
 export { DrizzleJobRunRepository } from './repositories/provider-connectivity/job-run.repository.js';
 export { DrizzleRawPayloadRepository } from './repositories/provider-connectivity/raw-payload.repository.js';
 export { DrizzleRankingObservationRepository } from './repositories/rank-tracking/ranking-observation.repository.js';
-
 export { DrizzleTrackedKeywordRepository } from './repositories/rank-tracking/tracked-keyword.repository.js';
 export { DrizzleGscPerformanceObservationRepository } from './repositories/search-console-insights/gsc-performance-observation.repository.js';
-
 export { DrizzleGscPropertyRepository } from './repositories/search-console-insights/gsc-property.repository.js';
+export { DrizzlePageSpeedSnapshotRepository } from './repositories/web-performance/page-speed-snapshot.repository.js';
+export { DrizzleTrackedPageRepository } from './repositories/web-performance/tracked-page.repository.js';
 export * as schema from './schema/index.js';

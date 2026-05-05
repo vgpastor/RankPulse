@@ -45,6 +45,11 @@
 			"development": "./src/shared-kernel/index.ts",
 			"types": "./dist/shared-kernel/index.d.ts",
 			"default": "./dist/shared-kernel/index.js"
+		},
+		"./web-performance": {
+			"development": "./src/web-performance/index.ts",
+			"types": "./dist/web-performance/index.d.ts",
+			"default": "./dist/web-performance/index.js"
 		}
 	},
 	"scripts": {

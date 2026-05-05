@@ -4,6 +4,7 @@ import type {
 	ProviderConnectivity as ProviderConnectivityUseCases,
 	RankTracking as RankTrackingUseCases,
 	SearchConsoleInsights as SearchConsoleInsightsUseCases,
+	WebPerformance as WebPerformanceUseCases,
 } from '@rankpulse/application';
 import {
 	type EntityAwareness as EntityAwarenessDomain,
@@ -11,6 +12,7 @@ import {
 	ProviderConnectivity,
 	type RankTracking as RankTrackingDomain,
 	type SearchConsoleInsights as SearchConsoleInsightsDomain,
+	type WebPerformance as WebPerformanceDomain,
 } from '@rankpulse/domain';
 import type { ProviderFetchJobData } from '@rankpulse/infrastructure/queue';
 import type { ProviderRegistry } from '@rankpulse/provider-core';
@@ -25,6 +27,7 @@ import {
 	type SearchAnalyticsParams,
 	type SearchAnalyticsResponse,
 } from '@rankpulse/provider-gsc';
+import { extractSnapshot, PageSpeedApiError, type RunPagespeedResponse } from '@rankpulse/provider-pagespeed';
 import {
 	extractPageviews,
 	type PageviewsPerArticleResponse,
@@ -59,6 +62,9 @@ const isQuotaExhaustedError = (err: unknown): boolean => {
 	if (err instanceof GscApiError && err.status === 402) return true;
 	// Wikipedia is a public API, no quota; included for symmetry.
 	if (err instanceof WikipediaApiError && err.status === 402) return true;
+	// PSI returns 429 once the API key burns through its 25k/day. Treat as
+	// quota-exhausted so the JobDefinition auto-pauses until next day.
+	if (err instanceof PageSpeedApiError && (err.status === 402 || err.status === 429)) return true;
 	return false;
 };
 
@@ -79,6 +85,7 @@ export interface ProviderFetchProcessorDeps {
 	competitorRepo: ProjectManagement.CompetitorRepository;
 	gscPropertyRepo: SearchConsoleInsightsDomain.GscPropertyRepository;
 	wikipediaArticleRepo: EntityAwarenessDomain.WikipediaArticleRepository;
+	trackedPageRepo: WebPerformanceDomain.TrackedPageRepository;
 	vault: ProviderConnectivity.CredentialVault;
 	resolveCredentialUseCase: ProviderConnectivityUseCases.ResolveProviderCredentialUseCase;
 	recordApiUsageUseCase: ProviderConnectivityUseCases.RecordApiUsageUseCase;
@@ -86,6 +93,7 @@ export interface ProviderFetchProcessorDeps {
 	recordTop10HitsForSuggestionsUseCase: ProjectManagementUseCases.RecordTop10HitsForSuggestionsUseCase;
 	ingestGscRowsUseCase: SearchConsoleInsightsUseCases.IngestGscRowsUseCase;
 	ingestWikipediaPageviewsUseCase: EntityAwarenessUseCases.IngestWikipediaPageviewsUseCase;
+	recordPageSpeedSnapshotUseCase: WebPerformanceUseCases.RecordPageSpeedSnapshotUseCase;
 	clock: Clock;
 	ids: IdGenerator;
 	logger: Logger;
@@ -289,6 +297,31 @@ export class ProviderFetchProcessor {
 							externalDomainsInTop10: external,
 						});
 					}
+				}
+			}
+
+			if (definition.providerId.value === 'pagespeed' && definition.endpointId.value === 'psi-runpagespeed') {
+				// Issue #18 — Core Web Vitals. The job's systemParams must
+				// carry `trackedPageId` (set when the operator tracks a
+				// page via the API/UI). Missing-id case logs warn + skips.
+				const psiParams = resolvedParams as { trackedPageId?: string };
+				if (!psiParams.trackedPageId) {
+					runLog.warn({}, 'psi-runpagespeed job missing trackedPageId in systemParams; skipping ingest');
+				} else {
+					const snapshot = extractSnapshot(fetchResult as RunPagespeedResponse, this.deps.clock.now());
+					await this.deps.recordPageSpeedSnapshotUseCase.execute({
+						trackedPageId: psiParams.trackedPageId,
+						observedAt: snapshot.observedAt,
+						lcpMs: snapshot.lcpMs,
+						inpMs: snapshot.inpMs,
+						cls: snapshot.cls,
+						fcpMs: snapshot.fcpMs,
+						ttfbMs: snapshot.ttfbMs,
+						performanceScore: snapshot.performanceScore,
+						seoScore: snapshot.seoScore,
+						accessibilityScore: snapshot.accessibilityScore,
+						bestPracticesScore: snapshot.bestPracticesScore,
+					});
 				}
 			}
 

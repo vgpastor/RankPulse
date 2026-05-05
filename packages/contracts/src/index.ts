@@ -6,3 +6,4 @@ export * as RankTrackingContracts from './rank-tracking/index.js';
 export * as SearchConsoleInsightsContracts from './search-console-insights/index.js';
 export * from './shared/pagination.js';
 export * from './shared/problem-details.js';
+export * as WebPerformanceContracts from './web-performance/index.js';

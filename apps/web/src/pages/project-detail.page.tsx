@@ -1,7 +1,18 @@
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, Spinner } from '@rankpulse/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
-import { BookOpen, CalendarClock, Check, LineChart, MapPin, Plus, Search, Sparkles, X } from 'lucide-react';
+import {
+	BookOpen,
+	CalendarClock,
+	Check,
+	Gauge,
+	LineChart,
+	MapPin,
+	Plus,
+	Search,
+	Sparkles,
+	X,
+} from 'lucide-react';
 import { useState } from 'react';
 import { AddCompetitorDrawer } from '../components/add-competitor-drawer.js';
 import { AddDomainDrawer } from '../components/add-domain-drawer.js';
@@ -9,12 +20,13 @@ import { AddLocationDrawer } from '../components/add-location-drawer.js';
 import { AppShell } from '../components/app-shell.js';
 import { ImportKeywordsDrawer } from '../components/import-keywords-drawer.js';
 import { LinkWikipediaDrawer } from '../components/link-wikipedia-drawer.js';
+import { TrackPageDrawer } from '../components/track-page-drawer.js';
 import { api } from '../lib/api.js';
 
 export const ProjectDetailPage = () => {
 	const { id } = useParams({ from: '/projects/$id' });
 	const [openDrawer, setOpenDrawer] = useState<
-		'competitor' | 'keywords' | 'domain' | 'location' | 'wikipedia' | null
+		'competitor' | 'keywords' | 'domain' | 'location' | 'wikipedia' | 'page-speed' | null
 	>(null);
 
 	const projectQuery = useQuery({
@@ -43,6 +55,12 @@ export const ProjectDetailPage = () => {
 	const wikipediaQuery = useQuery({
 		queryKey: ['project', id, 'wikipedia'],
 		queryFn: () => api.wikipedia.listForProject(id),
+		enabled: Boolean(projectQuery.data),
+	});
+
+	const pageSpeedQuery = useQuery({
+		queryKey: ['project', id, 'page-speed'],
+		queryFn: () => api.pageSpeed.listForProject(id),
 		enabled: Boolean(projectQuery.data),
 	});
 
@@ -263,6 +281,44 @@ export const ProjectDetailPage = () => {
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between gap-2">
 							<CardTitle className="flex items-center gap-2 text-base">
+								<Gauge size={14} className="text-primary" />
+								PageSpeed pages ({pageSpeedQuery.data?.length ?? '…'})
+							</CardTitle>
+							<Button variant="ghost" size="sm" onClick={() => setOpenDrawer('page-speed')}>
+								<Plus size={14} />
+								Track
+							</Button>
+						</CardHeader>
+						<CardContent>
+							{pageSpeedQuery.isLoading ? (
+								<Spinner />
+							) : pageSpeedQuery.data && pageSpeedQuery.data.length > 0 ? (
+								<ul className="space-y-1 text-sm">
+									{pageSpeedQuery.data.map((p) => (
+										<li key={p.id} className="break-words">
+											<Badge variant={p.strategy === 'mobile' ? 'default' : 'secondary'}>{p.strategy}</Badge>{' '}
+											<span className="text-muted-foreground">{p.url}</span>
+										</li>
+									))}
+								</ul>
+							) : (
+								<EmptyState
+									title="No pages tracked yet"
+									description="Track a URL (mobile or desktop) to monitor LCP / INP / CLS over time."
+									action={
+										<Button size="sm" onClick={() => setOpenDrawer('page-speed')}>
+											<Plus size={14} />
+											Track page
+										</Button>
+									}
+								/>
+							)}
+						</CardContent>
+					</Card>
+
+					<Card>
+						<CardHeader className="flex flex-row items-center justify-between gap-2">
+							<CardTitle className="flex items-center gap-2 text-base">
 								<BookOpen size={14} className="text-primary" />
 								Wikipedia entities ({wikipediaQuery.data?.length ?? '…'})
 							</CardTitle>
@@ -358,6 +414,11 @@ export const ProjectDetailPage = () => {
 			<LinkWikipediaDrawer
 				projectId={id}
 				open={openDrawer === 'wikipedia'}
+				onClose={() => setOpenDrawer(null)}
+			/>
+			<TrackPageDrawer
+				projectId={id}
+				open={openDrawer === 'page-speed'}
 				onClose={() => setOpenDrawer(null)}
 			/>
 		</AppShell>

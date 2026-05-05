@@ -95,6 +95,15 @@ export const Tokens = {
 	UnlinkWikipediaArticle: Symbol('UnlinkWikipediaArticleUseCase'),
 	QueryWikipediaPageviews: Symbol('QueryWikipediaPageviewsUseCase'),
 
+	// Web-Performance ports
+	TrackedPageRepository: Symbol('TrackedPageRepository'),
+	PageSpeedSnapshotRepository: Symbol('PageSpeedSnapshotRepository'),
+
+	// Web-Performance use cases
+	TrackPage: Symbol('TrackPageUseCase'),
+	UntrackPage: Symbol('UntrackPageUseCase'),
+	QueryPageSpeedHistory: Symbol('QueryPageSpeedHistoryUseCase'),
+
 	// Infrastructure handles
 	DrizzleClient: Symbol('DrizzleClient'),
 	JwtService: Symbol('JwtService'),

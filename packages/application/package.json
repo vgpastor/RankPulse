@@ -25,6 +25,11 @@
 			"development": "./src/project-management/index.ts",
 			"types": "./dist/project-management/index.d.ts",
 			"default": "./dist/project-management/index.js"
+		},
+		"./web-performance": {
+			"development": "./src/web-performance/index.ts",
+			"types": "./dist/web-performance/index.d.ts",
+			"default": "./dist/web-performance/index.js"
 		}
 	},
 	"scripts": {
