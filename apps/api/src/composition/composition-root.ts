@@ -211,6 +211,13 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		SystemClock,
 		SystemIdGenerator,
 		eventPublisher,
+		[
+			// BACKLOG bug #50 — auto-resolves gscPropertyId from
+			// (projectId, params.siteUrl) for gsc-search-analytics
+			// schedules. Other providers/endpoints: add their own
+			// resolvers here as needed.
+			new SCIUseCases.GscPropertySystemParamResolver(gscPropertyRepo),
+		],
 	);
 	const recordApiUsage = new PCUseCases.RecordApiUsageUseCase(
 		apiUsageRepo,
