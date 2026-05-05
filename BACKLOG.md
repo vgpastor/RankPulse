@@ -27,14 +27,6 @@ gh issue view <id>
 | `user-action` | Requiere acción del product owner (creds, billing) |
 | `enhancement` | Nueva funcionalidad |
 
-## Numeración interna
-
-Los títulos de issues llevan un prefijo `#NN — …` con la numeración
-heredada del antiguo BACKLOG.md (items #15-#32 + A1-A9). Esa
-numeración interna se preserva para que referencias en commits y
-código sigan funcionando — el número que asigna GitHub al issue va por
-encima como identificador real para el tracker.
-
 ## Histórico
 
 El BACKLOG.md anterior con todos los items (resueltos y pendientes)
