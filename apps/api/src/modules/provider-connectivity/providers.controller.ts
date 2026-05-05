@@ -118,6 +118,8 @@ export class ProvidersController {
 		});
 	}
 
+	@SkipThrottle({ default: true, auth: true })
+	@Throttle({ bulk: { ttl: 60_000, limit: 6_000 } })
 	@Post(':providerId/job-definitions/:definitionId/run-now')
 	async runNow(
 		@Principal() principal: AuthPrincipal,
