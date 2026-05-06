@@ -26,6 +26,7 @@ import { AddRadarDomainDrawer } from '../components/add-radar-domain-drawer.js';
 import { AiAlertsPanel } from '../components/ai-alerts-panel.js';
 import { AiPresenceCard } from '../components/ai-presence-card.js';
 import { AppShell } from '../components/app-shell.js';
+import { DailyActionsCard } from '../components/daily-actions-card.js';
 import { ImportKeywordsDrawer } from '../components/import-keywords-drawer.js';
 import { LinkBingDrawer } from '../components/link-bing-drawer.js';
 import { LinkClarityDrawer } from '../components/link-clarity-drawer.js';
@@ -205,6 +206,8 @@ export const ProjectDetailPage = () => {
 				<AiAlertsPanel projectId={project.id} />
 
 				<ProjectKpiGrid project={project} />
+
+				<DailyActionsCard project={project} />
 
 				<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 					<Card>

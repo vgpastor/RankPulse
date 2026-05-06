@@ -11,14 +11,18 @@ import { AiRadarPage } from './pages/ai-radar.page.js';
 import { AiSearchCitationsPage } from './pages/ai-search-citations.page.js';
 import { AiSearchMatrixPage } from './pages/ai-search-matrix.page.js';
 import { BrandPromptsPage } from './pages/brand-prompts.page.js';
+import { CannibalizationPage } from './pages/cannibalization.page.js';
 import { CompetitorsPage } from './pages/competitors.page.js';
 import { CredentialsPage } from './pages/credentials.page.js';
+import { DailyActionsPage } from './pages/daily-actions.page.js';
 import { Ga4PropertiesPage } from './pages/ga4-properties.page.js';
 import { Ga4TrafficPage } from './pages/ga4-traffic.page.js';
+import { GapAnalysisPage } from './pages/gap-analysis.page.js';
 import { GscPerformancePage } from './pages/gsc-performance.page.js';
 import { GscPropertiesPage } from './pages/gsc-properties.page.js';
 import { LoginPage } from './pages/login.page.js';
 import { OnboardingPage } from './pages/onboarding.page.js';
+import { OpportunitiesPage } from './pages/opportunities.page.js';
 import { PortfolioComparePage } from './pages/portfolio-compare.page.js';
 import { PortfoliosPage } from './pages/portfolios.page.js';
 import { ProjectDetailPage } from './pages/project-detail.page.js';
@@ -26,6 +30,7 @@ import { ProjectsPage } from './pages/projects.page.js';
 import { RankingsPage } from './pages/rankings.page.js';
 import { RegisterPage } from './pages/register.page.js';
 import { SchedulesPage } from './pages/schedules.page.js';
+import { WeeklyScorecardPage } from './pages/weekly-scorecard.page.js';
 
 const rootRoute: RootRoute = createRootRoute({
 	component: () => <Outlet />,
@@ -153,6 +158,36 @@ const projectCompetitorsRoute = createRoute({
 	component: CompetitorsPage,
 });
 
+const projectScorecardRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/scorecard',
+	component: WeeklyScorecardPage,
+});
+
+const projectOpportunitiesRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/opportunities',
+	component: OpportunitiesPage,
+});
+
+const projectGapAnalysisRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/gap-analysis',
+	component: GapAnalysisPage,
+});
+
+const projectActionsRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/actions',
+	component: DailyActionsPage,
+});
+
+const projectCannibalizationRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/cannibalization',
+	component: CannibalizationPage,
+});
+
 const projectGscPerformanceRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/projects/$id/gsc/$propertyId',
@@ -195,6 +230,11 @@ const routeTree = rootRoute.addChildren([
 	projectAiSearchMatrixRoute,
 	projectAiRadarRoute,
 	projectCompetitorsRoute,
+	projectScorecardRoute,
+	projectOpportunitiesRoute,
+	projectGapAnalysisRoute,
+	projectActionsRoute,
+	projectCannibalizationRoute,
 	credentialsRoute,
 	portfoliosRoute,
 	portfolioCompareRoute,
