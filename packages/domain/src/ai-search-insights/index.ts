@@ -11,6 +11,7 @@ export * from './events/llm-answer-recorded.js';
 // Ports
 export * from './ports/brand-prompt-repository.js';
 export * from './ports/brand-watchlist-resolver.js';
+export * from './ports/llm-answer-read-model.js';
 export * from './ports/llm-answer-repository.js';
 export * from './ports/mention-extractor.js';
 

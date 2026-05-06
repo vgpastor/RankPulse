@@ -1,5 +1,6 @@
 export * from './client.js';
 export { DrizzleBrandPromptRepository } from './repositories/ai-search-insights/brand-prompt.repository.js';
+export { DrizzleLlmAnswerReadModel } from './repositories/ai-search-insights/drizzle-llm-answer-read-model.js';
 export { DrizzleLlmAnswerRepository } from './repositories/ai-search-insights/llm-answer.repository.js';
 export { ProjectBrandWatchlistResolver } from './repositories/ai-search-insights/project-brand-watchlist.resolver.js';
 export { DrizzleBingPropertyRepository } from './repositories/bing-webmaster-insights/bing-property.repository.js';

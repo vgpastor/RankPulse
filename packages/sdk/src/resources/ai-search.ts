@@ -51,4 +51,42 @@ export class AiSearchResource {
 			query: query ?? {},
 		});
 	}
+
+	presence(
+		projectId: string,
+		query?: AiSearchInsightsContracts.AiSearchPresenceQuery,
+	): Promise<AiSearchInsightsContracts.AiSearchPresenceResponse> {
+		return this.http.get(`/projects/${encodeURIComponent(projectId)}/ai-search/presence`, {
+			query: query ?? {},
+		});
+	}
+
+	sov(
+		projectId: string,
+		query?: AiSearchInsightsContracts.AiSearchSovQuery,
+	): Promise<AiSearchInsightsContracts.AiSearchSovResponse> {
+		return this.http.get(`/projects/${encodeURIComponent(projectId)}/ai-search/sov`, {
+			query: query ?? {},
+		});
+	}
+
+	citations(
+		projectId: string,
+		query?: AiSearchInsightsContracts.AiSearchCitationsQuery,
+	): Promise<AiSearchInsightsContracts.AiSearchCitationsResponse> {
+		return this.http.get(`/projects/${encodeURIComponent(projectId)}/ai-search/citations`, {
+			query: query ?? {},
+		});
+	}
+
+	promptSovDaily(
+		projectId: string,
+		promptId: string,
+		query?: AiSearchInsightsContracts.AiSearchSovDailyQuery,
+	): Promise<AiSearchInsightsContracts.AiSearchSovDailyResponse> {
+		return this.http.get(
+			`/projects/${encodeURIComponent(projectId)}/brand-prompts/${encodeURIComponent(promptId)}/sov-daily`,
+			{ query: query ?? {} },
+		);
+	}
 }

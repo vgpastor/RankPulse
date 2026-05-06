@@ -33,6 +33,14 @@ export class AiSearchInsightsController {
 		private readonly listPrompts: AiUseCases.ListBrandPromptsUseCase,
 		@Inject(Tokens.QueryLlmAnswers)
 		private readonly queryAnswers: AiUseCases.QueryLlmAnswersUseCase,
+		@Inject(Tokens.QueryAiSearchPresence)
+		private readonly queryPresence: AiUseCases.QueryAiSearchPresenceUseCase,
+		@Inject(Tokens.QueryAiSearchSov)
+		private readonly querySov: AiUseCases.QueryAiSearchSovUseCase,
+		@Inject(Tokens.QueryAiSearchCitations)
+		private readonly queryCitations: AiUseCases.QueryAiSearchCitationsUseCase,
+		@Inject(Tokens.QueryPromptSovDaily)
+		private readonly querySovDaily: AiUseCases.QueryPromptSovDailyUseCase,
 		@Inject(Tokens.BrandPromptRepository)
 		private readonly promptRepo: AiSearchInsights.BrandPromptRepository,
 		@Inject(Tokens.ProjectRepository) private readonly projects: ProjectManagement.ProjectRepository,
@@ -149,6 +157,84 @@ export class AiSearchInsightsController {
 			limit: query.limit,
 		});
 		return { items: items.map((i) => ({ ...i, mentions: [...i.mentions], citations: [...i.citations] })) };
+	}
+
+	@Get('projects/:projectId/ai-search/presence')
+	async presence(
+		@Principal() principal: AuthPrincipal,
+		@Param('projectId') projectId: string,
+		@Query(new ZodValidationPipe(AiSearchInsightsContracts.AiSearchPresenceQuery))
+		query: AiSearchInsightsContracts.AiSearchPresenceQuery,
+	): Promise<AiSearchInsightsContracts.AiSearchPresenceResponse> {
+		await this.requireProjectAccess(principal, projectId);
+		return this.queryPresence.execute({
+			projectId,
+			from: query.from ? new Date(query.from) : undefined,
+			to: query.to ? new Date(query.to) : undefined,
+		});
+	}
+
+	@Get('projects/:projectId/ai-search/sov')
+	async sov(
+		@Principal() principal: AuthPrincipal,
+		@Param('projectId') projectId: string,
+		@Query(new ZodValidationPipe(AiSearchInsightsContracts.AiSearchSovQuery))
+		query: AiSearchInsightsContracts.AiSearchSovQuery,
+	): Promise<AiSearchInsightsContracts.AiSearchSovResponse> {
+		await this.requireProjectAccess(principal, projectId);
+		const items = await this.querySov.execute({
+			projectId,
+			from: query.from ? new Date(query.from) : undefined,
+			to: query.to ? new Date(query.to) : undefined,
+		});
+		return { items: items.map((i) => ({ ...i })) };
+	}
+
+	@Get('projects/:projectId/ai-search/citations')
+	async citations(
+		@Principal() principal: AuthPrincipal,
+		@Param('projectId') projectId: string,
+		@Query(new ZodValidationPipe(AiSearchInsightsContracts.AiSearchCitationsQuery))
+		query: AiSearchInsightsContracts.AiSearchCitationsQuery,
+	): Promise<AiSearchInsightsContracts.AiSearchCitationsResponse> {
+		await this.requireProjectAccess(principal, projectId);
+		const items = await this.queryCitations.execute({
+			projectId,
+			onlyOwnDomains: query.onlyOwnDomains,
+			aiProvider: query.aiProvider,
+			from: query.from ? new Date(query.from) : undefined,
+			to: query.to ? new Date(query.to) : undefined,
+		});
+		return { items: items.map((i) => ({ ...i, providers: [...i.providers] })) };
+	}
+
+	@Get('projects/:projectId/brand-prompts/:promptId/sov-daily')
+	async promptSovDaily(
+		@Principal() principal: AuthPrincipal,
+		@Param('projectId') projectId: string,
+		@Param('promptId') promptId: string,
+		@Query(new ZodValidationPipe(AiSearchInsightsContracts.AiSearchSovDailyQuery))
+		query: AiSearchInsightsContracts.AiSearchSovDailyQuery,
+	): Promise<AiSearchInsightsContracts.AiSearchSovDailyResponse> {
+		await this.requirePrompt(principal, projectId, promptId);
+		const items = await this.querySovDaily.execute({
+			brandPromptId: promptId,
+			from: query.from ? new Date(query.from) : undefined,
+			to: query.to ? new Date(query.to) : undefined,
+		});
+		return { items: items.map((i) => ({ ...i })) };
+	}
+
+	private async requireProjectAccess(
+		principal: AuthPrincipal,
+		projectId: string,
+	): Promise<ProjectManagement.Project> {
+		const project = await this.projects.findById(projectId as ProjectManagement.ProjectId);
+		if (!project) {
+			throw new NotFoundError(`Project ${projectId} not found`);
+		}
+		await this.orgMembership.require(principal, project.organizationId);
+		return project;
 	}
 
 	private async requirePrompt(

@@ -157,6 +157,7 @@ export const Tokens = {
 	// AI-Search-Insights ports
 	BrandPromptRepository: Symbol('BrandPromptRepository'),
 	LlmAnswerRepository: Symbol('LlmAnswerRepository'),
+	LlmAnswerReadModel: Symbol('LlmAnswerReadModel'),
 	BrandWatchlistResolver: Symbol('BrandWatchlistResolver'),
 	MentionExtractor: Symbol('MentionExtractor'),
 
@@ -168,6 +169,10 @@ export const Tokens = {
 	ListBrandPrompts: Symbol('ListBrandPromptsUseCase'),
 	RecordLlmAnswer: Symbol('RecordLlmAnswerUseCase'),
 	QueryLlmAnswers: Symbol('QueryLlmAnswersUseCase'),
+	QueryAiSearchPresence: Symbol('QueryAiSearchPresenceUseCase'),
+	QueryAiSearchSov: Symbol('QueryAiSearchSovUseCase'),
+	QueryAiSearchCitations: Symbol('QueryAiSearchCitationsUseCase'),
+	QueryPromptSovDaily: Symbol('QueryPromptSovDailyUseCase'),
 
 	// Infrastructure handles
 	DrizzleClient: Symbol('DrizzleClient'),
