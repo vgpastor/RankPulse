@@ -89,6 +89,8 @@ const SYSTEM_PARAM_KEYS = [
 	'bingPropertyId',
 	'clarityProjectId',
 	'monitoredDomainId',
+	'metaPixelId',
+	'metaAdAccountId',
 ] as const;
 
 function mergeUserParamsPreservingSystem(

@@ -23,6 +23,11 @@ export const ENTITY_BOUND_ENDPOINT_IDS = new Set<string>([
 	'anthropic-messages-with-web-search',
 	'perplexity-sonar-search',
 	'google-ai-studio-gemini-grounded',
+	// Meta — auto-scheduled by the meta-ads-attribution handlers when the
+	// pixel / ad-account is linked.
+	'meta-pixel-events-stats',
+	'meta-ads-insights',
+	'meta-custom-audiences',
 ]);
 
 /**
@@ -41,4 +46,7 @@ export const ENTITY_LINK_ROUTE_HINT: Record<string, string> = {
 	'anthropic-messages-with-web-search': 'Register a brand prompt in Settings → AI Brand Radar.',
 	'perplexity-sonar-search': 'Register a brand prompt in Settings → AI Brand Radar.',
 	'google-ai-studio-gemini-grounded': 'Register a brand prompt in Settings → AI Brand Radar.',
+	'meta-pixel-events-stats': 'Link a Meta pixel in Settings → Providers → Meta.',
+	'meta-ads-insights': 'Link a Meta ad account in Settings → Providers → Meta.',
+	'meta-custom-audiences': 'Link a Meta ad account in Settings → Providers → Meta.',
 };

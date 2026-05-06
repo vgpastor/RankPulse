@@ -63,6 +63,9 @@ describe('ProvidersController.scheduleEndpoint — entity-bound gate', () => {
 		['anthropic', 'anthropic-messages-with-web-search', 'brand-prompts'],
 		['perplexity', 'perplexity-sonar-search', 'brand-prompts'],
 		['google-ai-studio', 'google-ai-studio-gemini-grounded', 'brand-prompts'],
+		['meta', 'meta-pixel-events-stats', 'meta/pixels'],
+		['meta', 'meta-ads-insights', 'meta/ad-accounts'],
+		['meta', 'meta-custom-audiences', 'meta/ad-accounts'],
 	])('rejects POST .../schedule for %s/%s with 400 pointing to %s', async (providerId, endpointId, hint) => {
 		const { controller, scheduleExecute } = buildController();
 		await expect(

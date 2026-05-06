@@ -1,5 +1,5 @@
-export * from './system-param-resolvers/meta-ad-account.system-param-resolver.js';
-export * from './system-param-resolvers/meta-pixel.system-param-resolver.js';
+export * from './event-handlers/auto-schedule-on-meta-ad-account-linked.handler.js';
+export * from './event-handlers/auto-schedule-on-meta-pixel-linked.handler.js';
 export * from './use-cases/ingest-meta-ads-insights.use-case.js';
 export * from './use-cases/ingest-meta-pixel-events.use-case.js';
 export * from './use-cases/link-meta-ad-account.use-case.js';

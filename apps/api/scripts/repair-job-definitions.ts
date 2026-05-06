@@ -142,6 +142,53 @@ const ENTITY_BOUND: RepairConfig[] = [
 			return rows[0]?.id ?? null;
 		},
 	},
+	{
+		endpointId: 'meta-pixel-events-stats',
+		systemKey: 'metaPixelId',
+		async resolveEntityId(sql, projectId, params) {
+			const pixelHandle = params.pixelId;
+			if (typeof pixelHandle !== 'string') return null;
+			const rows = await sql<{ id: string }[]>`
+				SELECT id FROM meta_pixels
+				WHERE project_id = ${projectId} AND pixel_handle = ${pixelHandle} AND unlinked_at IS NULL
+				LIMIT 1
+			`;
+			return rows[0]?.id ?? null;
+		},
+	},
+	{
+		endpointId: 'meta-ads-insights',
+		systemKey: 'metaAdAccountId',
+		async resolveEntityId(sql, projectId, params) {
+			const accountHandle = params.adAccountId;
+			if (typeof accountHandle !== 'string') return null;
+			// adAccountId can be stored as either bare digits or "act_<digits>";
+			// the link use case normalises via MetaAdAccountHandle, so the
+			// stored form is canonical. Exact match is fine — mismatches
+			// (operator typed a different form than what's stored) DELETE
+			// the row, and re-linking via the proper flow recreates it.
+			const rows = await sql<{ id: string }[]>`
+				SELECT id FROM meta_ad_accounts
+				WHERE project_id = ${projectId} AND ad_account_handle = ${accountHandle} AND unlinked_at IS NULL
+				LIMIT 1
+			`;
+			return rows[0]?.id ?? null;
+		},
+	},
+	{
+		endpointId: 'meta-custom-audiences',
+		systemKey: 'metaAdAccountId',
+		async resolveEntityId(sql, projectId, params) {
+			const accountHandle = params.adAccountId;
+			if (typeof accountHandle !== 'string') return null;
+			const rows = await sql<{ id: string }[]>`
+				SELECT id FROM meta_ad_accounts
+				WHERE project_id = ${projectId} AND ad_account_handle = ${accountHandle} AND unlinked_at IS NULL
+				LIMIT 1
+			`;
+			return rows[0]?.id ?? null;
+		},
+	},
 ];
 
 interface RepairReport {

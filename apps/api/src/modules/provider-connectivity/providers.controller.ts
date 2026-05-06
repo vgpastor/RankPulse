@@ -88,6 +88,21 @@ const ENTITY_BOUND_ENDPOINTS: Record<string, { provider: string; preferredRoute:
 		provider: 'google-ai-studio',
 		preferredRoute: '/api/v1/projects/:projectId/brand-prompts',
 	},
+	// Meta — auto-scheduled by AutoScheduleOnMetaPixelLinkedHandler /
+	// AutoScheduleOnMetaAdAccountLinkedHandler. The ad-account link fans
+	// into both ads-insights AND custom-audiences with one event.
+	'meta-pixel-events-stats': {
+		provider: 'meta',
+		preferredRoute: '/api/v1/projects/:projectId/meta/pixels',
+	},
+	'meta-ads-insights': {
+		provider: 'meta',
+		preferredRoute: '/api/v1/projects/:projectId/meta/ad-accounts',
+	},
+	'meta-custom-audiences': {
+		provider: 'meta',
+		preferredRoute: '/api/v1/projects/:projectId/meta/ad-accounts',
+	},
 };
 
 @Controller('providers')
