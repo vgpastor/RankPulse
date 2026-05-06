@@ -1,4 +1,5 @@
-import type { EntityAwareness, ProjectManagement } from '@rankpulse/domain';
+import type { ProjectManagement } from '@rankpulse/domain';
+import { EntityAwareness } from '@rankpulse/domain';
 import { InvalidInputError, NotFoundError } from '@rankpulse/shared';
 import type { SystemParamResolver } from '../../provider-connectivity/use-cases/schedule-endpoint-fetch.use-case.js';
 
@@ -39,8 +40,8 @@ export class WikipediaArticleSystemParamResolver implements SystemParamResolver 
 
 		const found = await this.articles.findByProjectAndSlug(
 			input.projectId as ProjectManagement.ProjectId,
-			wpProject as unknown as EntityAwareness.WikipediaProject,
-			article as unknown as EntityAwareness.ArticleSlug,
+			EntityAwareness.WikipediaProject.create(wpProject),
+			EntityAwareness.ArticleSlug.create(article),
 		);
 		if (!found?.isActive()) {
 			throw new NotFoundError(
