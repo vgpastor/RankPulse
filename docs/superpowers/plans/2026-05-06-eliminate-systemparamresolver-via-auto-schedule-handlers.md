@@ -1778,13 +1778,13 @@ The seven entity-bound endpoints + their preferred entity-link routes:
 
 | Endpoint | Use this instead |
 |---|---|
-| `gsc-search-analytics` | `POST /api/v1/projects/:projectId/gsc/properties` |
+| `gsc-search-analytics` | `POST /api/v1/gsc/properties` |
 | `ga4-run-report` | `POST /api/v1/projects/:projectId/ga4/properties` |
 | `wikipedia-pageviews-per-article` | `POST /api/v1/projects/:projectId/wikipedia/articles` |
 | `bing-rank-and-traffic-stats` | `POST /api/v1/projects/:projectId/bing/properties` |
 | `clarity-data-export` | `POST /api/v1/projects/:projectId/clarity/projects` |
-| `psi-runpagespeed` | `POST /api/v1/projects/:projectId/web-performance/tracked-pages` |
-| `radar-domain-rank` | `POST /api/v1/projects/:projectId/macro-context/monitored-domains` |
+| `psi-runpagespeed` | `POST /api/v1/projects/:projectId/page-speed/pages` |
+| `radar-domain-rank` | `POST /api/v1/projects/:projectId/radar/domains` |
 
 (The exact preferred routes might differ; verify by `rg "@Post.*projects/:projectId" apps/api/src/modules/` and substitute the actual paths.)
 
@@ -1799,8 +1799,8 @@ it.each([
 	['wikipedia', 'wikipedia-pageviews-per-article', 'wikipedia/articles'],
 	['bing-webmaster', 'bing-rank-and-traffic-stats', 'bing/properties'],
 	['microsoft-clarity', 'clarity-data-export', 'clarity/projects'],
-	['pagespeed', 'psi-runpagespeed', 'web-performance/tracked-pages'],
-	['cloudflare-radar', 'radar-domain-rank', 'macro-context/monitored-domains'],
+	['pagespeed', 'psi-runpagespeed', 'page-speed/pages'],
+	['cloudflare-radar', 'radar-domain-rank', 'radar/domains'],
 ])('rejects POST .../schedule for %s/%s with 400 pointing to %s', async (providerId, endpointId, hint) => {
 	const res = await request(app.getHttpServer())
 		.post(`/api/v1/providers/${providerId}/endpoints/${endpointId}/schedule`)
@@ -1840,13 +1840,13 @@ In `providers.controller.ts`, near the top of the file (or in a sibling `entity-
  *  3. Add the endpoint here.
  */
 const ENTITY_BOUND_ENDPOINTS: Record<string, { provider: string; preferredRoute: string }> = {
-	'gsc-search-analytics': { provider: 'google-search-console', preferredRoute: '/api/v1/projects/:projectId/gsc/properties' },
+	'gsc-search-analytics': { provider: 'google-search-console', preferredRoute: '/api/v1/gsc/properties' },
 	'ga4-run-report': { provider: 'google-analytics-4', preferredRoute: '/api/v1/projects/:projectId/ga4/properties' },
 	'wikipedia-pageviews-per-article': { provider: 'wikipedia', preferredRoute: '/api/v1/projects/:projectId/wikipedia/articles' },
 	'bing-rank-and-traffic-stats': { provider: 'bing-webmaster', preferredRoute: '/api/v1/projects/:projectId/bing/properties' },
 	'clarity-data-export': { provider: 'microsoft-clarity', preferredRoute: '/api/v1/projects/:projectId/clarity/projects' },
-	'psi-runpagespeed': { provider: 'pagespeed', preferredRoute: '/api/v1/projects/:projectId/web-performance/tracked-pages' },
-	'radar-domain-rank': { provider: 'cloudflare-radar', preferredRoute: '/api/v1/projects/:projectId/macro-context/monitored-domains' },
+	'psi-runpagespeed': { provider: 'pagespeed', preferredRoute: '/api/v1/projects/:projectId/page-speed/pages' },
+	'radar-domain-rank': { provider: 'cloudflare-radar', preferredRoute: '/api/v1/projects/:projectId/radar/domains' },
 };
 ```
 
