@@ -49,6 +49,15 @@ export interface ScheduleEndpointFetchCommand {
 	systemParams?: Record<string, unknown>;
 	cron: string;
 	credentialOverrideId?: string | null;
+	/**
+	 * Optional idempotency key. When provided, the use case looks up an
+	 * existing JobDefinition for `(projectId, endpointId)` whose
+	 * `params.<systemParamKey>` equals `systemParamValue`; if found, returns
+	 * its definitionId without creating a duplicate. Used by per-context
+	 * Auto-Schedule handlers so that re-emitting the link event (replay,
+	 * reconnect, dual delivery) doesn't duplicate the schedule.
+	 */
+	idempotencyKey?: { systemParamKey: string; systemParamValue: string };
 }
 
 export interface ScheduleEndpointFetchResult {
@@ -77,6 +86,19 @@ export class ScheduleEndpointFetchUseCase {
 			throw new InvalidInputError(
 				`Endpoint ${endpointId.value} paramsSchema must resolve to an object, got ${typeof validatedParams}`,
 			);
+		}
+
+		// Idempotency: if the caller supplied an idempotency key, return the
+		// existing definitionId without creating a duplicate. This is what makes
+		// auto-schedule handlers safe under event replay / reconnect.
+		if (cmd.idempotencyKey) {
+			const existing = await this.definitions.findByProjectEndpointAndSystemParam(
+				projectId,
+				endpointId,
+				cmd.idempotencyKey.systemParamKey,
+				cmd.idempotencyKey.systemParamValue,
+			);
+			if (existing) return { definitionId: existing.id };
 		}
 
 		// Run cross-context resolvers (e.g. resolve gscPropertyId from siteUrl).
