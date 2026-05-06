@@ -268,13 +268,39 @@ pnpm clean      # borra dist/.turbo/*.tsbuildinfo de todos los packages
 
 ### 7.2 Nuevo provider externo
 
+> **Patrón actual (post-ADR 0002):** declarativo via `ProviderManifest`.
+> Recipe completo en [`docs/recipes/adding-a-provider.md`](docs/recipes/adding-a-provider.md).
+> Los 14 providers existentes son ejemplos de copy-paste según su estilo de auth.
+
 1. `mkdir packages/providers/<name>` y declara su `package.json` con
    `"name": "@rankpulse/provider-<name>"`.
-2. Implementa el contrato `Provider` de `@rankpulse/provider-core` declarando
-   endpoints, schedules, **`cacheTtl`** e **`idempotencyWindow`**.
-3. Regístralo en `pnpm-workspace.yaml` (ya cubierto por `packages/providers/*`).
-4. Importa el módulo en `apps/api/src/app.module.ts` y `apps/worker/...`.
-5. Abre la issue de seguimiento con etiquetas `provider` + `free-source`
+2. **Crea `<name>HttpClient extends BaseHttpClient`** (de
+   `@rankpulse/provider-core`) overriding `request<T>` para cap de body
+   y/o auth no-estándar. La default `applyAuth` cubre `bearer-token`,
+   `api-key-header`, `basic`, `oauth-token`. Casos especiales (custom,
+   service-account-jwt, polymorphic) requieren override completo de
+   `request` — revisa los providers existentes como template:
+   - **Bearer simple**: Clarity, OpenAI, Perplexity.
+   - **API key en header (no Authorization)**: Anthropic (`x-api-key`),
+     Brevo (`api-key`), Google AI Studio (`x-goog-api-key`).
+   - **API key en query string**: Bing (`?apikey=`), Meta (`?access_token=`).
+   - **Service Account JWT mint**: GSC, GA4.
+   - **Polimórfico (api-key OR SA-JWT)**: PageSpeed.
+   - **No auth (public)**: Wikipedia.
+3. **Crea `manifest.ts` exportando `<name>ProviderManifest: ProviderManifest`**
+   con `id`, `displayName`, `http: { baseUrl, auth, defaultTimeoutMs }`,
+   `endpoints[]` (cada uno con `descriptor`, `fetch` adapter via
+   `buildLegacyShim`, e `ingest: IngestBinding | null`),
+   `validateCredentialPlaintext`, y opcional `isQuotaExhausted` si el
+   provider señaliza quota con códigos no-default (e.g. 402 además de 429).
+4. **Tests**: `http.spec.ts` cubriendo header/auth emission, status
+   preservation, network error, body cap, credential pre-flight.
+5. Regístralo en `pnpm-workspace.yaml` (ya cubierto por `packages/providers/*`).
+6. Importa el manifest en `apps/api/src/app.module.ts` y `apps/worker/...`.
+   *(Activación completa via IngestRouter está en proceso — fases Phase 5/6
+   del refactor; mientras tanto el dispatch en worker sigue por if-else
+   en `provider-fetch.processor.ts`.)*
+7. Abre la issue de seguimiento con etiquetas `provider` + `free-source`
    o `paid-source`, y reclámala antes de empezar (ver "Claim de issues").
 
 ### 7.3 Nuevo átomo / molécula UI
