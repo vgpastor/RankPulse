@@ -50,7 +50,7 @@ describe('AutoScheduleOnBingPropertyLinkedHandler', () => {
 		const cmd = execute.mock.calls[0]?.[0] as Parameters<ScheduleEndpointFetchUseCase['execute']>[0];
 		expect(cmd).toMatchObject({
 			projectId: PROJECT_ID,
-			providerId: 'bing-webmaster-tools',
+			providerId: 'bing-webmaster',
 			endpointId: 'bing-rank-and-traffic-stats',
 			cron: '0 5 * * *',
 			idempotencyKey: { systemParamKey: 'bingPropertyId', systemParamValue: PROPERTY_ID },
@@ -70,7 +70,7 @@ describe('AutoScheduleOnBingPropertyLinkedHandler', () => {
 
 	it('exposes defaults', () => {
 		expect(BING_AUTO_SCHEDULE_DEFAULTS).toMatchObject({
-			providerId: 'bing-webmaster-tools',
+			providerId: 'bing-webmaster',
 			endpointId: 'bing-rank-and-traffic-stats',
 			cron: '0 5 * * *',
 		});

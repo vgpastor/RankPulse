@@ -25,7 +25,7 @@ const NOOP_LOGGER: EventHandlerLogger = {
  * resolver lookup (the whole point of this refactor).
  */
 export const BING_AUTO_SCHEDULE_DEFAULTS = {
-	providerId: 'bing-webmaster-tools',
+	providerId: 'bing-webmaster',
 	endpointId: 'bing-rank-and-traffic-stats',
 	cron: '0 5 * * *',
 };
