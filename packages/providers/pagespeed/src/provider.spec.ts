@@ -70,3 +70,30 @@ describe('PageSpeedProvider', () => {
 		expect(result.id).toBe('https://example.com/');
 	});
 });
+
+describe('PageSpeedProvider — multi-auth credential validation', () => {
+	const provider = new PageSpeedProvider();
+	const SA_VALID_JSON = JSON.stringify({
+		type: 'service_account',
+		client_email: 'foo@bar.iam.gserviceaccount.com',
+		private_key: '-----BEGIN PRIVATE KEY-----\nfake\n-----END PRIVATE KEY-----\n',
+	});
+
+	it('accepts a valid service account JSON as credential', () => {
+		expect(() => provider.validateCredentialPlaintext(SA_VALID_JSON)).not.toThrow();
+	});
+
+	it('rejects a JSON-shaped credential missing client_email', () => {
+		const bad = JSON.stringify({ private_key: 'pk' });
+		expect(() => provider.validateCredentialPlaintext(bad)).toThrow(InvalidInputError);
+	});
+
+	it('rejects a JSON-shaped credential missing private_key', () => {
+		const bad = JSON.stringify({ client_email: 'x@y' });
+		expect(() => provider.validateCredentialPlaintext(bad)).toThrow(InvalidInputError);
+	});
+
+	it('rejects a string that is neither a valid SA JSON nor a valid API key', () => {
+		expect(() => provider.validateCredentialPlaintext('{not-json}')).toThrow(InvalidInputError);
+	});
+});

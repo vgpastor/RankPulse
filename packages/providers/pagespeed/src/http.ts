@@ -1,15 +1,21 @@
 /**
- * Google PageSpeed Insights v5 client. Auth: API key as query param.
- * Free tier: 1 req/sec, 25k/day per key. Without a key Google still
- * accepts the request but applies a much harsher per-IP throttle that
- * would fail in shared egress (CI runners, bursty cron). The descriptor
- * declares the rate limit so the scheduling layer doesn't over-fan-out.
+ * Google PageSpeed Insights v5 client. Supports two auth modes — API key
+ * as a query param, or OAuth2 Bearer token from a service account.
+ *
+ * Free tier with API key: 1 req/sec, 25k/day per key.
+ * SA OAuth: same daily quota, scoped per-project on Google Cloud.
+ *
+ * Both flows hit the same v5 endpoint; only the auth surface differs.
+ * Pick the right one by inspecting the credential's plaintextSecret —
+ * see `provider.ts` for the polymorphic dispatch.
  */
 
 export interface PageSpeedHttpOptions {
 	baseUrl?: string;
 	fetchImpl?: typeof fetch;
 }
+
+export type PageSpeedAuth = { kind: 'apiKey'; apiKey: string } | { kind: 'bearer'; token: string };
 
 const DEFAULT_BASE_URL = 'https://www.googleapis.com';
 
@@ -24,18 +30,25 @@ export class PageSpeedHttp {
 		this.fetchImpl = options.fetchImpl ?? fetch.bind(globalThis);
 	}
 
-	async get(path: string, query: Record<string, string | string[]>, signal?: AbortSignal): Promise<unknown> {
+	async get(
+		path: string,
+		query: Record<string, string | string[]>,
+		auth: PageSpeedAuth,
+		signal?: AbortSignal,
+	): Promise<unknown> {
 		const params = new URLSearchParams();
 		for (const [k, v] of Object.entries(query)) {
 			if (Array.isArray(v)) for (const item of v) params.append(k, item);
 			else params.append(k, v);
 		}
+		// API key goes as ?key=... ; Bearer goes in the Authorization header.
+		// PSI accepts either but never both — Google logs warnings if both
+		// reach the same request.
+		if (auth.kind === 'apiKey') params.append('key', auth.apiKey);
+		const headers: Record<string, string> = { Accept: 'application/json' };
+		if (auth.kind === 'bearer') headers.Authorization = `Bearer ${auth.token}`;
 		const url = `${this.baseUrl}${path}?${params.toString()}`;
-		const response = await this.fetchImpl(url, {
-			method: 'GET',
-			headers: { Accept: 'application/json' },
-			signal,
-		});
+		const response = await this.fetchImpl(url, { method: 'GET', headers, signal });
 		const contentLength = response.headers.get('content-length');
 		if (contentLength !== null && Number(contentLength) > MAX_RESPONSE_BYTES) {
 			throw new PageSpeedApiError(
