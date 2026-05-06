@@ -1,7 +1,7 @@
 import {
 	type IdentityAccess,
-	type ProjectManagement,
 	MacroContext,
+	type ProjectManagement,
 	type SharedKernel,
 } from '@rankpulse/domain';
 import { describe, expect, it, vi } from 'vitest';

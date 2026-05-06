@@ -39,7 +39,10 @@ const buildHandler = () => {
 describe('AutoScheduleOnWikipediaArticleLinkedHandler', () => {
 	it('ignores events of other types', async () => {
 		const { handler, execute } = buildHandler();
-		const otherEvent = { type: 'GscPropertyLinked', occurredAt: new Date() } as unknown as SharedKernel.DomainEvent;
+		const otherEvent = {
+			type: 'GscPropertyLinked',
+			occurredAt: new Date(),
+		} as unknown as SharedKernel.DomainEvent;
 		await handler.handle(otherEvent);
 		expect(execute).not.toHaveBeenCalled();
 	});

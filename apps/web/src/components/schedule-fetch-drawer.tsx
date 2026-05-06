@@ -166,9 +166,9 @@ export const ScheduleFetchDrawer = ({ open, onClose, projectId }: ScheduleFetchD
 				) : (
 					<>
 						<p className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-							Endpoints that ingest into a per-entity hypertable (GSC, GA4, Bing, Wikipedia,
-							Clarity, PageSpeed, Cloudflare Radar) are auto-scheduled when you link the
-							entity — they're hidden here. Link those from <strong>Settings → Providers</strong>.
+							Endpoints that ingest into a per-entity hypertable (GSC, GA4, Bing, Wikipedia, Clarity,
+							PageSpeed, Cloudflare Radar) are auto-scheduled when you link the entity — they're hidden here.
+							Link those from <strong>Settings → Providers</strong>.
 						</p>
 						<FormField label="Provider">
 							{(id) => (

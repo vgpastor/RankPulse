@@ -40,11 +40,7 @@ interface RepairConfig {
 	endpointId: string;
 	systemKey: string;
 	/** Resolves the entity id from row.params for a given projectId. Returns the entity id (uuid string) or null when no match. */
-	resolveEntityId(
-		sql: Sql,
-		projectId: string,
-		params: Record<string, unknown>,
-	): Promise<string | null>;
+	resolveEntityId(sql: Sql, projectId: string, params: Record<string, unknown>): Promise<string | null>;
 }
 
 const ENTITY_BOUND: RepairConfig[] = [

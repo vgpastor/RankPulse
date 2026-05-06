@@ -59,26 +59,23 @@ describe('ProvidersController.scheduleEndpoint — entity-bound gate', () => {
 		['microsoft-clarity', 'clarity-data-export', 'clarity/projects'],
 		['pagespeed', 'psi-runpagespeed', 'page-speed/pages'],
 		['cloudflare-radar', 'radar-domain-rank', 'radar/domains'],
-	])(
-		'rejects POST .../schedule for %s/%s with 400 pointing to %s',
-		async (providerId, endpointId, hint) => {
-			const { controller, scheduleExecute } = buildController();
-			await expect(
-				controller.scheduleEndpoint(buildPrincipal(), providerId, endpointId, {
-					projectId: PROJECT_ID,
-					providerId,
-					endpointId,
-					params: {},
-					cron: '0 5 * * *',
-				}),
-			).rejects.toMatchObject({
-				status: 400,
-				message: expect.stringMatching(new RegExp(hint)),
-			});
-			// Gate runs BEFORE the use case is touched.
-			expect(scheduleExecute).not.toHaveBeenCalled();
-		},
-	);
+	])('rejects POST .../schedule for %s/%s with 400 pointing to %s', async (providerId, endpointId, hint) => {
+		const { controller, scheduleExecute } = buildController();
+		await expect(
+			controller.scheduleEndpoint(buildPrincipal(), providerId, endpointId, {
+				projectId: PROJECT_ID,
+				providerId,
+				endpointId,
+				params: {},
+				cron: '0 5 * * *',
+			}),
+		).rejects.toMatchObject({
+			status: 400,
+			message: expect.stringMatching(new RegExp(hint)),
+		});
+		// Gate runs BEFORE the use case is touched.
+		expect(scheduleExecute).not.toHaveBeenCalled();
+	});
 
 	it('rejects only when (provider, endpoint) BOTH match the entity-bound entry', async () => {
 		// `gsc-search-analytics` under a different provider id should NOT be

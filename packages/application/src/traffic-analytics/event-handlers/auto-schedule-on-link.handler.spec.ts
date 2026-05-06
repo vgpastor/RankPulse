@@ -1,8 +1,8 @@
 import {
 	type IdentityAccess,
 	type ProjectManagement,
-	TrafficAnalytics,
 	type SharedKernel,
+	TrafficAnalytics,
 } from '@rankpulse/domain';
 import { describe, expect, it, vi } from 'vitest';
 import type { ScheduleEndpointFetchUseCase } from '../../provider-connectivity/use-cases/schedule-endpoint-fetch.use-case.js';
@@ -37,7 +37,10 @@ const buildHandler = () => {
 describe('AutoScheduleOnGa4PropertyLinkedHandler', () => {
 	it('ignores events of other types', async () => {
 		const { handler, execute } = buildHandler();
-		const otherEvent = { type: 'GscPropertyLinked', occurredAt: new Date() } as unknown as SharedKernel.DomainEvent;
+		const otherEvent = {
+			type: 'GscPropertyLinked',
+			occurredAt: new Date(),
+		} as unknown as SharedKernel.DomainEvent;
 		await handler.handle(otherEvent);
 		expect(execute).not.toHaveBeenCalled();
 	});
