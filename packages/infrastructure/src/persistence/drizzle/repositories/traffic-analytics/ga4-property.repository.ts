@@ -3,6 +3,7 @@ import { ConflictError } from '@rankpulse/shared';
 import { and, desc, eq } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { ga4Properties } from '../../schema/index.js';
+import { DrizzleRepository } from '../_base.js';
 
 const UNIQUE_TUPLE_CONSTRAINT = 'ga4_properties_project_handle_unique';
 
@@ -14,8 +15,15 @@ const isUniqueViolation = (err: unknown): boolean => {
 	return constraint === UNIQUE_TUPLE_CONSTRAINT;
 };
 
-export class DrizzleGa4PropertyRepository implements TrafficAnalytics.Ga4PropertyRepository {
-	constructor(private readonly db: DrizzleDatabase) {}
+type Ga4PropertyRow = typeof ga4Properties.$inferSelect;
+
+export class DrizzleGa4PropertyRepository
+	extends DrizzleRepository<TrafficAnalytics.Ga4Property, Ga4PropertyRow>
+	implements TrafficAnalytics.Ga4PropertyRepository
+{
+	constructor(db: DrizzleDatabase) {
+		super(db, ga4Properties);
+	}
 
 	async save(property: TrafficAnalytics.Ga4Property): Promise<void> {
 		try {
@@ -48,10 +56,7 @@ export class DrizzleGa4PropertyRepository implements TrafficAnalytics.Ga4Propert
 		}
 	}
 
-	async findById(id: TrafficAnalytics.Ga4PropertyId): Promise<TrafficAnalytics.Ga4Property | null> {
-		const [row] = await this.db.select().from(ga4Properties).where(eq(ga4Properties.id, id)).limit(1);
-		return row ? this.toAggregate(row) : null;
-	}
+	// findById inherited from DrizzleRepository<TAggregate, TRow>.
 
 	async findByProjectAndHandle(
 		projectId: ProjectManagement.ProjectId,
@@ -88,7 +93,7 @@ export class DrizzleGa4PropertyRepository implements TrafficAnalytics.Ga4Propert
 		return rows.map((r) => this.toAggregate(r));
 	}
 
-	private toAggregate(row: typeof ga4Properties.$inferSelect): TrafficAnalytics.Ga4Property {
+	protected toAggregate(row: Ga4PropertyRow): TrafficAnalytics.Ga4Property {
 		return TrafficAnalytics.Ga4Property.rehydrate({
 			id: row.id as TrafficAnalytics.Ga4PropertyId,
 			organizationId: row.organizationId as IdentityAccess.OrganizationId,

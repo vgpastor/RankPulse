@@ -3,6 +3,7 @@ import { ConflictError } from '@rankpulse/shared';
 import { and, desc, eq } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { bingProperties } from '../../schema/index.js';
+import { DrizzleRepository } from '../_base.js';
 
 const UNIQUE_TUPLE_CONSTRAINT = 'bing_properties_project_site_unique';
 
@@ -14,8 +15,15 @@ const isUniqueViolation = (err: unknown): boolean => {
 	return constraint === UNIQUE_TUPLE_CONSTRAINT;
 };
 
-export class DrizzleBingPropertyRepository implements BingWebmasterInsights.BingPropertyRepository {
-	constructor(private readonly db: DrizzleDatabase) {}
+type BingPropertyRow = typeof bingProperties.$inferSelect;
+
+export class DrizzleBingPropertyRepository
+	extends DrizzleRepository<BingWebmasterInsights.BingProperty, BingPropertyRow>
+	implements BingWebmasterInsights.BingPropertyRepository
+{
+	constructor(db: DrizzleDatabase) {
+		super(db, bingProperties);
+	}
 
 	async save(property: BingWebmasterInsights.BingProperty): Promise<void> {
 		try {
@@ -48,12 +56,7 @@ export class DrizzleBingPropertyRepository implements BingWebmasterInsights.Bing
 		}
 	}
 
-	async findById(
-		id: BingWebmasterInsights.BingPropertyId,
-	): Promise<BingWebmasterInsights.BingProperty | null> {
-		const [row] = await this.db.select().from(bingProperties).where(eq(bingProperties.id, id)).limit(1);
-		return row ? this.toAggregate(row) : null;
-	}
+	// findById inherited from DrizzleRepository<TAggregate, TRow>.
 
 	async findByProjectAndSite(
 		projectId: ProjectManagement.ProjectId,
@@ -89,7 +92,7 @@ export class DrizzleBingPropertyRepository implements BingWebmasterInsights.Bing
 		return rows.map((r) => this.toAggregate(r));
 	}
 
-	private toAggregate(row: typeof bingProperties.$inferSelect): BingWebmasterInsights.BingProperty {
+	protected toAggregate(row: BingPropertyRow): BingWebmasterInsights.BingProperty {
 		return BingWebmasterInsights.BingProperty.rehydrate({
 			id: row.id as BingWebmasterInsights.BingPropertyId,
 			organizationId: row.organizationId as IdentityAccess.OrganizationId,

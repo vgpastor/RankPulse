@@ -3,6 +3,7 @@ import { ConflictError } from '@rankpulse/shared';
 import { and, desc, eq } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { trackedPages } from '../../schema/index.js';
+import { DrizzleRepository } from '../_base.js';
 
 const UNIQUE_TUPLE_CONSTRAINT = 'tracked_pages_project_url_strategy_unique';
 
@@ -14,8 +15,15 @@ const isUniqueViolation = (err: unknown): boolean => {
 	return constraint === UNIQUE_TUPLE_CONSTRAINT;
 };
 
-export class DrizzleTrackedPageRepository implements WebPerformance.TrackedPageRepository {
-	constructor(private readonly db: DrizzleDatabase) {}
+type TrackedPageRow = typeof trackedPages.$inferSelect;
+
+export class DrizzleTrackedPageRepository
+	extends DrizzleRepository<WebPerformance.TrackedPage, TrackedPageRow>
+	implements WebPerformance.TrackedPageRepository
+{
+	constructor(db: DrizzleDatabase) {
+		super(db, trackedPages);
+	}
 
 	async save(page: WebPerformance.TrackedPage): Promise<void> {
 		try {
@@ -43,10 +51,7 @@ export class DrizzleTrackedPageRepository implements WebPerformance.TrackedPageR
 		}
 	}
 
-	async findById(id: WebPerformance.TrackedPageId): Promise<WebPerformance.TrackedPage | null> {
-		const [row] = await this.db.select().from(trackedPages).where(eq(trackedPages.id, id)).limit(1);
-		return row ? this.toAggregate(row) : null;
-	}
+	// findById inherited from DrizzleRepository<TAggregate, TRow>.
 
 	async findByTuple(
 		projectId: ProjectManagement.ProjectId,
@@ -82,7 +87,7 @@ export class DrizzleTrackedPageRepository implements WebPerformance.TrackedPageR
 		await this.db.delete(trackedPages).where(eq(trackedPages.id, id));
 	}
 
-	private toAggregate(row: typeof trackedPages.$inferSelect): WebPerformance.TrackedPage {
+	protected toAggregate(row: TrackedPageRow): WebPerformance.TrackedPage {
 		if (!WebPerformance.isPageSpeedStrategy(row.strategy)) {
 			throw new Error(`Stored tracked page has invalid strategy "${row.strategy}"`);
 		}

@@ -3,6 +3,7 @@ import { ConflictError } from '@rankpulse/shared';
 import { and, desc, eq } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { clarityProjects } from '../../schema/index.js';
+import { DrizzleRepository } from '../_base.js';
 
 const UNIQUE_TUPLE_CONSTRAINT = 'clarity_projects_project_handle_unique';
 
@@ -14,8 +15,15 @@ const isUniqueViolation = (err: unknown): boolean => {
 	return constraint === UNIQUE_TUPLE_CONSTRAINT;
 };
 
-export class DrizzleClarityProjectRepository implements ExperienceAnalytics.ClarityProjectRepository {
-	constructor(private readonly db: DrizzleDatabase) {}
+type ClarityProjectRow = typeof clarityProjects.$inferSelect;
+
+export class DrizzleClarityProjectRepository
+	extends DrizzleRepository<ExperienceAnalytics.ClarityProject, ClarityProjectRow>
+	implements ExperienceAnalytics.ClarityProjectRepository
+{
+	constructor(db: DrizzleDatabase) {
+		super(db, clarityProjects);
+	}
 
 	async save(cp: ExperienceAnalytics.ClarityProject): Promise<void> {
 		try {
@@ -48,12 +56,7 @@ export class DrizzleClarityProjectRepository implements ExperienceAnalytics.Clar
 		}
 	}
 
-	async findById(
-		id: ExperienceAnalytics.ClarityProjectId,
-	): Promise<ExperienceAnalytics.ClarityProject | null> {
-		const [row] = await this.db.select().from(clarityProjects).where(eq(clarityProjects.id, id)).limit(1);
-		return row ? this.toAggregate(row) : null;
-	}
+	// findById inherited from DrizzleRepository<TAggregate, TRow>.
 
 	async findByProjectAndHandle(
 		projectId: ProjectManagement.ProjectId,
@@ -90,7 +93,7 @@ export class DrizzleClarityProjectRepository implements ExperienceAnalytics.Clar
 		return rows.map((r) => this.toAggregate(r));
 	}
 
-	private toAggregate(row: typeof clarityProjects.$inferSelect): ExperienceAnalytics.ClarityProject {
+	protected toAggregate(row: ClarityProjectRow): ExperienceAnalytics.ClarityProject {
 		return ExperienceAnalytics.ClarityProject.rehydrate({
 			id: row.id as ExperienceAnalytics.ClarityProjectId,
 			organizationId: row.organizationId as IdentityAccess.OrganizationId,
