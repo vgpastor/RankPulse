@@ -89,4 +89,17 @@ export class AiSearchResource {
 			{ query: query ?? {} },
 		);
 	}
+
+	competitiveMatrix(
+		projectId: string,
+		query?: AiSearchInsightsContracts.CompetitiveMatrixQuery,
+	): Promise<AiSearchInsightsContracts.CompetitiveMatrixResponse> {
+		return this.http.get(`/projects/${encodeURIComponent(projectId)}/ai-search/competitive-matrix`, {
+			query: query ?? {},
+		});
+	}
+
+	alerts(projectId: string): Promise<AiSearchInsightsContracts.AiSearchAlertsResponse> {
+		return this.http.get(`/projects/${encodeURIComponent(projectId)}/ai-search/alerts`);
+	}
 }

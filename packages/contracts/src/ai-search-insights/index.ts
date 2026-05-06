@@ -176,3 +176,49 @@ export const AiSearchSovDailyResponse = z.object({
 	items: z.array(AiSearchSovDailyPoint),
 });
 export type AiSearchSovDailyResponse = z.infer<typeof AiSearchSovDailyResponse>;
+
+// ---- competitive matrix + alerts (sub-issue #64) ----
+
+export const CompetitiveMatrixQuery = DashboardWindowQuery;
+export type CompetitiveMatrixQuery = z.infer<typeof CompetitiveMatrixQuery>;
+
+export const CompetitiveMatrixCell = z.object({
+	aiProvider: AiProviderNameSchema,
+	country: z.string(),
+	language: z.string(),
+	brand: z.string(),
+	isOwnBrand: z.boolean(),
+	totalAnswers: z.number().int().min(0),
+	answersWithMention: z.number().int().min(0),
+	mentionRate: z.number().min(0).max(1),
+	avgPosition: z.number().min(1).nullable(),
+});
+export type CompetitiveMatrixCell = z.infer<typeof CompetitiveMatrixCell>;
+
+export const CompetitiveMatrixResponse = z.object({
+	items: z.array(CompetitiveMatrixCell),
+});
+export type CompetitiveMatrixResponse = z.infer<typeof CompetitiveMatrixResponse>;
+
+export const AiSearchAlertKindSchema = z.enum(['BrandLostCitation', 'BrandSoVDropped', 'CompetitorOvertook']);
+export type AiSearchAlertKindContract = z.infer<typeof AiSearchAlertKindSchema>;
+
+export const AiSearchAlertSeveritySchema = z.enum(['info', 'warning', 'critical']);
+export type AiSearchAlertSeverityContract = z.infer<typeof AiSearchAlertSeveritySchema>;
+
+export const AiSearchAlertItem = z.object({
+	kind: AiSearchAlertKindSchema,
+	severity: AiSearchAlertSeveritySchema,
+	aiProvider: AiProviderNameSchema,
+	country: z.string(),
+	language: z.string(),
+	occurredAt: z.string().datetime(),
+	subject: z.string(),
+	details: z.record(z.string(), z.union([z.string(), z.number(), z.null()])),
+});
+export type AiSearchAlertItem = z.infer<typeof AiSearchAlertItem>;
+
+export const AiSearchAlertsResponse = z.object({
+	items: z.array(AiSearchAlertItem),
+});
+export type AiSearchAlertsResponse = z.infer<typeof AiSearchAlertsResponse>;

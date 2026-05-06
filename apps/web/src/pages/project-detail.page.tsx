@@ -22,6 +22,7 @@ import { AddCompetitorDrawer } from '../components/add-competitor-drawer.js';
 import { AddDomainDrawer } from '../components/add-domain-drawer.js';
 import { AddLocationDrawer } from '../components/add-location-drawer.js';
 import { AddRadarDomainDrawer } from '../components/add-radar-domain-drawer.js';
+import { AiAlertsPanel } from '../components/ai-alerts-panel.js';
 import { AiPresenceCard } from '../components/ai-presence-card.js';
 import { AppShell } from '../components/app-shell.js';
 import { ImportKeywordsDrawer } from '../components/import-keywords-drawer.js';
@@ -187,6 +188,7 @@ export const ProjectDetailPage = () => {
 				</header>
 
 				<AiPresenceCard projectId={project.id} />
+				<AiAlertsPanel projectId={project.id} />
 
 				<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 					<Card>

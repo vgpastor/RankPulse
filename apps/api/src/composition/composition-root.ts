@@ -482,6 +482,8 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const queryAiSearchSov = new AISIUseCases.QueryAiSearchSovUseCase(llmAnswerReadModel);
 	const queryAiSearchCitations = new AISIUseCases.QueryAiSearchCitationsUseCase(llmAnswerReadModel);
 	const queryPromptSovDaily = new AISIUseCases.QueryPromptSovDailyUseCase(llmAnswerReadModel);
+	const queryCompetitiveMatrix = new AISIUseCases.QueryCompetitiveMatrixUseCase(llmAnswerReadModel);
+	const queryAiSearchAlerts = new AISIUseCases.QueryAiSearchAlertsUseCase(llmAnswerReadModel);
 
 	const autoScheduleOnBrandPromptCreated = new AISIUseCases.AutoScheduleOnBrandPromptCreatedHandler(
 		scheduleEndpointFetch,
@@ -652,6 +654,8 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.QueryAiSearchSov, queryAiSearchSov),
 		value(Tokens.QueryAiSearchCitations, queryAiSearchCitations),
 		value(Tokens.QueryPromptSovDaily, queryPromptSovDaily),
+		value(Tokens.QueryCompetitiveMatrix, queryCompetitiveMatrix),
+		value(Tokens.QueryAiSearchAlerts, queryAiSearchAlerts),
 	];
 
 	return {

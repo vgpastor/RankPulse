@@ -41,6 +41,10 @@ export class AiSearchInsightsController {
 		private readonly queryCitations: AiUseCases.QueryAiSearchCitationsUseCase,
 		@Inject(Tokens.QueryPromptSovDaily)
 		private readonly querySovDaily: AiUseCases.QueryPromptSovDailyUseCase,
+		@Inject(Tokens.QueryCompetitiveMatrix)
+		private readonly queryMatrix: AiUseCases.QueryCompetitiveMatrixUseCase,
+		@Inject(Tokens.QueryAiSearchAlerts)
+		private readonly queryAlerts: AiUseCases.QueryAiSearchAlertsUseCase,
 		@Inject(Tokens.BrandPromptRepository)
 		private readonly promptRepo: AiSearchInsights.BrandPromptRepository,
 		@Inject(Tokens.ProjectRepository) private readonly projects: ProjectManagement.ProjectRepository,
@@ -206,6 +210,32 @@ export class AiSearchInsightsController {
 			to: query.to ? new Date(query.to) : undefined,
 		});
 		return { items: items.map((i) => ({ ...i, providers: [...i.providers] })) };
+	}
+
+	@Get('projects/:projectId/ai-search/competitive-matrix')
+	async competitiveMatrix(
+		@Principal() principal: AuthPrincipal,
+		@Param('projectId') projectId: string,
+		@Query(new ZodValidationPipe(AiSearchInsightsContracts.CompetitiveMatrixQuery))
+		query: AiSearchInsightsContracts.CompetitiveMatrixQuery,
+	): Promise<AiSearchInsightsContracts.CompetitiveMatrixResponse> {
+		await this.requireProjectAccess(principal, projectId);
+		const items = await this.queryMatrix.execute({
+			projectId,
+			from: query.from ? new Date(query.from) : undefined,
+			to: query.to ? new Date(query.to) : undefined,
+		});
+		return { items: items.map((i) => ({ ...i })) };
+	}
+
+	@Get('projects/:projectId/ai-search/alerts')
+	async alerts(
+		@Principal() principal: AuthPrincipal,
+		@Param('projectId') projectId: string,
+	): Promise<AiSearchInsightsContracts.AiSearchAlertsResponse> {
+		await this.requireProjectAccess(principal, projectId);
+		const items = await this.queryAlerts.execute({ projectId });
+		return { items: items.map((i) => ({ ...i, details: { ...i.details } })) };
 	}
 
 	@Get('projects/:projectId/brand-prompts/:promptId/sov-daily')

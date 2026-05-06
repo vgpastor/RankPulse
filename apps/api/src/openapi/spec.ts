@@ -798,6 +798,45 @@ export function buildOpenApiDocument(): unknown {
 
 	registry.registerPath({
 		method: 'get',
+		path: '/api/v1/projects/{projectId}/ai-search/competitive-matrix',
+		summary: 'AI Brand Radar — competitive matrix (provider × locale × brand)',
+		description:
+			'Flat list of cells the UI pivots into a heatmap. Brands with zero mentions are not present in the response — the UI fills them as 0% cells so the heatmap stays dense.',
+		tags: ['ai-search-insights'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid() }),
+			query: AiSearchInsightsContracts.CompetitiveMatrixQuery,
+		},
+		responses: {
+			200: {
+				description: 'Matrix cells',
+				content: { 'application/json': { schema: AiSearchInsightsContracts.CompetitiveMatrixResponse } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/projects/{projectId}/ai-search/alerts',
+		summary: 'AI Brand Radar — active regression alerts (computed on-the-fly)',
+		description:
+			'BrandLostCitation = own URL stops being cited after a ≥3-day streak. BrandSoVDropped = ≥20% week-over-week drop in own mention rate per (provider × locale). CompetitorOvertook = a competitor brand has a better avg position than ours.',
+		tags: ['ai-search-insights'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: { params: z.object({ projectId: z.string().uuid() }) },
+		responses: {
+			200: {
+				description: 'Active alerts (sorted critical → warning → info)',
+				content: { 'application/json': { schema: AiSearchInsightsContracts.AiSearchAlertsResponse } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
 		path: '/api/v1/projects/{projectId}/brand-prompts/{promptId}/sov-daily',
 		summary: 'AI Brand Radar — daily SoV curve for a single BrandPrompt (sparkline data)',
 		tags: ['ai-search-insights'],
