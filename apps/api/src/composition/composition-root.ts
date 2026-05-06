@@ -373,6 +373,23 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		void autoScheduleOnGscLink.handle(event);
 	});
 
+	const autoScheduleOnGa4Link = new TAUseCases.AutoScheduleOnGa4PropertyLinkedHandler(
+		scheduleEndpointFetch,
+		{
+			info: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.log(`[auto-schedule-on-ga4-link] ${msg}`, meta);
+			},
+			error: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.error(`[auto-schedule-on-ga4-link] ${msg}`, meta);
+			},
+		},
+	);
+	eventPublisher.on('Ga4PropertyLinked', (event) => {
+		void autoScheduleOnGa4Link.handle(event);
+	});
+
 	const providers: Provider[] = [
 		value(Tokens.AppEnv, env),
 		value(Tokens.DrizzleClient, drizzle),
