@@ -83,6 +83,12 @@ importers:
       '@rankpulse/provider-openai':
         specifier: workspace:*
         version: link:../../packages/providers/openai
+      '@rankpulse/provider-pagespeed':
+        specifier: workspace:*
+        version: link:../../packages/providers/pagespeed
+      '@rankpulse/provider-wikipedia':
+        specifier: workspace:*
+        version: link:../../packages/providers/wikipedia
       '@rankpulse/shared':
         specifier: workspace:*
         version: link:../../packages/shared
