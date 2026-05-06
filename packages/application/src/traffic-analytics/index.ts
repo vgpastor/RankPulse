@@ -1,4 +1,4 @@
-export * from './event-handlers/auto-schedule-on-link.handler.js';
+export * from './event-handlers/auto-schedule.config.js';
 export * from './use-cases/ingest-ga4-rows.use-case.js';
 export * from './use-cases/link-ga4-property.use-case.js';
 export * from './use-cases/query-ga4-metrics.use-case.js';
