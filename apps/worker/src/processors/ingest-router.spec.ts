@@ -24,7 +24,7 @@ describe('IngestRouter.dispatch', () => {
 		]);
 		const router = new IngestRouter(entries);
 
-		await router.dispatch({
+		const handled = await router.dispatch({
 			providerId: 'fake',
 			endpointId: 'fake-endpoint',
 			fetchResult: { ok: true },
@@ -33,6 +33,7 @@ describe('IngestRouter.dispatch', () => {
 			dateBucket: '2026-05-06',
 		});
 
+		expect(handled).toBe(true);
 		expect(acl).toHaveBeenCalledWith(
 			{ ok: true },
 			expect.objectContaining({
@@ -47,7 +48,7 @@ describe('IngestRouter.dispatch', () => {
 		});
 	});
 
-	it('returns silently when (provider, endpoint) is not registered (raw-only)', async () => {
+	it('returns false when (provider, endpoint) is not registered (raw-only / legacy fallback)', async () => {
 		const router = new IngestRouter(new Map());
 		await expect(
 			router.dispatch({
@@ -58,7 +59,18 @@ describe('IngestRouter.dispatch', () => {
 				definition: { params: {} } as never,
 				dateBucket: '2026-05-06',
 			}),
-		).resolves.toBeUndefined();
+		).resolves.toBe(false);
+	});
+
+	it('has() returns true for registered tuples and false otherwise', () => {
+		const { acl, ingest } = buildEntry();
+		const entries = new Map<RouterKey, IngestRouterEntry>([
+			['fake|fake-endpoint', { systemParamKey: 'fakeId', acl, ingest }],
+		]);
+		const router = new IngestRouter(entries);
+		expect(router.has('fake', 'fake-endpoint')).toBe(true);
+		expect(router.has('fake', 'other')).toBe(false);
+		expect(router.has('other', 'fake-endpoint')).toBe(false);
 	});
 
 	it('throws NotFoundError when systemParam is missing', async () => {

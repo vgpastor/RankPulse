@@ -28,16 +28,25 @@ export interface IngestRouterDispatchInput {
  *
  * Built once at composition time from `ProviderManifest.endpoints[].ingest`
  * + the merged `ContextRegistrations.ingestUseCases` map. Endpoints with
- * `ingest: null` are raw-only — `dispatch()` returns silently for those;
+ * `ingest: null` are raw-only — `dispatch()` returns false for those;
  * the caller has already persisted the raw payload.
+ *
+ * `dispatch()` returns true when an ingest entry was found AND executed
+ * for the (providerId, endpointId) tuple, false when no entry exists. The
+ * processor uses this to fall back to legacy if-else dispatch for endpoints
+ * the router doesn't yet cover (DataForSEO ranking-observation fan-out).
  */
 export class IngestRouter {
 	constructor(private readonly entries: ReadonlyMap<ProviderEndpointKey, IngestRouterEntry>) {}
 
-	async dispatch(input: IngestRouterDispatchInput): Promise<void> {
+	has(providerId: string, endpointId: string): boolean {
+		return this.entries.has(`${providerId}|${endpointId}`);
+	}
+
+	async dispatch(input: IngestRouterDispatchInput): Promise<boolean> {
 		const key: ProviderEndpointKey = `${input.providerId}|${input.endpointId}`;
 		const entry = this.entries.get(key);
-		if (!entry) return;
+		if (!entry) return false;
 
 		const params = input.definition.params as Record<string, unknown>;
 		const systemParamValue = params[entry.systemParamKey];
@@ -59,6 +68,7 @@ export class IngestRouter {
 			rows,
 			systemParams: params,
 		});
+		return true;
 	}
 }
 
