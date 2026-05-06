@@ -17,7 +17,7 @@
 | `gsc-search-analytics` | `google-search-console` | `gscPropertyId` | `SearchConsoleInsights.GscPropertyLinked` | `LinkGscPropertyUseCase` | `0 5 * * *` |
 | `ga4-run-report` | `google-analytics-4` | `ga4PropertyId` | `TrafficAnalytics.Ga4PropertyLinked` | `LinkGa4PropertyUseCase` | `0 5 * * *` |
 | `wikipedia-pageviews-per-article` | `wikipedia` | `wikipediaArticleId` | `EntityAwareness.WikipediaArticleLinked` | `LinkWikipediaArticleUseCase` | `0 6 * * *` |
-| `bing-rank-and-traffic-stats` | `bing-webmaster-tools` | `bingPropertyId` | `BingWebmasterInsights.BingPropertyLinked` | `LinkBingPropertyUseCase` | `0 5 * * *` |
+| `bing-rank-and-traffic-stats` | `bing-webmaster` | `bingPropertyId` | `BingWebmasterInsights.BingPropertyLinked` | `LinkBingPropertyUseCase` | `0 5 * * *` |
 | `clarity-data-export` | `microsoft-clarity` | `clarityProjectId` | `ExperienceAnalytics.ClarityProjectLinked` | `LinkClarityProjectUseCase` | `0 6 * * *` |
 | `psi-runpagespeed` | `pagespeed-insights` | `trackedPageId` | `WebPerformance.TrackedPageAdded` | `TrackPageUseCase` | `0 7 * * *` |
 | `radar-domain-rank` | `cloudflare-radar` | `monitoredDomainId` | `MacroContext.MonitoredDomainAdded` | `AddMonitoredDomainUseCase` | `0 6 * * *` |
@@ -1060,7 +1060,7 @@ describe('AutoScheduleOnBingPropertyLinkedHandler', () => {
 		const cmd = execute.mock.calls[0]?.[0] as Parameters<ScheduleEndpointFetchUseCase['execute']>[0];
 		expect(cmd).toMatchObject({
 			projectId: PROJECT_ID,
-			providerId: 'bing-webmaster-tools',
+			providerId: 'bing-webmaster',
 			endpointId: 'bing-rank-and-traffic-stats',
 			cron: '0 5 * * *',
 			idempotencyKey: { systemParamKey: 'bingPropertyId', systemParamValue: PROPERTY_ID },
@@ -1080,7 +1080,7 @@ describe('AutoScheduleOnBingPropertyLinkedHandler', () => {
 
 	it('exposes defaults', () => {
 		expect(BING_AUTO_SCHEDULE_DEFAULTS).toMatchObject({
-			providerId: 'bing-webmaster-tools',
+			providerId: 'bing-webmaster',
 			endpointId: 'bing-rank-and-traffic-stats',
 			cron: '0 5 * * *',
 		});
@@ -1112,7 +1112,7 @@ export interface EventHandlerLogger {
 const NOOP_LOGGER: EventHandlerLogger = { info: () => {}, error: () => {} };
 
 export const BING_AUTO_SCHEDULE_DEFAULTS = {
-	providerId: 'bing-webmaster-tools',
+	providerId: 'bing-webmaster',
 	endpointId: 'bing-rank-and-traffic-stats',
 	cron: '0 5 * * *',
 };
@@ -1798,7 +1798,7 @@ it.each([
 	['google-search-console', 'gsc-search-analytics', 'gsc/properties'],
 	['google-analytics-4', 'ga4-run-report', 'ga4/properties'],
 	['wikipedia', 'wikipedia-pageviews-per-article', 'wikipedia/articles'],
-	['bing-webmaster-tools', 'bing-rank-and-traffic-stats', 'bing/properties'],
+	['bing-webmaster', 'bing-rank-and-traffic-stats', 'bing/properties'],
 	['microsoft-clarity', 'clarity-data-export', 'clarity/projects'],
 	['pagespeed-insights', 'psi-runpagespeed', 'web-performance/tracked-pages'],
 	['cloudflare-radar', 'radar-domain-rank', 'macro-context/monitored-domains'],
@@ -1844,7 +1844,7 @@ const ENTITY_BOUND_ENDPOINTS: Record<string, { provider: string; preferredRoute:
 	'gsc-search-analytics': { provider: 'google-search-console', preferredRoute: '/api/v1/projects/:projectId/gsc/properties' },
 	'ga4-run-report': { provider: 'google-analytics-4', preferredRoute: '/api/v1/projects/:projectId/ga4/properties' },
 	'wikipedia-pageviews-per-article': { provider: 'wikipedia', preferredRoute: '/api/v1/projects/:projectId/wikipedia/articles' },
-	'bing-rank-and-traffic-stats': { provider: 'bing-webmaster-tools', preferredRoute: '/api/v1/projects/:projectId/bing/properties' },
+	'bing-rank-and-traffic-stats': { provider: 'bing-webmaster', preferredRoute: '/api/v1/projects/:projectId/bing/properties' },
 	'clarity-data-export': { provider: 'microsoft-clarity', preferredRoute: '/api/v1/projects/:projectId/clarity/projects' },
 	'psi-runpagespeed': { provider: 'pagespeed-insights', preferredRoute: '/api/v1/projects/:projectId/web-performance/tracked-pages' },
 	'radar-domain-rank': { provider: 'cloudflare-radar', preferredRoute: '/api/v1/projects/:projectId/macro-context/monitored-domains' },
