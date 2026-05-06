@@ -280,6 +280,8 @@ describe('UpdateJobDefinitionUseCase — preserves systemParams (bug #51)', () =
 		'bingPropertyId',
 		'clarityProjectId',
 		'monitoredDomainId',
+		'metaPixelId',
+		'metaAdAccountId',
 	])('preserves systemParam %s on PATCH (defence in depth — ADR 0001)', async (key) => {
 		const def = PC2.ProviderJobDefinition.schedule({
 			id: 'def-whitelist' as PC2.ProviderJobDefinitionId,

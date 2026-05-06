@@ -606,55 +606,62 @@ export class ProviderFetchProcessor {
 				definition.endpointId.value === 'meta-pixel-events-stats'
 			) {
 				// Issue #45 — Meta Pixel daily-events ingest. The job's
-				// systemParams must carry `metaPixelId` (set by the
-				// MetaPixelSystemParamResolver when the operator schedules
-				// against a linked pixel). Missing-id case logs warn + skips,
-				// mirroring the GA4/GSC ingests.
+				// systemParams must carry `metaPixelId`, populated by
+				// AutoScheduleOnMetaPixelLinkedHandler when the operator links
+				// a Meta pixel. Manual schedule path is gated at the controller
+				// (ADR 0001), so reaching here without the id is a programmer
+				// error — fail the run with a clear precondition code.
 				const metaParams = resolvedParams as unknown as PixelEventsStatsParams & {
 					metaPixelId?: string;
 				};
 				if (!metaParams.metaPixelId) {
-					runLog.warn({}, 'meta-pixel-events-stats job missing metaPixelId in systemParams; skipping ingest');
-				} else {
-					const fallbackDate =
-						typeof metaParams.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(metaParams.endDate)
-							? metaParams.endDate
-							: dateBucket;
-					const rows = extractPixelEventRows(fetchResult as PixelEventsStatsResponse, fallbackDate);
-					await this.deps.ingestMetaPixelEventsUseCase.execute({
-						metaPixelId: metaParams.metaPixelId,
-						rawPayloadId,
-						rows,
-					});
+					throw new NotFoundError(
+						'meta-pixel-events-stats processor reached without metaPixelId in systemParams. ' +
+							'Auto-Schedule handler should have set this. See ADR 0001.',
+					);
 				}
+				const fallbackDate =
+					typeof metaParams.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(metaParams.endDate)
+						? metaParams.endDate
+						: dateBucket;
+				const rows = extractPixelEventRows(fetchResult as PixelEventsStatsResponse, fallbackDate);
+				await this.deps.ingestMetaPixelEventsUseCase.execute({
+					metaPixelId: metaParams.metaPixelId,
+					rawPayloadId,
+					rows,
+				});
 			}
 
 			if (definition.providerId.value === 'meta' && definition.endpointId.value === 'meta-ads-insights') {
 				// Issue #45 — Meta Ads Insights ingest. The job's systemParams
-				// must carry `metaAdAccountId`, set by the
-				// MetaAdAccountSystemParamResolver. The `level` param drives
-				// the row granularity (campaign by default).
+				// must carry `metaAdAccountId`, populated by
+				// AutoScheduleOnMetaAdAccountLinkedHandler. The `level` param
+				// drives the row granularity (campaign by default). Manual
+				// schedule is gated at the controller — reaching here without
+				// the id is a programmer error.
 				const metaParams = resolvedParams as unknown as AdsInsightsParams & {
 					metaAdAccountId?: string;
 				};
 				if (!metaParams.metaAdAccountId) {
-					runLog.warn({}, 'meta-ads-insights job missing metaAdAccountId in systemParams; skipping ingest');
-				} else {
-					const fallbackDate =
-						typeof metaParams.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(metaParams.endDate)
-							? metaParams.endDate
-							: dateBucket;
-					const rows = extractAdsInsightRows(
-						fetchResult as AdsInsightsResponse,
-						metaParams.level ?? 'campaign',
-						fallbackDate,
+					throw new NotFoundError(
+						'meta-ads-insights processor reached without metaAdAccountId in systemParams. ' +
+							'Auto-Schedule handler should have set this. See ADR 0001.',
 					);
-					await this.deps.ingestMetaAdsInsightsUseCase.execute({
-						metaAdAccountId: metaParams.metaAdAccountId,
-						rawPayloadId,
-						rows,
-					});
 				}
+				const fallbackDate =
+					typeof metaParams.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(metaParams.endDate)
+						? metaParams.endDate
+						: dateBucket;
+				const rows = extractAdsInsightRows(
+					fetchResult as AdsInsightsResponse,
+					metaParams.level ?? 'campaign',
+					fallbackDate,
+				);
+				await this.deps.ingestMetaAdsInsightsUseCase.execute({
+					metaAdAccountId: metaParams.metaAdAccountId,
+					rawPayloadId,
+					rows,
+				});
 			}
 
 			// `meta-custom-audiences` is intentionally a raw-payload-only

@@ -286,15 +286,10 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		SystemClock,
 		SystemIdGenerator,
 		eventPublisher,
-		// ADR 0001 — original 5 resolvers (gsc/ga4/trackedPage/wikipedia/bing)
-		// + MonitoredDomain (#57) + BrandPrompt (AI Brand Radar) replaced by
-		// per-context Auto-Schedule handlers (see `eventPublisher.on(...)`
-		// blocks below). Meta lacks a handler today; its 2 resolvers stay
-		// here pending migration in a follow-up issue.
-		[
-			new MAAUseCases.MetaPixelSystemParamResolver(metaPixelRepo),
-			new MAAUseCases.MetaAdAccountSystemParamResolver(metaAdAccountRepo),
-		],
+		// ADR 0001 fully realised: every entity-bound endpoint is now
+		// auto-scheduled by its bounded context's link/add handler (see the
+		// `eventPublisher.on(...)` blocks below). The SystemParamResolver
+		// pattern is gone.
 	);
 	const recordApiUsage = new PCUseCases.RecordApiUsageUseCase(
 		apiUsageRepo,
@@ -617,6 +612,42 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	);
 	eventPublisher.on('MonitoredDomainAdded', (event) => {
 		void autoScheduleOnMonitoredDomainAdded.handle(event);
+	});
+
+	const autoScheduleOnMetaPixelLinked = new MAAUseCases.AutoScheduleOnMetaPixelLinkedHandler(
+		scheduleEndpointFetch,
+		{
+			info: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.log(`[auto-schedule-on-meta-pixel-linked] ${msg}`, meta);
+			},
+			error: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.error(`[auto-schedule-on-meta-pixel-linked] ${msg}`, meta);
+			},
+		},
+	);
+	eventPublisher.on('MetaPixelLinked', (event) => {
+		void autoScheduleOnMetaPixelLinked.handle(event);
+	});
+
+	// One ad-account link fans out into 2 schedules: ads-insights (daily)
+	// and custom-audiences (weekly). The handler issues both calls.
+	const autoScheduleOnMetaAdAccountLinked = new MAAUseCases.AutoScheduleOnMetaAdAccountLinkedHandler(
+		scheduleEndpointFetch,
+		{
+			info: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.log(`[auto-schedule-on-meta-ad-account-linked] ${msg}`, meta);
+			},
+			error: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.error(`[auto-schedule-on-meta-ad-account-linked] ${msg}`, meta);
+			},
+		},
+	);
+	eventPublisher.on('MetaAdAccountLinked', (event) => {
+		void autoScheduleOnMetaAdAccountLinked.handle(event);
 	});
 
 	const providers: Provider[] = [
