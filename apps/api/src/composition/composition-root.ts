@@ -36,6 +36,8 @@ import { GscProvider } from '@rankpulse/provider-gsc';
 import { MetaProvider } from '@rankpulse/provider-meta';
 import { ClarityProvider } from '@rankpulse/provider-microsoft-clarity';
 import { OpenAiProvider } from '@rankpulse/provider-openai';
+import { PageSpeedProvider } from '@rankpulse/provider-pagespeed';
+import { WikipediaProvider } from '@rankpulse/provider-wikipedia';
 import { InvalidInputError, SystemClock, SystemIdGenerator } from '@rankpulse/shared';
 import { JwtService } from '../common/auth/jwt.service.js';
 import type { AppEnv } from '../config/env.js';
@@ -140,6 +142,8 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	providerRegistry.register(new DataForSeoProvider());
 	providerRegistry.register(new GscProvider());
 	providerRegistry.register(new Ga4Provider());
+	providerRegistry.register(new PageSpeedProvider());
+	providerRegistry.register(new WikipediaProvider());
 	providerRegistry.register(new BingProvider());
 	providerRegistry.register(new CloudflareRadarProvider());
 	providerRegistry.register(new MetaProvider());
