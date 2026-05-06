@@ -138,6 +138,55 @@ const en = {
 		},
 		table: { dimension: 'Source', sessions: 'Sessions', users: 'Users', conversions: 'Conv.' },
 	},
+	competitors: {
+		title: 'Competitors',
+		subtitleCount: 'tracked competitors',
+		add: 'Add competitor',
+		noCompetitorsTracked:
+			'No competitor domains added yet — the heatmap below shows only your own domains. Add competitors to compare side-by-side.',
+		empty: {
+			title: 'No competitor data yet',
+			description: 'Add a competitor domain and let SERP fetches populate positions to compare side-by-side.',
+		},
+		kpi: {
+			tracked: 'Competitors',
+			trackedHint: 'Active in this project',
+			keywords: 'Keywords',
+			keywordsHint: 'With at least one observation',
+			ourRank: 'Your visibility rank',
+			ourRankHint: 'of {{total}} domains',
+			visibility: 'Your visibility score',
+			visibilityHint: 'Σ 1/position over all keywords',
+		},
+		heatmap: {
+			title: 'Position heatmap (latest observation)',
+			hint: 'Rows = keywords. Cells = SERP position per domain. Green ≤ top-3, amber ≤ top-10, red below.',
+			keyword: 'Keyword',
+			you: 'You',
+			notRanked: 'Not ranked',
+			empty: 'No SERP observations yet',
+			emptyHint: 'Schedule a SERP fetch to populate the heatmap.',
+		},
+		visibility: {
+			title: 'Visibility score per domain',
+			hint: 'Higher is better. Computed as Σ (1/position) across keywords.',
+			empty: 'No domains with observations.',
+		},
+		winners: {
+			title: 'Keywords where you lead',
+			empty: 'You are not ahead of any competitor for the tracked keywords yet.',
+		},
+		losers: {
+			title: 'Keywords where competitors lead',
+			empty: 'No competitor outranks you for the tracked keywords. Nice.',
+		},
+		suggestions: {
+			title: 'Suggested competitors',
+			hint: 'Domains that frequently appear in the top-10 of your tracked keywords.',
+			kwCount: '{{kw}} keywords · {{hits}} top-10 hits',
+			promote: 'Promote',
+		},
+	},
 	aiRadar: {
 		title: 'AI Brand Radar',
 		rangeLabel: 'Range',
@@ -400,6 +449,56 @@ const es = {
 		},
 		table: { dimension: 'Fuente', sessions: 'Sesiones', users: 'Usuarios', conversions: 'Conv.' },
 	},
+	competitors: {
+		title: 'Competidores',
+		subtitleCount: 'competidores trackeados',
+		add: 'Añadir competidor',
+		noCompetitorsTracked:
+			'Aún no hay dominios competidores — el heatmap solo muestra tus dominios. Añade competidores para comparar lado a lado.',
+		empty: {
+			title: 'Sin datos de competidores',
+			description:
+				'Añade un dominio competidor y deja que los fetches SERP pueblen las posiciones para comparar.',
+		},
+		kpi: {
+			tracked: 'Competidores',
+			trackedHint: 'Activos en este proyecto',
+			keywords: 'Keywords',
+			keywordsHint: 'Con al menos una observación',
+			ourRank: 'Tu rank de visibilidad',
+			ourRankHint: 'de {{total}} dominios',
+			visibility: 'Tu visibility score',
+			visibilityHint: 'Σ 1/posición sobre todas las keywords',
+		},
+		heatmap: {
+			title: 'Heatmap de posiciones (última observación)',
+			hint: 'Filas = keywords. Celdas = posición SERP por dominio. Verde ≤ top-3, ámbar ≤ top-10, rojo por debajo.',
+			keyword: 'Keyword',
+			you: 'Tú',
+			notRanked: 'Sin ranking',
+			empty: 'Sin observaciones SERP aún',
+			emptyHint: 'Programa un fetch SERP para poblar el heatmap.',
+		},
+		visibility: {
+			title: 'Visibility score por dominio',
+			hint: 'Mayor es mejor. Calculado como Σ (1/posición) sobre todas las keywords.',
+			empty: 'Ningún dominio con observaciones.',
+		},
+		winners: {
+			title: 'Keywords donde lideras',
+			empty: 'Aún no superas a ningún competidor en las keywords trackeadas.',
+		},
+		losers: {
+			title: 'Keywords donde te superan',
+			empty: 'Ningún competidor te supera en las keywords trackeadas. Bien.',
+		},
+		suggestions: {
+			title: 'Competidores sugeridos',
+			hint: 'Dominios que aparecen frecuentemente en el top-10 de tus keywords trackeadas.',
+			kwCount: '{{kw}} keywords · {{hits}} apariciones top-10',
+			promote: 'Promocionar',
+		},
+	},
 	aiRadar: {
 		title: 'AI Brand Radar',
 		rangeLabel: 'Rango',
@@ -547,6 +646,7 @@ void i18next
 			'ga4',
 			'rankingsBoard',
 			'aiRadar',
+			'competitors',
 		],
 		defaultNS: 'common',
 		resources: { en, es },

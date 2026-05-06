@@ -15,6 +15,7 @@ import {
 	Radar,
 	Search,
 	Sparkles,
+	Users,
 	X,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -158,6 +159,12 @@ export const ProjectDetailPage = () => {
 							<Button variant="secondary" size="sm">
 								<LineChart size={14} />
 								Rankings
+							</Button>
+						</Link>
+						<Link to="/projects/$id/competitors" params={{ id: project.id }}>
+							<Button variant="secondary" size="sm">
+								<Users size={14} />
+								Competitors
 							</Button>
 						</Link>
 						<Link to="/projects/$id/schedules" params={{ id: project.id }}>

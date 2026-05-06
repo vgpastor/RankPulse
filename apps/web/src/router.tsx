@@ -11,6 +11,7 @@ import { AiRadarPage } from './pages/ai-radar.page.js';
 import { AiSearchCitationsPage } from './pages/ai-search-citations.page.js';
 import { AiSearchMatrixPage } from './pages/ai-search-matrix.page.js';
 import { BrandPromptsPage } from './pages/brand-prompts.page.js';
+import { CompetitorsPage } from './pages/competitors.page.js';
 import { CredentialsPage } from './pages/credentials.page.js';
 import { Ga4PropertiesPage } from './pages/ga4-properties.page.js';
 import { Ga4TrafficPage } from './pages/ga4-traffic.page.js';
@@ -145,6 +146,12 @@ const projectAiRadarRoute = createRoute({
 	component: AiRadarPage,
 });
 
+const projectCompetitorsRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/competitors',
+	component: CompetitorsPage,
+});
+
 const projectGscPerformanceRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/projects/$id/gsc/$propertyId',
@@ -180,6 +187,7 @@ const routeTree = rootRoute.addChildren([
 	projectAiSearchCitationsRoute,
 	projectAiSearchMatrixRoute,
 	projectAiRadarRoute,
+	projectCompetitorsRoute,
 	credentialsRoute,
 	portfoliosRoute,
 ]);
