@@ -49,7 +49,8 @@ export const MetaPixelEventDailyDto = z.object({
 	observedDate: z.string(),
 	eventName: z.string(),
 	count: z.number().int().nonnegative(),
-	valueSum: z.number().nonnegative(),
+	// Can be negative — refund / return events net out the purchase value.
+	valueSum: z.number(),
 });
 export type MetaPixelEventDailyDto = z.infer<typeof MetaPixelEventDailyDto>;
 

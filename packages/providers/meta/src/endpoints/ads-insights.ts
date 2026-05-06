@@ -2,6 +2,7 @@ import type { EndpointDescriptor, FetchContext } from '@rankpulse/provider-core'
 import { DATE_OR_TOKEN_REGEX } from '@rankpulse/shared';
 import { z } from 'zod';
 import type { MetaHttp } from '../http.js';
+import { normalizeAdAccountId } from '../util/normalize-ad-account-id.js';
 
 /**
  * `/act_{ad-account-id}/insights` returns campaign / adset / ad performance
@@ -61,8 +62,6 @@ export interface AdsInsightsResponse {
 	data?: AdsInsightsRow[];
 	paging?: { cursors?: { before?: string; after?: string }; next?: string };
 }
-
-const normalizeAdAccountId = (raw: string): string => (raw.startsWith('act_') ? raw : `act_${raw}`);
 
 const FIELDS = [
 	'account_id',

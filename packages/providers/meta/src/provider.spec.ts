@@ -15,9 +15,11 @@ describe('MetaProvider', () => {
 		expect(() => new MetaProvider().validateCredentialPlaintext(validToken)).not.toThrow();
 	});
 
-	it('validateCredentialPlaintext rejects empty / too-short tokens', () => {
+	it('validateCredentialPlaintext rejects empty / too-short / pure-symbol tokens', () => {
 		expect(() => new MetaProvider().validateCredentialPlaintext('')).toThrow();
 		expect(() => new MetaProvider().validateCredentialPlaintext('too-short')).toThrow();
+		// 42 dashes — passes the length+charset gate but has no alphanumerics.
+		expect(() => new MetaProvider().validateCredentialPlaintext('-'.repeat(42))).toThrow();
 	});
 
 	it('pixel-events-stats schema rejects a non-numeric pixelId', () => {
@@ -111,6 +113,21 @@ describe('extractPixelEventRows', () => {
 			'2025-02-15',
 		);
 		expect(rows[0]?.observedDate).toBe('2025-02-15');
+	});
+
+	it('passes through negative valueSum (refund / chargeback events)', () => {
+		const rows = extractPixelEventRows(
+			{
+				data: [
+					{
+						start_time: '2025-01-01T00:00:00Z',
+						data: [{ event: 'Purchase', count: 1, value: -49.99 }],
+					},
+				],
+			},
+			'2025-01-01',
+		);
+		expect(rows[0]?.valueSum).toBe(-49.99);
 	});
 });
 

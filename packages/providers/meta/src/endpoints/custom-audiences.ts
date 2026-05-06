@@ -1,6 +1,7 @@
 import type { EndpointDescriptor, FetchContext } from '@rankpulse/provider-core';
 import { z } from 'zod';
 import type { MetaHttp } from '../http.js';
+import { normalizeAdAccountId } from '../util/normalize-ad-account-id.js';
 
 /**
  * `/act_{ad-account-id}/customaudiences` lists the custom audiences attached
@@ -23,7 +24,10 @@ export type CustomAudiencesParams = z.infer<typeof CustomAudiencesParams>;
 
 export const customAudiencesDescriptor: EndpointDescriptor = {
 	id: 'meta-custom-audiences',
-	category: 'brand',
+	// Same `traffic` bucket as the other Meta endpoints — the audience
+	// inventory feeds the same Marketing-API-driven attribution view as the
+	// pixel events and ads insights.
+	category: 'traffic',
 	displayName: 'Meta Custom Audiences',
 	description:
 		'Inventory of custom audiences for a Meta ad account (id, name, subtype, approximate size band). Weekly snapshot; free under Marketing API; requires ads_read.',
@@ -54,8 +58,6 @@ const FIELDS = [
 	'approximate_count_upper_bound',
 	'delivery_status',
 ] as const;
-
-const normalizeAdAccountId = (raw: string): string => (raw.startsWith('act_') ? raw : `act_${raw}`);
 
 export const fetchCustomAudiences = async (
 	http: MetaHttp,

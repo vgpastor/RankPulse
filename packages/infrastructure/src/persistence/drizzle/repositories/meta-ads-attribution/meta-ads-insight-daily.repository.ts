@@ -56,17 +56,21 @@ export class DrizzleMetaAdsInsightDailyRepository
 			)
 			.orderBy(metaAdsInsightsDaily.observedDate, metaAdsInsightsDaily.entityId);
 		return rows.map((r) => {
-			// Defensive: a row written by an older worker version with a
-			// non-canonical level string would explode the VO. We coerce
-			// unknown to 'campaign' (the most common default) so the read
-			// path stays robust; a follow-up data fix is preferable.
-			const level: MetaAdsAttribution.AdsInsightLevel = isAdsInsightLevel(r.level) ? r.level : 'campaign';
+			// All writers go through the VO, which validates `level` against
+			// the canonical enum. A non-canonical value here means manual
+			// data corruption — fail loudly so the operator notices instead
+			// of silently flattening the row to 'campaign'.
+			if (!isAdsInsightLevel(r.level)) {
+				throw new Error(
+					`meta_ads_insights_daily row has invalid level "${r.level}" for entity ${r.entityId} on ${r.observedDate}; expected one of account|campaign|adset|ad`,
+				);
+			}
 			return MetaAdsAttribution.MetaAdsInsightDaily.rehydrate({
 				metaAdAccountId: r.metaAdAccountId as MetaAdsAttribution.MetaAdAccountId,
 				projectId: r.projectId as ProjectManagement.ProjectId,
 				observedDate: r.observedDate,
 				metrics: MetaAdsAttribution.MetaAdsInsightMetrics.create({
-					level,
+					level: r.level,
 					entityId: r.entityId,
 					entityName: r.entityName,
 					impressions: r.impressions,
