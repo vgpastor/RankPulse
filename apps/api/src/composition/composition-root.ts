@@ -441,6 +441,23 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		void autoScheduleOnClarityLink.handle(event);
 	});
 
+	const autoScheduleOnTrackedPageAdded = new WPUseCases.AutoScheduleOnTrackedPageAddedHandler(
+		scheduleEndpointFetch,
+		{
+			info: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.log(`[auto-schedule-on-tracked-page-added] ${msg}`, meta);
+			},
+			error: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.error(`[auto-schedule-on-tracked-page-added] ${msg}`, meta);
+			},
+		},
+	);
+	eventPublisher.on('TrackedPageAdded', (event) => {
+		void autoScheduleOnTrackedPageAdded.handle(event);
+	});
+
 	const providers: Provider[] = [
 		value(Tokens.AppEnv, env),
 		value(Tokens.DrizzleClient, drizzle),
