@@ -407,6 +407,23 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		void autoScheduleOnWikipediaLink.handle(event);
 	});
 
+	const autoScheduleOnBingLink = new BWIUseCases.AutoScheduleOnBingPropertyLinkedHandler(
+		scheduleEndpointFetch,
+		{
+			info: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.log(`[auto-schedule-on-bing-link] ${msg}`, meta);
+			},
+			error: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.error(`[auto-schedule-on-bing-link] ${msg}`, meta);
+			},
+		},
+	);
+	eventPublisher.on('BingPropertyLinked', (event) => {
+		void autoScheduleOnBingLink.handle(event);
+	});
+
 	const providers: Provider[] = [
 		value(Tokens.AppEnv, env),
 		value(Tokens.DrizzleClient, drizzle),
