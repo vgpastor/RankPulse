@@ -15,6 +15,7 @@ import {
 	Radar,
 	Search,
 	Sparkles,
+	Users,
 	X,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -25,11 +26,13 @@ import { AddRadarDomainDrawer } from '../components/add-radar-domain-drawer.js';
 import { AiAlertsPanel } from '../components/ai-alerts-panel.js';
 import { AiPresenceCard } from '../components/ai-presence-card.js';
 import { AppShell } from '../components/app-shell.js';
+import { DailyActionsCard } from '../components/daily-actions-card.js';
 import { ImportKeywordsDrawer } from '../components/import-keywords-drawer.js';
 import { LinkBingDrawer } from '../components/link-bing-drawer.js';
 import { LinkClarityDrawer } from '../components/link-clarity-drawer.js';
 import { LinkGa4Drawer } from '../components/link-ga4-drawer.js';
 import { LinkWikipediaDrawer } from '../components/link-wikipedia-drawer.js';
+import { ProjectKpiGrid } from '../components/project-kpi-grid.js';
 import { TrackPageDrawer } from '../components/track-page-drawer.js';
 import { api } from '../lib/api.js';
 
@@ -159,6 +162,12 @@ export const ProjectDetailPage = () => {
 								Rankings
 							</Button>
 						</Link>
+						<Link to="/projects/$id/competitors" params={{ id: project.id }}>
+							<Button variant="secondary" size="sm">
+								<Users size={14} />
+								Competitors
+							</Button>
+						</Link>
 						<Link to="/projects/$id/schedules" params={{ id: project.id }}>
 							<Button variant="secondary" size="sm">
 								<CalendarClock size={14} />
@@ -171,7 +180,13 @@ export const ProjectDetailPage = () => {
 								GSC
 							</Button>
 						</Link>
-						<Link to="/projects/$id/brand-prompts" params={{ id: project.id }}>
+						<Link to="/projects/$id/ga4" params={{ id: project.id }}>
+							<Button variant="secondary" size="sm">
+								<Activity size={14} />
+								GA4
+							</Button>
+						</Link>
+						<Link to="/projects/$id/ai-radar" params={{ id: project.id }}>
 							<Button variant="secondary" size="sm">
 								<Sparkles size={14} />
 								AI Radar
@@ -189,6 +204,10 @@ export const ProjectDetailPage = () => {
 
 				<AiPresenceCard projectId={project.id} />
 				<AiAlertsPanel projectId={project.id} />
+
+				<ProjectKpiGrid project={project} />
+
+				<DailyActionsCard project={project} />
 
 				<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 					<Card>
