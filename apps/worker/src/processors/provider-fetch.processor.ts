@@ -1,6 +1,7 @@
 import type {
 	BingWebmasterInsights as BingWebmasterInsightsUseCases,
 	EntityAwareness as EntityAwarenessUseCases,
+	ExperienceAnalytics as ExperienceAnalyticsUseCases,
 	MacroContext as MacroContextUseCases,
 	ProjectManagement as ProjectManagementUseCases,
 	ProviderConnectivity as ProviderConnectivityUseCases,
@@ -12,6 +13,7 @@ import type {
 import {
 	type BingWebmasterInsights as BingWebmasterInsightsDomain,
 	type EntityAwareness as EntityAwarenessDomain,
+	type ExperienceAnalytics as ExperienceAnalyticsDomain,
 	type MacroContext as MacroContextDomain,
 	type ProjectManagement,
 	ProviderConnectivity,
@@ -49,6 +51,11 @@ import {
 	type SearchAnalyticsParams,
 	type SearchAnalyticsResponse,
 } from '@rankpulse/provider-gsc';
+import {
+	ClarityApiError,
+	type DataExportResponse,
+	extractSnapshot as extractClaritySnapshot,
+} from '@rankpulse/provider-microsoft-clarity';
 import { extractSnapshot, PageSpeedApiError, type RunPagespeedResponse } from '@rankpulse/provider-pagespeed';
 import {
 	extractPageviews,
@@ -97,6 +104,9 @@ const isQuotaExhaustedError = (err: unknown): boolean => {
 	// Cloudflare Radar enforces per-account rate limits at the platform edge;
 	// 429 is the throttle signal. Auto-pause until the operator topples up.
 	if (err instanceof CloudflareRadarApiError && (err.status === 402 || err.status === 429)) return true;
+	// Microsoft Clarity allows 10 req/day per project on the free tier;
+	// 429 once the budget is spent. Auto-pause until the next day window.
+	if (err instanceof ClarityApiError && (err.status === 402 || err.status === 429)) return true;
 	return false;
 };
 
@@ -121,6 +131,7 @@ export interface ProviderFetchProcessorDeps {
 	ga4PropertyRepo: TrafficAnalyticsDomain.Ga4PropertyRepository;
 	bingPropertyRepo: BingWebmasterInsightsDomain.BingPropertyRepository;
 	monitoredDomainRepo: MacroContextDomain.MonitoredDomainRepository;
+	clarityProjectRepo: ExperienceAnalyticsDomain.ClarityProjectRepository;
 	vault: ProviderConnectivity.CredentialVault;
 	resolveCredentialUseCase: ProviderConnectivityUseCases.ResolveProviderCredentialUseCase;
 	recordApiUsageUseCase: ProviderConnectivityUseCases.RecordApiUsageUseCase;
@@ -132,6 +143,7 @@ export interface ProviderFetchProcessorDeps {
 	ingestGa4RowsUseCase: TrafficAnalyticsUseCases.IngestGa4RowsUseCase;
 	ingestBingTrafficUseCase: BingWebmasterInsightsUseCases.IngestBingTrafficUseCase;
 	recordRadarRankUseCase: MacroContextUseCases.RecordRadarRankUseCase;
+	recordExperienceSnapshotUseCase: ExperienceAnalyticsUseCases.RecordExperienceSnapshotUseCase;
 	clock: Clock;
 	ids: IdGenerator;
 	logger: Logger;
@@ -412,6 +424,40 @@ export class ProviderFetchProcessor {
 						gscPropertyId: gscParams.gscPropertyId,
 						rawPayloadId,
 						rows,
+					});
+				}
+			}
+
+			if (
+				definition.providerId.value === 'microsoft-clarity' &&
+				definition.endpointId.value === 'clarity-data-export'
+			) {
+				// Issue #43 — experience-analytics ingest. The job's systemParams
+				// must carry `clarityProjectId`. The ACL needs an observed date,
+				// which we pin to the cron's wall-clock day (Clarity returns
+				// aggregated metrics over the requested numOfDays window — we
+				// stamp it as the day the cron fired).
+				const clarityParams = resolvedParams as { clarityProjectId?: string };
+				if (!clarityParams.clarityProjectId) {
+					runLog.warn(
+						{},
+						'clarity-data-export job missing clarityProjectId in systemParams; skipping ingest',
+					);
+				} else {
+					const observedDate = this.deps.clock.now().toISOString().slice(0, 10);
+					const snap = extractClaritySnapshot(fetchResult as DataExportResponse, observedDate);
+					await this.deps.recordExperienceSnapshotUseCase.execute({
+						clarityProjectId: clarityParams.clarityProjectId,
+						observedDate: snap.observedDate,
+						sessionsCount: snap.sessionsCount,
+						botSessionsCount: snap.botSessionsCount,
+						distinctUserCount: snap.distinctUserCount,
+						pagesPerSession: snap.pagesPerSession,
+						rageClicks: snap.rageClicks,
+						deadClicks: snap.deadClicks,
+						avgEngagementSeconds: snap.avgEngagementSeconds,
+						avgScrollDepth: snap.avgScrollDepth,
+						rawPayloadId,
 					});
 				}
 			}

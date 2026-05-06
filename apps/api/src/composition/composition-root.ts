@@ -2,6 +2,7 @@ import type { Provider, ValueProvider } from '@nestjs/common';
 import {
 	BingWebmasterInsights as BWIUseCases,
 	EntityAwareness as EAUseCases,
+	ExperienceAnalytics as EXAUseCases,
 	IdentityAccess as IAUseCases,
 	MacroContext as MCUseCases,
 	ProviderConnectivity as PCUseCases,
@@ -19,6 +20,7 @@ import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
 import { Ga4Provider } from '@rankpulse/provider-ga4';
 import { GscProvider } from '@rankpulse/provider-gsc';
+import { ClarityProvider } from '@rankpulse/provider-microsoft-clarity';
 import { InvalidInputError, SystemClock, SystemIdGenerator } from '@rankpulse/shared';
 import { JwtService } from '../common/auth/jwt.service.js';
 import type { AppEnv } from '../config/env.js';
@@ -80,6 +82,8 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	);
 	const monitoredDomainRepo = new DrizzlePersistence.DrizzleMonitoredDomainRepository(drizzle.db);
 	const radarRankSnapshotRepo = new DrizzlePersistence.DrizzleRadarRankSnapshotRepository(drizzle.db);
+	const clarityProjectRepo = new DrizzlePersistence.DrizzleClarityProjectRepository(drizzle.db);
+	const experienceSnapshotRepo = new DrizzlePersistence.DrizzleExperienceSnapshotRepository(drizzle.db);
 
 	const jobScheduler = new QueueAdapters.BullMqJobScheduler({
 		connection: { url: env.REDIS_URL },
@@ -91,6 +95,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	providerRegistry.register(new Ga4Provider());
 	providerRegistry.register(new BingProvider());
 	providerRegistry.register(new CloudflareRadarProvider());
+	providerRegistry.register(new ClarityProvider());
 
 	const registerOrganization = new IAUseCases.RegisterOrganizationUseCase(
 		orgRepo,
@@ -334,6 +339,19 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		radarRankSnapshotRepo,
 	);
 
+	// Issue #43 — experience-analytics use cases
+	const linkClarityProject = new EXAUseCases.LinkClarityProjectUseCase(
+		clarityProjectRepo,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const unlinkClarityProject = new EXAUseCases.UnlinkClarityProjectUseCase(clarityProjectRepo, SystemClock);
+	const queryExperienceHistory = new EXAUseCases.QueryExperienceHistoryUseCase(
+		clarityProjectRepo,
+		experienceSnapshotRepo,
+	);
+
 	// BACKLOG #23 / #21 — auto-schedule daily GSC fetch on property link.
 	// Subscribes to the in-memory event bus; the handler is fire-and-forget,
 	// errors are swallowed and logged so a scheduler outage doesn't 500 the
@@ -450,6 +468,12 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.AddMonitoredDomain, addMonitoredDomain),
 		value(Tokens.RemoveMonitoredDomain, removeMonitoredDomain),
 		value(Tokens.QueryRadarHistory, queryRadarHistory),
+
+		value(Tokens.ClarityProjectRepository, clarityProjectRepo),
+		value(Tokens.ExperienceSnapshotRepository, experienceSnapshotRepo),
+		value(Tokens.LinkClarityProject, linkClarityProject),
+		value(Tokens.UnlinkClarityProject, unlinkClarityProject),
+		value(Tokens.QueryExperienceHistory, queryExperienceHistory),
 	];
 
 	return {
