@@ -229,6 +229,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 			new WPUseCases.TrackedPageSystemParamResolver(trackedPageRepo),
 			new EAUseCases.WikipediaArticleSystemParamResolver(wikipediaArticleRepo),
 			new BWIUseCases.BingPropertySystemParamResolver(bingPropertyRepo),
+			new MCUseCases.MonitoredDomainSystemParamResolver(monitoredDomainRepo),
 		],
 	);
 	const recordApiUsage = new PCUseCases.RecordApiUsageUseCase(
