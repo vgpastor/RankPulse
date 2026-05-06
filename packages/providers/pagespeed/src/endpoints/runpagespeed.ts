@@ -69,7 +69,7 @@ export interface RunPagespeedResponse {
 export const fetchRunPagespeed = async (
 	http: PageSpeedHttp,
 	params: RunPagespeedParams,
-	apiKey: string,
+	auth: import('../http.js').PageSpeedAuth,
 	ctx: FetchContext,
 ): Promise<RunPagespeedResponse> => {
 	const query: Record<string, string | string[]> = {
@@ -77,9 +77,8 @@ export const fetchRunPagespeed = async (
 		strategy: params.strategy,
 		locale: params.locale,
 		category: params.category,
-		key: apiKey,
 	};
-	const raw = (await http.get(PATH, query, ctx.signal)) as RunPagespeedResponse;
+	const raw = (await http.get(PATH, query, auth, ctx.signal)) as RunPagespeedResponse;
 	if (!raw || typeof raw !== 'object') {
 		ctx.logger.warn('PSI returned empty or non-object response', { raw });
 		return {};

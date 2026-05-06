@@ -5,6 +5,7 @@ import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
 import { Ga4Provider } from '@rankpulse/provider-ga4';
 import { GscProvider } from '@rankpulse/provider-gsc';
+import { MetaProvider } from '@rankpulse/provider-meta';
 import { ClarityProvider } from '@rankpulse/provider-microsoft-clarity';
 import { OpenAiProvider } from '@rankpulse/provider-openai';
 import { PageSpeedProvider } from '@rankpulse/provider-pagespeed';
@@ -23,6 +24,7 @@ export function buildProviderRegistry(options: { dataforseoBaseUrl: string }): P
 	registry.register(new PageSpeedProvider());
 	registry.register(new BingProvider());
 	registry.register(new CloudflareRadarProvider());
+	registry.register(new MetaProvider());
 	registry.register(new ClarityProvider());
 	registry.register(new BrevoProvider());
 	registry.register(new OpenAiProvider());

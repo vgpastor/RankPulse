@@ -5,6 +5,7 @@ import {
 	EntityAwareness as EAUseCases,
 	ExperienceAnalytics as EXAUseCases,
 	IdentityAccess as IAUseCases,
+	MetaAdsAttribution as MAAUseCases,
 	MacroContext as MCUseCases,
 	ProviderConnectivity as PCUseCases,
 	ProjectManagement as PMUseCases,
@@ -32,6 +33,7 @@ import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
 import { Ga4Provider } from '@rankpulse/provider-ga4';
 import { GscProvider } from '@rankpulse/provider-gsc';
+import { MetaProvider } from '@rankpulse/provider-meta';
 import { ClarityProvider } from '@rankpulse/provider-microsoft-clarity';
 import { OpenAiProvider } from '@rankpulse/provider-openai';
 import { InvalidInputError, SystemClock, SystemIdGenerator } from '@rankpulse/shared';
@@ -119,6 +121,10 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	);
 	const monitoredDomainRepo = new DrizzlePersistence.DrizzleMonitoredDomainRepository(drizzle.db);
 	const radarRankSnapshotRepo = new DrizzlePersistence.DrizzleRadarRankSnapshotRepository(drizzle.db);
+	const metaPixelRepo = new DrizzlePersistence.DrizzleMetaPixelRepository(drizzle.db);
+	const metaAdAccountRepo = new DrizzlePersistence.DrizzleMetaAdAccountRepository(drizzle.db);
+	const metaPixelEventDailyRepo = new DrizzlePersistence.DrizzleMetaPixelEventDailyRepository(drizzle.db);
+	const metaAdsInsightDailyRepo = new DrizzlePersistence.DrizzleMetaAdsInsightDailyRepository(drizzle.db);
 	const clarityProjectRepo = new DrizzlePersistence.DrizzleClarityProjectRepository(drizzle.db);
 	const experienceSnapshotRepo = new DrizzlePersistence.DrizzleExperienceSnapshotRepository(drizzle.db);
 
@@ -136,6 +142,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	providerRegistry.register(new Ga4Provider());
 	providerRegistry.register(new BingProvider());
 	providerRegistry.register(new CloudflareRadarProvider());
+	providerRegistry.register(new MetaProvider());
 	providerRegistry.register(new ClarityProvider());
 	providerRegistry.register(new BrevoProvider());
 	providerRegistry.register(new OpenAiProvider());
@@ -278,6 +285,8 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 			new EAUseCases.WikipediaArticleSystemParamResolver(wikipediaArticleRepo),
 			new BWIUseCases.BingPropertySystemParamResolver(bingPropertyRepo),
 			new MCUseCases.MonitoredDomainSystemParamResolver(monitoredDomainRepo),
+			new MAAUseCases.MetaPixelSystemParamResolver(metaPixelRepo),
+			new MAAUseCases.MetaAdAccountSystemParamResolver(metaAdAccountRepo),
 			new AISIUseCases.BrandPromptSystemParamResolver(brandPromptRepo),
 		],
 	);
@@ -382,6 +391,30 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const queryRadarHistory = new MCUseCases.QueryRadarHistoryUseCase(
 		monitoredDomainRepo,
 		radarRankSnapshotRepo,
+	);
+
+	// Issue #45 — meta-ads-attribution use cases
+	const linkMetaPixel = new MAAUseCases.LinkMetaPixelUseCase(
+		metaPixelRepo,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const unlinkMetaPixel = new MAAUseCases.UnlinkMetaPixelUseCase(metaPixelRepo, SystemClock);
+	const linkMetaAdAccount = new MAAUseCases.LinkMetaAdAccountUseCase(
+		metaAdAccountRepo,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const unlinkMetaAdAccount = new MAAUseCases.UnlinkMetaAdAccountUseCase(metaAdAccountRepo, SystemClock);
+	const queryMetaPixelEvents = new MAAUseCases.QueryMetaPixelEventsUseCase(
+		metaPixelRepo,
+		metaPixelEventDailyRepo,
+	);
+	const queryMetaAdsInsights = new MAAUseCases.QueryMetaAdsInsightsUseCase(
+		metaAdAccountRepo,
+		metaAdsInsightDailyRepo,
 	);
 
 	// Issue #43 — experience-analytics use cases
@@ -570,6 +603,17 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.AddMonitoredDomain, addMonitoredDomain),
 		value(Tokens.RemoveMonitoredDomain, removeMonitoredDomain),
 		value(Tokens.QueryRadarHistory, queryRadarHistory),
+
+		value(Tokens.MetaPixelRepository, metaPixelRepo),
+		value(Tokens.MetaAdAccountRepository, metaAdAccountRepo),
+		value(Tokens.MetaPixelEventDailyRepository, metaPixelEventDailyRepo),
+		value(Tokens.MetaAdsInsightDailyRepository, metaAdsInsightDailyRepo),
+		value(Tokens.LinkMetaPixel, linkMetaPixel),
+		value(Tokens.UnlinkMetaPixel, unlinkMetaPixel),
+		value(Tokens.LinkMetaAdAccount, linkMetaAdAccount),
+		value(Tokens.UnlinkMetaAdAccount, unlinkMetaAdAccount),
+		value(Tokens.QueryMetaPixelEvents, queryMetaPixelEvents),
+		value(Tokens.QueryMetaAdsInsights, queryMetaAdsInsights),
 
 		value(Tokens.ClarityProjectRepository, clarityProjectRepo),
 		value(Tokens.ExperienceSnapshotRepository, experienceSnapshotRepo),
