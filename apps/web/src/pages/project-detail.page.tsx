@@ -30,6 +30,7 @@ import { LinkBingDrawer } from '../components/link-bing-drawer.js';
 import { LinkClarityDrawer } from '../components/link-clarity-drawer.js';
 import { LinkGa4Drawer } from '../components/link-ga4-drawer.js';
 import { LinkWikipediaDrawer } from '../components/link-wikipedia-drawer.js';
+import { ProjectKpiGrid } from '../components/project-kpi-grid.js';
 import { TrackPageDrawer } from '../components/track-page-drawer.js';
 import { api } from '../lib/api.js';
 
@@ -189,6 +190,8 @@ export const ProjectDetailPage = () => {
 
 				<AiPresenceCard projectId={project.id} />
 				<AiAlertsPanel projectId={project.id} />
+
+				<ProjectKpiGrid project={project} />
 
 				<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 					<Card>
