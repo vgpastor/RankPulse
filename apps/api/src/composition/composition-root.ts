@@ -203,6 +203,10 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const deleteJobDefinition = new PCUseCases.DeleteJobDefinitionUseCase(jobDefRepo, jobScheduler);
 	const listJobRuns = new PCUseCases.ListJobRunsUseCase(jobRunRepo);
 
+	// ADR 0001 — entity-bound endpoints are auto-scheduled by their bounded
+	// context's link/add handler (see the AutoScheduleOn... blocks below).
+	// `ScheduleEndpointFetchUseCase` no longer carries cross-context resolvers
+	// to back-fill systemParams from user-facing identifiers.
 	const scheduleEndpointFetch = new PCUseCases.ScheduleEndpointFetchUseCase(
 		jobDefRepo,
 		jobScheduler,
@@ -221,20 +225,6 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		SystemClock,
 		SystemIdGenerator,
 		eventPublisher,
-		[
-			// BACKLOG bug #50 (and family) — these resolvers map a user-
-			// facing identifier in `params` (siteUrl, propertyId, url,
-			// article slug...) to the internal entity id the worker's
-			// processor needs in `systemParams` for ingest. Without this,
-			// every scheduled fetch was logging "missing <X>Id; skipping
-			// ingest" and discarding the response. Each bounded context
-			// owns its resolver; this module just wires them up.
-			new SCIUseCases.GscPropertySystemParamResolver(gscPropertyRepo),
-			new TAUseCases.Ga4PropertySystemParamResolver(ga4PropertyRepo),
-			new WPUseCases.TrackedPageSystemParamResolver(trackedPageRepo),
-			new EAUseCases.WikipediaArticleSystemParamResolver(wikipediaArticleRepo),
-			new BWIUseCases.BingPropertySystemParamResolver(bingPropertyRepo),
-		],
 	);
 	const recordApiUsage = new PCUseCases.RecordApiUsageUseCase(
 		apiUsageRepo,
