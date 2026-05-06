@@ -9,6 +9,7 @@ export * from './in-memory/in-memory-api-token-repository.js';
 export * from './in-memory/in-memory-brand-prompt-repository.js';
 export * from './in-memory/in-memory-competitor-repository.js';
 export * from './in-memory/in-memory-keyword-list-repository.js';
+export * from './in-memory/in-memory-llm-answer-read-model.js';
 export * from './in-memory/in-memory-llm-answer-repository.js';
 export * from './in-memory/in-memory-membership-repository.js';
 export * from './in-memory/in-memory-organization-repository.js';

@@ -135,6 +135,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 
 	const brandPromptRepo = new DrizzlePersistence.DrizzleBrandPromptRepository(drizzle.db);
 	const llmAnswerRepo = new DrizzlePersistence.DrizzleLlmAnswerRepository(drizzle.db);
+	const llmAnswerReadModel = new DrizzlePersistence.DrizzleLlmAnswerReadModel(drizzle.db);
 	const brandWatchlistResolver = new DrizzlePersistence.ProjectBrandWatchlistResolver(drizzle.db);
 
 	const jobScheduler = new QueueAdapters.BullMqJobScheduler({
@@ -477,6 +478,10 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		eventPublisher,
 	);
 	const queryLlmAnswers = new AISIUseCases.QueryLlmAnswersUseCase(llmAnswerRepo);
+	const queryAiSearchPresence = new AISIUseCases.QueryAiSearchPresenceUseCase(llmAnswerReadModel);
+	const queryAiSearchSov = new AISIUseCases.QueryAiSearchSovUseCase(llmAnswerReadModel);
+	const queryAiSearchCitations = new AISIUseCases.QueryAiSearchCitationsUseCase(llmAnswerReadModel);
+	const queryPromptSovDaily = new AISIUseCases.QueryPromptSovDailyUseCase(llmAnswerReadModel);
 
 	const autoScheduleOnBrandPromptCreated = new AISIUseCases.AutoScheduleOnBrandPromptCreatedHandler(
 		scheduleEndpointFetch,
@@ -633,6 +638,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 
 		value(Tokens.BrandPromptRepository, brandPromptRepo),
 		value(Tokens.LlmAnswerRepository, llmAnswerRepo),
+		value(Tokens.LlmAnswerReadModel, llmAnswerReadModel),
 		value(Tokens.BrandWatchlistResolver, brandWatchlistResolver),
 		value(Tokens.MentionExtractor, mentionExtractor),
 		value(Tokens.RegisterBrandPrompt, registerBrandPrompt),
@@ -642,6 +648,10 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.ListBrandPrompts, listBrandPrompts),
 		value(Tokens.RecordLlmAnswer, recordLlmAnswer),
 		value(Tokens.QueryLlmAnswers, queryLlmAnswers),
+		value(Tokens.QueryAiSearchPresence, queryAiSearchPresence),
+		value(Tokens.QueryAiSearchSov, queryAiSearchSov),
+		value(Tokens.QueryAiSearchCitations, queryAiSearchCitations),
+		value(Tokens.QueryPromptSovDaily, queryPromptSovDaily),
 	];
 
 	return {

@@ -733,6 +733,90 @@ export function buildOpenApiDocument(): unknown {
 		},
 	});
 
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/projects/{projectId}/ai-search/presence',
+		summary: 'AI Brand Radar — headline metrics for the project home card',
+		description:
+			'Mention rate, citation rate, average own position, competitor mention count over a configurable window (default last 7 days).',
+		tags: ['ai-search-insights'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid() }),
+			query: AiSearchInsightsContracts.AiSearchPresenceQuery,
+		},
+		responses: {
+			200: {
+				description: 'Presence summary',
+				content: { 'application/json': { schema: AiSearchInsightsContracts.AiSearchPresenceResponse } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/projects/{projectId}/ai-search/sov',
+		summary: 'AI Brand Radar — share-of-voice grid (per provider × locale × brand)',
+		description:
+			'One row per (provider, country, language, brand) within the window. UI pivots client-side to render the matrix and pick the top brands per locale.',
+		tags: ['ai-search-insights'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid() }),
+			query: AiSearchInsightsContracts.AiSearchSovQuery,
+		},
+		responses: {
+			200: {
+				description: 'SoV rows',
+				content: { 'application/json': { schema: AiSearchInsightsContracts.AiSearchSovResponse } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/projects/{projectId}/ai-search/citations',
+		summary: 'AI Brand Radar — citations history (URLs cited by LLMs)',
+		description:
+			'Top-200 cited URLs in the window, grouped by URL with the providers that cited it, total count, and first/last seen timestamps. `onlyOwnDomains=true` restricts to URLs the project owns.',
+		tags: ['ai-search-insights'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid() }),
+			query: AiSearchInsightsContracts.AiSearchCitationsQuery,
+		},
+		responses: {
+			200: {
+				description: 'Citation rows',
+				content: { 'application/json': { schema: AiSearchInsightsContracts.AiSearchCitationsResponse } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/projects/{projectId}/brand-prompts/{promptId}/sov-daily',
+		summary: 'AI Brand Radar — daily SoV curve for a single BrandPrompt (sparkline data)',
+		tags: ['ai-search-insights'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid(), promptId: z.string().uuid() }),
+			query: AiSearchInsightsContracts.AiSearchSovDailyQuery,
+		},
+		responses: {
+			200: {
+				description: 'Daily points (one per day in the window)',
+				content: {
+					'application/json': { schema: AiSearchInsightsContracts.AiSearchSovDailyResponse },
+				},
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
 	// ---- health ----
 
 	registry.registerPath({

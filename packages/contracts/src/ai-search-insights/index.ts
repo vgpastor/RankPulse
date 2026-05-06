@@ -93,3 +93,86 @@ export const ListLlmAnswersResponse = z.object({
 	items: z.array(LlmAnswerDtoSchema),
 });
 export type ListLlmAnswersResponse = z.infer<typeof ListLlmAnswersResponse>;
+
+// ---- dashboards (sub-issue #63) ----
+
+const DashboardWindowQuery = z.object({
+	from: z.string().datetime().optional(),
+	to: z.string().datetime().optional(),
+});
+
+export const AiSearchPresenceQuery = DashboardWindowQuery;
+export type AiSearchPresenceQuery = z.infer<typeof AiSearchPresenceQuery>;
+
+export const AiSearchPresenceResponse = z.object({
+	from: z.string().datetime(),
+	to: z.string().datetime(),
+	totalAnswers: z.number().int().min(0),
+	answersWithOwnMention: z.number().int().min(0),
+	mentionRate: z.number().min(0).max(1),
+	ownCitationCount: z.number().int().min(0),
+	citationRate: z.number().min(0),
+	ownAvgPosition: z.number().min(1).nullable(),
+	competitorMentionCount: z.number().int().min(0),
+});
+export type AiSearchPresenceResponse = z.infer<typeof AiSearchPresenceResponse>;
+
+export const AiSearchSovQuery = DashboardWindowQuery;
+export type AiSearchSovQuery = z.infer<typeof AiSearchSovQuery>;
+
+export const AiSearchSovItem = z.object({
+	aiProvider: AiProviderNameSchema,
+	country: z.string(),
+	language: z.string(),
+	brand: z.string(),
+	isOwnBrand: z.boolean(),
+	totalAnswers: z.number().int().min(0),
+	answersWithMention: z.number().int().min(0),
+	mentionRate: z.number().min(0).max(1),
+	avgPosition: z.number().min(1).nullable(),
+	citationCount: z.number().int().min(0),
+});
+export type AiSearchSovItem = z.infer<typeof AiSearchSovItem>;
+
+export const AiSearchSovResponse = z.object({
+	items: z.array(AiSearchSovItem),
+});
+export type AiSearchSovResponse = z.infer<typeof AiSearchSovResponse>;
+
+export const AiSearchCitationsQuery = DashboardWindowQuery.extend({
+	onlyOwnDomains: z.coerce.boolean().optional(),
+	aiProvider: AiProviderNameSchema.optional(),
+});
+export type AiSearchCitationsQuery = z.infer<typeof AiSearchCitationsQuery>;
+
+export const AiSearchCitationItem = z.object({
+	url: z.string(),
+	domain: z.string(),
+	isOwnDomain: z.boolean(),
+	totalCitations: z.number().int().min(0),
+	providers: z.array(AiProviderNameSchema),
+	firstSeenAt: z.string().datetime(),
+	lastSeenAt: z.string().datetime(),
+});
+export type AiSearchCitationItem = z.infer<typeof AiSearchCitationItem>;
+
+export const AiSearchCitationsResponse = z.object({
+	items: z.array(AiSearchCitationItem),
+});
+export type AiSearchCitationsResponse = z.infer<typeof AiSearchCitationsResponse>;
+
+export const AiSearchSovDailyQuery = DashboardWindowQuery;
+export type AiSearchSovDailyQuery = z.infer<typeof AiSearchSovDailyQuery>;
+
+export const AiSearchSovDailyPoint = z.object({
+	day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+	totalAnswers: z.number().int().min(0),
+	answersWithOwnMention: z.number().int().min(0),
+	mentionRate: z.number().min(0).max(1),
+});
+export type AiSearchSovDailyPoint = z.infer<typeof AiSearchSovDailyPoint>;
+
+export const AiSearchSovDailyResponse = z.object({
+	items: z.array(AiSearchSovDailyPoint),
+});
+export type AiSearchSovDailyResponse = z.infer<typeof AiSearchSovDailyResponse>;
