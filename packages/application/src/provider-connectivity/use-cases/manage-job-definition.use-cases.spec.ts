@@ -25,6 +25,9 @@ class StubDefinitionRepo implements ProviderConnectivity.JobDefinitionRepository
 	async findFor() {
 		return null;
 	}
+	async findByProjectEndpointAndSystemParam(): Promise<ProviderConnectivity.ProviderJobDefinition | null> {
+		return null;
+	}
 	async listForProject(projectId: ProjectManagement.ProjectId) {
 		return [...this.store.values()].filter((d) => d.projectId === projectId);
 	}
@@ -260,5 +263,54 @@ describe('UpdateJobDefinitionUseCase — preserves systemParams (bug #51)', () =
 		// systemParams from the DB always win
 		expect(view.params.organizationId).toBe('org-1');
 		expect(view.params.gscPropertyId).toBe('prop-1');
+	});
+
+	// ADR 0001 — extend the whitelist so PATCH preserves all systemParam keys
+	// any processor reads today (not just the original 4). Each entity-bound
+	// endpoint adds its own systemParam; if PATCH ever drops one, the next
+	// worker run for that endpoint silently breaks.
+	it.each([
+		'organizationId',
+		'projectId',
+		'trackedKeywordId',
+		'gscPropertyId',
+		'ga4PropertyId',
+		'trackedPageId',
+		'wikipediaArticleId',
+		'bingPropertyId',
+		'clarityProjectId',
+		'monitoredDomainId',
+	])('preserves systemParam %s on PATCH (defence in depth — ADR 0001)', async (key) => {
+		const def = PC2.ProviderJobDefinition.schedule({
+			id: 'def-whitelist' as PC2.ProviderJobDefinitionId,
+			projectId: 'proj-1' as never,
+			providerId: PC2.ProviderId.create('google-search-console'),
+			endpointId: PC2.EndpointId.create('gsc-search-analytics'),
+			params: { siteUrl: 'sc-domain:example.com', [key]: 'preserved-value' },
+			cron: PC2.CronExpression.create('0 5 * * *'),
+			credentialOverrideId: null,
+			now: new Date('2026-05-05T00:00:00Z'),
+		});
+		const repo = {
+			save: vi.fn(),
+			findById: vi.fn().mockResolvedValue(def),
+			deactivate: vi.fn(),
+			delete: vi.fn(),
+			listForProject: vi.fn(),
+		} as unknown as PC2.JobDefinitionRepository;
+		const scheduler = {
+			register: vi.fn(),
+			unregister: vi.fn(),
+			enqueueOnce: vi.fn(),
+		} satisfies PC2.JobScheduler;
+
+		const uc = new UpdateJobDefUC2(repo, scheduler);
+		const view = await uc.execute({
+			definitionId: 'def-whitelist',
+			// User PATCH does NOT include the system key — it must still survive.
+			params: { siteUrl: 'sc-domain:other.com' },
+		});
+
+		expect(view.params[key]).toBe('preserved-value');
 	});
 });

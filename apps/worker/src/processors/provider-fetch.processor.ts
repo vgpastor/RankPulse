@@ -404,57 +404,61 @@ export class ProviderFetchProcessor {
 			}
 
 			if (definition.providerId.value === 'pagespeed' && definition.endpointId.value === 'psi-runpagespeed') {
-				// Issue #18 — Core Web Vitals. The job's systemParams must
-				// carry `trackedPageId` (set when the operator tracks a
-				// page via the API/UI). Missing-id case logs warn + skips.
+				// Issue #18 — Core Web Vitals. Under ADR 0001 the
+				// `trackedPageId` is stamped into systemParams by the
+				// Auto-Schedule handler when the operator tracks a page;
+				// reaching this guard means the schedule was created
+				// off-path (manual route bypassing the handler) and we
+				// must surface a programmer error rather than silently
+				// drop the ingest.
 				const psiParams = resolvedParams as { trackedPageId?: string };
 				if (!psiParams.trackedPageId) {
-					runLog.warn({}, 'psi-runpagespeed job missing trackedPageId in systemParams; skipping ingest');
-				} else {
-					const snapshot = extractSnapshot(fetchResult as RunPagespeedResponse, this.deps.clock.now());
-					await this.deps.recordPageSpeedSnapshotUseCase.execute({
-						trackedPageId: psiParams.trackedPageId,
-						observedAt: snapshot.observedAt,
-						lcpMs: snapshot.lcpMs,
-						inpMs: snapshot.inpMs,
-						cls: snapshot.cls,
-						fcpMs: snapshot.fcpMs,
-						ttfbMs: snapshot.ttfbMs,
-						performanceScore: snapshot.performanceScore,
-						seoScore: snapshot.seoScore,
-						accessibilityScore: snapshot.accessibilityScore,
-						bestPracticesScore: snapshot.bestPracticesScore,
-					});
+					throw new NotFoundError(
+						`psi-runpagespeed processor reached without trackedPageId in systemParams. ` +
+							`Auto-Schedule handler should have set this. See ADR 0001.`,
+					);
 				}
+				const snapshot = extractSnapshot(fetchResult as RunPagespeedResponse, this.deps.clock.now());
+				await this.deps.recordPageSpeedSnapshotUseCase.execute({
+					trackedPageId: psiParams.trackedPageId,
+					observedAt: snapshot.observedAt,
+					lcpMs: snapshot.lcpMs,
+					inpMs: snapshot.inpMs,
+					cls: snapshot.cls,
+					fcpMs: snapshot.fcpMs,
+					ttfbMs: snapshot.ttfbMs,
+					performanceScore: snapshot.performanceScore,
+					seoScore: snapshot.seoScore,
+					accessibilityScore: snapshot.accessibilityScore,
+					bestPracticesScore: snapshot.bestPracticesScore,
+				});
 			}
 
 			if (
 				definition.providerId.value === 'wikipedia' &&
 				definition.endpointId.value === 'wikipedia-pageviews-per-article'
 			) {
-				// Issue #33 — entity-awareness ingest. The job's
-				// systemParams must carry `wikipediaArticleId` (set by
-				// LinkWikipediaArticleUseCase via auto-schedule on link;
-				// for now the schedule API caller is responsible for it).
+				// Issue #33 — entity-awareness ingest. Under ADR 0001 the
+				// `wikipediaArticleId` is stamped into systemParams by the
+				// LinkWikipediaArticle Auto-Schedule handler.
 				const wpParams = resolvedParams as { wikipediaArticleId?: string };
 				if (!wpParams.wikipediaArticleId) {
-					runLog.warn(
-						{},
-						'wikipedia-pageviews job missing wikipediaArticleId in systemParams; skipping ingest',
+					throw new NotFoundError(
+						`wikipedia-pageviews-per-article processor reached without wikipediaArticleId in systemParams. ` +
+							`Auto-Schedule handler should have set this. See ADR 0001.`,
 					);
-				} else {
-					const observations = extractPageviews(fetchResult as PageviewsPerArticleResponse);
-					await this.deps.ingestWikipediaPageviewsUseCase.execute({
-						articleId: wpParams.wikipediaArticleId,
-						rows: observations.map((o) => ({
-							observedAt: o.observedAt,
-							views: o.views,
-							access: o.access,
-							agent: o.agent,
-							granularity: o.granularity,
-						})),
-					});
 				}
+				const observations = extractPageviews(fetchResult as PageviewsPerArticleResponse);
+				await this.deps.ingestWikipediaPageviewsUseCase.execute({
+					articleId: wpParams.wikipediaArticleId,
+					rows: observations.map((o) => ({
+						observedAt: o.observedAt,
+						views: o.views,
+						access: o.access,
+						agent: o.agent,
+						granularity: o.granularity,
+					})),
+				});
 			}
 
 			if (
@@ -464,132 +468,137 @@ export class ProviderFetchProcessor {
 				// Use the RESOLVED params: extractGscRows uses startDate/endDate
 				// to bucket the rows, and the persisted definition keeps the
 				// token form. `gscPropertyId` is a literal string in both.
+				// Under ADR 0001 the LinkGscProperty Auto-Schedule handler
+				// stamps `gscPropertyId` into systemParams.
 				const gscParams = resolvedParams as unknown as SearchAnalyticsParams & { gscPropertyId?: string };
 				if (!gscParams.gscPropertyId) {
-					runLog.warn({}, 'gsc-search-analytics job missing gscPropertyId param; skipping ingest');
-				} else {
-					const rows = extractGscRows(fetchResult as SearchAnalyticsResponse, {
-						dimensions: gscParams.dimensions ?? ['date'],
-						startDate: gscParams.startDate,
-						endDate: gscParams.endDate,
-					});
-					await this.deps.ingestGscRowsUseCase.execute({
-						gscPropertyId: gscParams.gscPropertyId,
-						rawPayloadId,
-						rows,
-					});
+					throw new NotFoundError(
+						`gsc-search-analytics processor reached without gscPropertyId in systemParams. ` +
+							`Auto-Schedule handler should have set this. See ADR 0001.`,
+					);
 				}
+				const rows = extractGscRows(fetchResult as SearchAnalyticsResponse, {
+					dimensions: gscParams.dimensions ?? ['date'],
+					startDate: gscParams.startDate,
+					endDate: gscParams.endDate,
+				});
+				await this.deps.ingestGscRowsUseCase.execute({
+					gscPropertyId: gscParams.gscPropertyId,
+					rawPayloadId,
+					rows,
+				});
 			}
 
 			if (
 				definition.providerId.value === 'microsoft-clarity' &&
 				definition.endpointId.value === 'clarity-data-export'
 			) {
-				// Issue #43 — experience-analytics ingest. The job's systemParams
-				// must carry `clarityProjectId`. The ACL needs an observed date,
-				// which we pin to the cron's wall-clock day (Clarity returns
-				// aggregated metrics over the requested numOfDays window — we
-				// stamp it as the day the cron fired).
+				// Issue #43 — experience-analytics ingest. Under ADR 0001 the
+				// LinkClarityProject Auto-Schedule handler stamps
+				// `clarityProjectId` into systemParams. The ACL needs an
+				// observed date, which we pin to the cron's wall-clock day
+				// (Clarity returns aggregated metrics over the requested
+				// numOfDays window — we stamp it as the day the cron fired).
 				const clarityParams = resolvedParams as { clarityProjectId?: string };
 				if (!clarityParams.clarityProjectId) {
-					runLog.warn(
-						{},
-						'clarity-data-export job missing clarityProjectId in systemParams; skipping ingest',
+					throw new NotFoundError(
+						`clarity-data-export processor reached without clarityProjectId in systemParams. ` +
+							`Auto-Schedule handler should have set this. See ADR 0001.`,
 					);
-				} else {
-					const observedDate = this.deps.clock.now().toISOString().slice(0, 10);
-					const snap = extractClaritySnapshot(fetchResult as DataExportResponse, observedDate);
-					await this.deps.recordExperienceSnapshotUseCase.execute({
-						clarityProjectId: clarityParams.clarityProjectId,
-						observedDate: snap.observedDate,
-						sessionsCount: snap.sessionsCount,
-						botSessionsCount: snap.botSessionsCount,
-						distinctUserCount: snap.distinctUserCount,
-						pagesPerSession: snap.pagesPerSession,
-						rageClicks: snap.rageClicks,
-						deadClicks: snap.deadClicks,
-						avgEngagementSeconds: snap.avgEngagementSeconds,
-						avgScrollDepth: snap.avgScrollDepth,
-						rawPayloadId,
-					});
 				}
+				const observedDate = this.deps.clock.now().toISOString().slice(0, 10);
+				const snap = extractClaritySnapshot(fetchResult as DataExportResponse, observedDate);
+				await this.deps.recordExperienceSnapshotUseCase.execute({
+					clarityProjectId: clarityParams.clarityProjectId,
+					observedDate: snap.observedDate,
+					sessionsCount: snap.sessionsCount,
+					botSessionsCount: snap.botSessionsCount,
+					distinctUserCount: snap.distinctUserCount,
+					pagesPerSession: snap.pagesPerSession,
+					rageClicks: snap.rageClicks,
+					deadClicks: snap.deadClicks,
+					avgEngagementSeconds: snap.avgEngagementSeconds,
+					avgScrollDepth: snap.avgScrollDepth,
+					rawPayloadId,
+				});
 			}
 
 			if (
 				definition.providerId.value === 'cloudflare-radar' &&
 				definition.endpointId.value === 'radar-domain-rank'
 			) {
-				// Issue #25 — macro-context (Cloudflare Radar) ingest. The job's
-				// systemParams must carry `monitoredDomainId` (set by AddMonitored
-				// Domain via auto-schedule on add). Missing-id case logs warn +
-				// skips, mirroring the other providers.
+				// Issue #25 — macro-context (Cloudflare Radar) ingest. Under
+				// ADR 0001 the AddMonitoredDomain Auto-Schedule handler
+				// stamps `monitoredDomainId` into systemParams.
 				const cfParams = resolvedParams as { monitoredDomainId?: string };
 				if (!cfParams.monitoredDomainId) {
-					runLog.warn({}, 'radar-domain-rank job missing monitoredDomainId in systemParams; skipping ingest');
-				} else {
-					const snap = extractRadarSnapshot(fetchResult as DomainRankResponse, this.deps.clock.now());
-					await this.deps.recordRadarRankUseCase.execute({
-						monitoredDomainId: cfParams.monitoredDomainId,
-						observedDate: snap.observedDate,
-						rank: snap.rank,
-						bucket: snap.bucket,
-						categories: snap.categories,
-						rawPayloadId,
-					});
+					throw new NotFoundError(
+						`radar-domain-rank processor reached without monitoredDomainId in systemParams. ` +
+							`Auto-Schedule handler should have set this. See ADR 0001.`,
+					);
 				}
+				const snap = extractRadarSnapshot(fetchResult as DomainRankResponse, this.deps.clock.now());
+				await this.deps.recordRadarRankUseCase.execute({
+					monitoredDomainId: cfParams.monitoredDomainId,
+					observedDate: snap.observedDate,
+					rank: snap.rank,
+					bucket: snap.bucket,
+					categories: snap.categories,
+					rawPayloadId,
+				});
 			}
 
 			if (
 				definition.providerId.value === 'bing-webmaster' &&
 				definition.endpointId.value === 'bing-rank-and-traffic-stats'
 			) {
-				// Issue #20 — Bing daily-traffic ingest. The job's systemParams
-				// must carry `bingPropertyId` (set by LinkBingProperty via
-				// auto-schedule on link). The query-stats endpoint uses a
-				// different aggregation shape and is wired separately when we
-				// add a query-history dispatch.
+				// Issue #20 — Bing daily-traffic ingest. Under ADR 0001 the
+				// LinkBingProperty Auto-Schedule handler stamps
+				// `bingPropertyId` into systemParams. The query-stats
+				// endpoint uses a different aggregation shape and is wired
+				// separately when we add a query-history dispatch.
 				const bingParams = resolvedParams as { bingPropertyId?: string };
 				if (!bingParams.bingPropertyId) {
-					runLog.warn(
-						{},
-						'bing-rank-and-traffic-stats job missing bingPropertyId in systemParams; skipping ingest',
+					throw new NotFoundError(
+						`bing-rank-and-traffic-stats processor reached without bingPropertyId in systemParams. ` +
+							`Auto-Schedule handler should have set this. See ADR 0001.`,
 					);
-				} else {
-					const rows = extractBingDailyRows(fetchResult as RankAndTrafficStatsResponse);
-					await this.deps.ingestBingTrafficUseCase.execute({
-						bingPropertyId: bingParams.bingPropertyId,
-						rawPayloadId,
-						rows,
-					});
 				}
+				const rows = extractBingDailyRows(fetchResult as RankAndTrafficStatsResponse);
+				await this.deps.ingestBingTrafficUseCase.execute({
+					bingPropertyId: bingParams.bingPropertyId,
+					rawPayloadId,
+					rows,
+				});
 			}
 
 			if (
 				definition.providerId.value === 'google-analytics-4' &&
 				definition.endpointId.value === 'ga4-run-report'
 			) {
-				// Issue #17 — GA4 ingest. The job's systemParams must carry
-				// `ga4PropertyId` (set when the operator links a GA4 property
-				// via the API/UI; the LinkGa4PropertyUseCase auto-schedules
-				// the cron and stamps that id into the params).
+				// Issue #17 — GA4 ingest. Under ADR 0001 the LinkGa4Property
+				// Auto-Schedule handler stamps `ga4PropertyId` into
+				// systemParams when the operator links the property.
 				const ga4Params = resolvedParams as unknown as RunReportParams & { ga4PropertyId?: string };
 				if (!ga4Params.ga4PropertyId) {
-					runLog.warn({}, 'ga4-run-report job missing ga4PropertyId param; skipping ingest');
-				} else {
-					const rows = extractGa4Rows(fetchResult as RunReportResponse, {
-						startDate: ga4Params.startDate,
-						endDate: ga4Params.endDate,
-					});
-					await this.deps.ingestGa4RowsUseCase.execute({
-						ga4PropertyId: ga4Params.ga4PropertyId,
-						rawPayloadId,
-						rows: rows.map((r) => ({
-							observedDate: r.observedDate,
-							dimensions: r.dimensions,
-							metrics: r.metrics,
-						})),
-					});
+					throw new NotFoundError(
+						`ga4-run-report processor reached without ga4PropertyId in systemParams. ` +
+							`Auto-Schedule handler should have set this. See ADR 0001.`,
+					);
 				}
+				const rows = extractGa4Rows(fetchResult as RunReportResponse, {
+					startDate: ga4Params.startDate,
+					endDate: ga4Params.endDate,
+				});
+				await this.deps.ingestGa4RowsUseCase.execute({
+					ga4PropertyId: ga4Params.ga4PropertyId,
+					rawPayloadId,
+					rows: rows.map((r) => ({
+						observedDate: r.observedDate,
+						dimensions: r.dimensions,
+						metrics: r.metrics,
+					})),
+				});
 			}
 
 			if (
@@ -724,6 +733,25 @@ export class ProviderFetchProcessor {
 				runLog.warn(
 					{},
 					'provider returned quota-exhausted error — definition auto-paused, top up credit and re-enable from the UI',
+				);
+				return;
+			}
+
+			if (err instanceof NotFoundError) {
+				// ADR 0001 invariant violation — the entity-bound endpoint
+				// guards (gscPropertyId, ga4PropertyId, trackedPageId,
+				// wikipediaArticleId, bingPropertyId, clarityProjectId,
+				// monitoredDomainId) only fail when a schedule was created
+				// off-path (i.e. bypassing the Auto-Schedule handler). This
+				// is a programmer error — retrying via BullMQ would just
+				// loop. Mark the run failed with a distinct code so the
+				// dashboard can separate it from real upstream fetch
+				// failures, and do NOT re-throw.
+				run.fail({ code: 'INGEST_PRECONDITION_FAILED', message, retryable: false }, this.deps.clock.now());
+				await this.deps.jobRunRepo.save(run);
+				runLog.error(
+					{ err: message },
+					'ingest precondition failed — schedule created off-path (see ADR 0001)',
 				);
 				return;
 			}

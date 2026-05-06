@@ -11,18 +11,15 @@ export interface EndpointParamsValidator {
 }
 
 /**
- * Cross-context system-param resolver.
+ * Cross-context system-param resolver — fallback for bounded contexts that
+ * haven't yet adopted the per-context Auto-Schedule handler pattern (ADR
+ * 0001). Auto-schedule handlers populate `systemParams` directly when they
+ * dispatch this use case, so the resolver loop is a no-op for those flows;
+ * the loop still runs to support manual `POST /providers/.../schedule`
+ * calls against contexts (Meta) that lack an auto-schedule handler.
  *
- * BACKLOG bug #50 — some endpoints require an internal entity ID alongside
- * the user-facing params (e.g. `gsc-search-analytics` needs `gscPropertyId`
- * to ingest results into the right hypertable row). Hard-coding that lookup
- * inside this use case would couple `provider-connectivity` to every other
- * bounded context. Instead, expose a port and let composition wire in
- * resolvers per provider/endpoint pair. Each resolver returns either:
- *   - an object of system-params to merge, OR
- *   - {} when the resolver doesn't apply to this command, OR
- *   - throws `InvalidInputError` / `NotFoundError` when the prerequisite
- *     entity is missing (caller has to link the entity first).
+ * New bounded contexts SHOULD prefer the auto-schedule handler pattern;
+ * the resolver port is kept here pending the Meta migration.
  */
 export interface SystemParamResolver {
 	resolve(input: {
@@ -49,6 +46,15 @@ export interface ScheduleEndpointFetchCommand {
 	systemParams?: Record<string, unknown>;
 	cron: string;
 	credentialOverrideId?: string | null;
+	/**
+	 * Optional idempotency key. When provided, the use case looks up an
+	 * existing JobDefinition for `(projectId, endpointId)` whose
+	 * `params.<systemParamKey>` equals `systemParamValue`; if found, returns
+	 * its definitionId without creating a duplicate. Used by per-context
+	 * Auto-Schedule handlers so that re-emitting the link event (replay,
+	 * reconnect, dual delivery) doesn't duplicate the schedule.
+	 */
+	idempotencyKey?: { systemParamKey: string; systemParamValue: string };
 }
 
 export interface ScheduleEndpointFetchResult {
@@ -79,8 +85,21 @@ export class ScheduleEndpointFetchUseCase {
 			);
 		}
 
-		// Run cross-context resolvers (e.g. resolve gscPropertyId from siteUrl).
-		// Empty list in tests / when nothing is wired — the loop simply no-ops.
+		// Idempotency: if the caller supplied an idempotency key, return the
+		// existing definitionId without creating a duplicate. This is what makes
+		// auto-schedule handlers safe under event replay / reconnect.
+		if (cmd.idempotencyKey) {
+			const existing = await this.definitions.findByProjectEndpointAndSystemParam(
+				projectId,
+				endpointId,
+				cmd.idempotencyKey.systemParamKey,
+				cmd.idempotencyKey.systemParamValue,
+			);
+			if (existing) return { definitionId: existing.id };
+		}
+
+		// Run cross-context resolvers (Meta — pending migration to handler
+		// pattern). No-op when the resolver list is empty.
 		let resolvedSystemParams: Record<string, unknown> = { ...(cmd.systemParams ?? {}) };
 		for (const resolver of this.systemParamResolvers) {
 			const extra = await resolver.resolve({

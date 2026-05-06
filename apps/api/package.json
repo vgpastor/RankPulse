@@ -8,6 +8,7 @@
 		"start": "node --conditions=development --env-file-if-exists=../../.env --env-file-if-exists=../../.env.local --import @swc-node/register/esm-register src/main.ts",
 		"dev": "node --conditions=development --env-file-if-exists=../../.env --env-file-if-exists=../../.env.local --import @swc-node/register/esm-register --watch src/main.ts",
 		"start:prod": "node --env-file-if-exists=../../.env --env-file-if-exists=../../.env.local dist/main.js",
+		"repair:job-definitions": "node --conditions=development --env-file-if-exists=../../.env --env-file-if-exists=../../.env.local --import @swc-node/register/esm-register scripts/repair-job-definitions.ts",
 		"build": "tsc -p tsconfig.build.json",
 		"typecheck": "tsc --noEmit",
 		"test:unit": "vitest run --passWithNoTests",

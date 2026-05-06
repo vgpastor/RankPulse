@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, HttpCode, Inject, Param, Patch, Post } from '@nestjs/common';
+import {
+	BadRequestException,
+	Body,
+	Controller,
+	Delete,
+	Get,
+	HttpCode,
+	Inject,
+	Param,
+	Patch,
+	Post,
+} from '@nestjs/common';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import type { ProviderConnectivity as PCUseCases } from '@rankpulse/application';
 import { ProviderConnectivityContracts } from '@rankpulse/contracts';
@@ -17,6 +28,67 @@ type UpdateJobDefinitionRequest = ProviderConnectivityContracts.UpdateJobDefinit
 type ProviderDto = ProviderConnectivityContracts.ProviderDto;
 type JobDefinitionDto = ProviderConnectivityContracts.JobDefinitionDto;
 type JobRunDto = ProviderConnectivityContracts.JobRunDto;
+
+/**
+ * Entity-bound endpoints — these are auto-scheduled by their bounded
+ * context's link/add handler. The manual schedule route is blocked because
+ * it can't reliably populate the systemParam (which entity does
+ * `siteUrl=https://x` map to? the controller can't answer without coupling
+ * to every other context).
+ *
+ * If you're adding a new entity-bound endpoint:
+ *  1. Implement `AutoScheduleOn<X>LinkedHandler` in its bounded context.
+ *  2. Wire it in composition-root.
+ *  3. Add the endpoint here.
+ */
+const ENTITY_BOUND_ENDPOINTS: Record<string, { provider: string; preferredRoute: string }> = {
+	'gsc-search-analytics': {
+		provider: 'google-search-console',
+		preferredRoute: '/api/v1/gsc/properties',
+	},
+	'ga4-run-report': {
+		provider: 'google-analytics-4',
+		preferredRoute: '/api/v1/projects/:projectId/ga4/properties',
+	},
+	'wikipedia-pageviews-per-article': {
+		provider: 'wikipedia',
+		preferredRoute: '/api/v1/projects/:projectId/wikipedia/articles',
+	},
+	'bing-rank-and-traffic-stats': {
+		provider: 'bing-webmaster',
+		preferredRoute: '/api/v1/projects/:projectId/bing/properties',
+	},
+	'clarity-data-export': {
+		provider: 'microsoft-clarity',
+		preferredRoute: '/api/v1/projects/:projectId/clarity/projects',
+	},
+	'psi-runpagespeed': {
+		provider: 'pagespeed',
+		preferredRoute: '/api/v1/projects/:projectId/page-speed/pages',
+	},
+	'radar-domain-rank': {
+		provider: 'cloudflare-radar',
+		preferredRoute: '/api/v1/projects/:projectId/radar/domains',
+	},
+	// AI Brand Radar — auto-scheduled by AutoScheduleOnBrandPromptCreatedHandler
+	// (one schedule per provider × project locale).
+	'openai-responses-with-web-search': {
+		provider: 'openai',
+		preferredRoute: '/api/v1/projects/:projectId/brand-prompts',
+	},
+	'anthropic-messages-with-web-search': {
+		provider: 'anthropic',
+		preferredRoute: '/api/v1/projects/:projectId/brand-prompts',
+	},
+	'perplexity-sonar-search': {
+		provider: 'perplexity',
+		preferredRoute: '/api/v1/projects/:projectId/brand-prompts',
+	},
+	'google-ai-studio-gemini-grounded': {
+		provider: 'google-ai-studio',
+		preferredRoute: '/api/v1/projects/:projectId/brand-prompts',
+	},
+};
 
 @Controller('providers')
 export class ProvidersController {
@@ -200,6 +272,17 @@ export class ProvidersController {
 		@Body(new ZodValidationPipe(ProviderConnectivityContracts.ScheduleEndpointRequest))
 		body: ScheduleEndpointRequest,
 	): Promise<{ definitionId: string }> {
+		// Block the manual schedule route for entity-bound endpoints — those
+		// are auto-scheduled by their bounded context's link/add handler when
+		// the underlying entity is created. See ADR 0001.
+		const entityBound = ENTITY_BOUND_ENDPOINTS[endpointId];
+		if (entityBound && entityBound.provider === providerId) {
+			throw new BadRequestException(
+				`Endpoint ${providerId}/${endpointId} is auto-scheduled when you link the entity. ` +
+					`Use ${entityBound.preferredRoute} instead. ` +
+					`(See ADR 0001 — direct schedule blocked for entity-bound endpoints.)`,
+			);
+		}
 		const project = await this.projects.findById(body.projectId as ProjectManagement.ProjectId);
 		if (!project) {
 			throw new NotFoundError(`Project ${body.projectId} not found`);

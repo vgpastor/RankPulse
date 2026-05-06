@@ -91,6 +91,7 @@ export class AutoScheduleOnGscPropertyLinkedHandler {
 				systemParams: { organizationId, gscPropertyId },
 				cron: GSC_AUTO_SCHEDULE_DEFAULTS.cron,
 				credentialOverrideId: null,
+				idempotencyKey: { systemParamKey: 'gscPropertyId', systemParamValue: gscPropertyId },
 			});
 			this.logger.info(
 				{ gscPropertyId, definitionId: result.definitionId },
