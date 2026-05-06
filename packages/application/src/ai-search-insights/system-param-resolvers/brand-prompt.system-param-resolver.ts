@@ -2,17 +2,25 @@ import type { AiSearchInsights } from '@rankpulse/domain';
 import type { SystemParamResolver } from '../../provider-connectivity/use-cases/schedule-endpoint-fetch.use-case.js';
 
 /**
- * Maps an `openai-responses-with-web-search` user param payload (which
- * carries `brandPromptId` already because the auto-schedule handler put it
- * there) to the systemParams the worker's processor needs to ingest the
- * captured response into the right BrandPrompt.
+ * Set of `(providerId, endpointId)` pairs the AI Brand Radar fan-out can
+ * target. Kept here (not in the AutoSchedule handler) so a manual
+ * `POST /providers/.../schedule` call against any of these endpoints picks
+ * up the same systemParams plumbing — issue #56 / bug-50 family.
+ */
+const AI_SEARCH_ENDPOINT_KEYS = new Set<string>([
+	'openai|openai-responses-with-web-search',
+	'anthropic|anthropic-messages-with-web-search',
+	'perplexity|perplexity-sonar-search',
+	'google-ai-studio|google-ai-studio-gemini-grounded',
+]);
+
+/**
+ * Maps an AI-search endpoint user param payload (which carries
+ * `brandPromptId` already because the auto-schedule handler put it there)
+ * to the systemParams the worker's processor needs to ingest the captured
+ * response into the right BrandPrompt.
  *
- * Issue #56 / family of bugs: this resolver is registered alongside the
- * existing GSC/GA4/PSI/Wikipedia/Bing resolvers in composition-root so
- * a manual `POST /providers/.../schedule` call (by an operator who skips
- * the BrandPrompt UI and goes straight to the SchedulesPage) still gets
- * the correct systemParams populated. Returns `{}` for any other
- * provider/endpoint pair.
+ * Returns `{}` for any provider/endpoint pair that isn't an AI-search one.
  */
 export class BrandPromptSystemParamResolver implements SystemParamResolver {
 	constructor(private readonly prompts: AiSearchInsights.BrandPromptRepository) {}
@@ -23,8 +31,7 @@ export class BrandPromptSystemParamResolver implements SystemParamResolver {
 		endpointId: string;
 		params: Record<string, unknown>;
 	}): Promise<Record<string, unknown>> {
-		if (input.providerId !== 'openai') return {};
-		if (input.endpointId !== 'openai-responses-with-web-search') return {};
+		if (!AI_SEARCH_ENDPOINT_KEYS.has(`${input.providerId}|${input.endpointId}`)) return {};
 
 		const candidate = input.params.brandPromptId;
 		if (typeof candidate !== 'string') return {};

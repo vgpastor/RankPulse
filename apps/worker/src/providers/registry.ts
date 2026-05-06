@@ -1,14 +1,17 @@
+import { AnthropicProvider } from '@rankpulse/provider-anthropic';
 import { BingProvider } from '@rankpulse/provider-bing';
 import { BrevoProvider } from '@rankpulse/provider-brevo';
 import { CloudflareRadarProvider } from '@rankpulse/provider-cloudflare-radar';
 import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
 import { Ga4Provider } from '@rankpulse/provider-ga4';
+import { GoogleAiStudioProvider } from '@rankpulse/provider-google-ai-studio';
 import { GscProvider } from '@rankpulse/provider-gsc';
 import { MetaProvider } from '@rankpulse/provider-meta';
 import { ClarityProvider } from '@rankpulse/provider-microsoft-clarity';
 import { OpenAiProvider } from '@rankpulse/provider-openai';
 import { PageSpeedProvider } from '@rankpulse/provider-pagespeed';
+import { PerplexityProvider } from '@rankpulse/provider-perplexity';
 import { WikipediaProvider } from '@rankpulse/provider-wikipedia';
 
 /**
@@ -28,5 +31,8 @@ export function buildProviderRegistry(options: { dataforseoBaseUrl: string }): P
 	registry.register(new ClarityProvider());
 	registry.register(new BrevoProvider());
 	registry.register(new OpenAiProvider());
+	registry.register(new AnthropicProvider());
+	registry.register(new PerplexityProvider());
+	registry.register(new GoogleAiStudioProvider());
 	return registry;
 }

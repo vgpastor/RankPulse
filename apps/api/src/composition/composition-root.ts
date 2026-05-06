@@ -26,17 +26,20 @@ import {
 	Events,
 	Queue as QueueAdapters,
 } from '@rankpulse/infrastructure';
+import { AnthropicProvider } from '@rankpulse/provider-anthropic';
 import { BingProvider } from '@rankpulse/provider-bing';
 import { BrevoProvider } from '@rankpulse/provider-brevo';
 import { CloudflareRadarProvider } from '@rankpulse/provider-cloudflare-radar';
 import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
 import { Ga4Provider } from '@rankpulse/provider-ga4';
+import { GoogleAiStudioProvider } from '@rankpulse/provider-google-ai-studio';
 import { GscProvider } from '@rankpulse/provider-gsc';
 import { MetaProvider } from '@rankpulse/provider-meta';
 import { ClarityProvider } from '@rankpulse/provider-microsoft-clarity';
 import { OpenAiProvider } from '@rankpulse/provider-openai';
 import { PageSpeedProvider } from '@rankpulse/provider-pagespeed';
+import { PerplexityProvider } from '@rankpulse/provider-perplexity';
 import { WikipediaProvider } from '@rankpulse/provider-wikipedia';
 import { InvalidInputError, SystemClock, SystemIdGenerator } from '@rankpulse/shared';
 import { JwtService } from '../common/auth/jwt.service.js';
@@ -150,6 +153,9 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	providerRegistry.register(new ClarityProvider());
 	providerRegistry.register(new BrevoProvider());
 	providerRegistry.register(new OpenAiProvider());
+	providerRegistry.register(new AnthropicProvider());
+	providerRegistry.register(new PerplexityProvider());
+	providerRegistry.register(new GoogleAiStudioProvider());
 
 	const registerOrganization = new IAUseCases.RegisterOrganizationUseCase(
 		orgRepo,

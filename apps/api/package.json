@@ -33,7 +33,12 @@
 		"@rankpulse/provider-gsc": "workspace:*",
 		"@rankpulse/provider-meta": "workspace:*",
 		"@rankpulse/provider-microsoft-clarity": "workspace:*",
+		"@rankpulse/provider-anthropic": "workspace:*",
+		"@rankpulse/provider-google-ai-studio": "workspace:*",
 		"@rankpulse/provider-openai": "workspace:*",
+		"@rankpulse/provider-pagespeed": "workspace:*",
+		"@rankpulse/provider-perplexity": "workspace:*",
+		"@rankpulse/provider-wikipedia": "workspace:*",
 		"@rankpulse/shared": "workspace:*",
 		"drizzle-orm": "0.45.2",
 		"helmet": "8.1.0",
@@ -41,9 +46,7 @@
 		"jose": "6.2.3",
 		"reflect-metadata": "0.2.2",
 		"rxjs": "7.8.2",
-		"zod": "4.4.3",
-		"@rankpulse/provider-pagespeed": "workspace:*",
-		"@rankpulse/provider-wikipedia": "workspace:*"
+		"zod": "4.4.3"
 	},
 	"devDependencies": {
 		"@swc-node/register": "1.11.1",
