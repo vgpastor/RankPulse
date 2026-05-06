@@ -205,9 +205,16 @@ async function main(): Promise<void> {
 						`[repair] ${cfg.endpointId}: PATCH definition ${row.id} with ${cfg.systemKey}=${entityId}`,
 					);
 					if (!dryRun) {
+						// Use jsonb concat (`||`) instead of jsonb_set so we don't
+						// rely on PostgreSQL's text→text[] implicit cast for the
+						// path argument. `params || {key: value}` either inserts
+						// the key (if absent) or overwrites it (which can't happen
+						// here — the WHERE pre-filter rules out rows with the key
+						// already set).
+						const patch = JSON.stringify({ [cfg.systemKey]: entityId });
 						await sql`
 							UPDATE provider_job_definitions
-							SET params = jsonb_set(params, ${`{${cfg.systemKey}}`}, to_jsonb(${entityId}::text), true)
+							SET params = params || ${patch}::jsonb
 							WHERE id = ${row.id}
 						`;
 					}
