@@ -97,6 +97,7 @@ import {
 import { type Clock, type IdGenerator, NotFoundError, resolveDateTokens } from '@rankpulse/shared';
 import type { Logger } from 'pino';
 import { extractMultiDomainRankings, isMultiDomainSerpJob } from './extract-multi-domain-rankings.js';
+import type { IngestRouter } from './ingest-router.js';
 
 /**
  * BACKLOG #14: detect provider-side "out of quota / payment required" so the
@@ -166,6 +167,7 @@ const normalize = (raw: string): string =>
 
 export interface ProviderFetchProcessorDeps {
 	registry: ProviderRegistry;
+	ingestRouter: IngestRouter;
 	credentialRepo: ProviderConnectivity.CredentialRepository;
 	jobDefRepo: ProviderConnectivity.JobDefinitionRepository;
 	jobRunRepo: ProviderConnectivity.JobRunRepository;
@@ -344,7 +346,27 @@ export class ProviderFetchProcessor {
 				costCents: realCostCents,
 			});
 
+			// ADR 0002 Phase 5 — IngestRouter dispatch.
+			//
+			// The router looks up `(providerId, endpointId)` in its manifest-derived
+			// entries and runs the matched ACL → IngestUseCase pipeline. Returns
+			// `false` when the tuple isn't registered (e.g. DataForSEO ranking
+			// fan-out, raw-only endpoints), in which case we fall through to the
+			// legacy if-else dispatch below for behavioural equivalence.
+			//
+			// This guard means each request runs through EITHER the router OR the
+			// if-else chain — never both — so no duplicate ingest.
+			const routerHandled = await this.deps.ingestRouter.dispatch({
+				providerId: definition.providerId.value,
+				endpointId: definition.endpointId.value,
+				fetchResult,
+				rawPayloadId,
+				definition,
+				dateBucket,
+			});
+
 			if (
+				!routerHandled &&
 				definition.providerId.value === 'dataforseo' &&
 				definition.endpointId.value === 'serp-google-organic-live'
 			) {
@@ -403,7 +425,11 @@ export class ProviderFetchProcessor {
 				}
 			}
 
-			if (definition.providerId.value === 'pagespeed' && definition.endpointId.value === 'psi-runpagespeed') {
+			if (
+				!routerHandled &&
+				definition.providerId.value === 'pagespeed' &&
+				definition.endpointId.value === 'psi-runpagespeed'
+			) {
 				// Issue #18 — Core Web Vitals. Under ADR 0001 the
 				// `trackedPageId` is stamped into systemParams by the
 				// Auto-Schedule handler when the operator tracks a page;
@@ -435,6 +461,7 @@ export class ProviderFetchProcessor {
 			}
 
 			if (
+				!routerHandled &&
 				definition.providerId.value === 'wikipedia' &&
 				definition.endpointId.value === 'wikipedia-pageviews-per-article'
 			) {
@@ -462,6 +489,7 @@ export class ProviderFetchProcessor {
 			}
 
 			if (
+				!routerHandled &&
 				definition.providerId.value === 'google-search-console' &&
 				definition.endpointId.value === 'gsc-search-analytics'
 			) {
@@ -490,6 +518,7 @@ export class ProviderFetchProcessor {
 			}
 
 			if (
+				!routerHandled &&
 				definition.providerId.value === 'microsoft-clarity' &&
 				definition.endpointId.value === 'clarity-data-export'
 			) {
@@ -524,6 +553,7 @@ export class ProviderFetchProcessor {
 			}
 
 			if (
+				!routerHandled &&
 				definition.providerId.value === 'cloudflare-radar' &&
 				definition.endpointId.value === 'radar-domain-rank'
 			) {
@@ -549,6 +579,7 @@ export class ProviderFetchProcessor {
 			}
 
 			if (
+				!routerHandled &&
 				definition.providerId.value === 'bing-webmaster' &&
 				definition.endpointId.value === 'bing-rank-and-traffic-stats'
 			) {
@@ -573,6 +604,7 @@ export class ProviderFetchProcessor {
 			}
 
 			if (
+				!routerHandled &&
 				definition.providerId.value === 'google-analytics-4' &&
 				definition.endpointId.value === 'ga4-run-report'
 			) {
@@ -602,6 +634,7 @@ export class ProviderFetchProcessor {
 			}
 
 			if (
+				!routerHandled &&
 				definition.providerId.value === 'meta' &&
 				definition.endpointId.value === 'meta-pixel-events-stats'
 			) {
@@ -632,7 +665,11 @@ export class ProviderFetchProcessor {
 				});
 			}
 
-			if (definition.providerId.value === 'meta' && definition.endpointId.value === 'meta-ads-insights') {
+			if (
+				!routerHandled &&
+				definition.providerId.value === 'meta' &&
+				definition.endpointId.value === 'meta-ads-insights'
+			) {
 				// Issue #45 — Meta Ads Insights ingest. The job's systemParams
 				// must carry `metaAdAccountId`, populated by
 				// AutoScheduleOnMetaAdAccountLinkedHandler. The `level` param
@@ -671,6 +708,7 @@ export class ProviderFetchProcessor {
 			// from raw_payloads until a dedicated read model lands.
 
 			if (
+				!routerHandled &&
 				definition.providerId.value === 'openai' &&
 				definition.endpointId.value === 'openai-responses-with-web-search'
 			) {
@@ -684,6 +722,7 @@ export class ProviderFetchProcessor {
 			}
 
 			if (
+				!routerHandled &&
 				definition.providerId.value === 'anthropic' &&
 				definition.endpointId.value === 'anthropic-messages-with-web-search'
 			) {
@@ -697,6 +736,7 @@ export class ProviderFetchProcessor {
 			}
 
 			if (
+				!routerHandled &&
 				definition.providerId.value === 'perplexity' &&
 				definition.endpointId.value === 'perplexity-sonar-search'
 			) {
@@ -710,6 +750,7 @@ export class ProviderFetchProcessor {
 			}
 
 			if (
+				!routerHandled &&
 				definition.providerId.value === 'google-ai-studio' &&
 				definition.endpointId.value === 'google-ai-studio-gemini-grounded'
 			) {
