@@ -212,7 +212,7 @@ export class AiSearchInsightsController {
 		return { items: items.map((i) => ({ ...i, providers: [...i.providers] })) };
 	}
 
-	@Get('projects/:projectId/ai-search/competitive-matrix')
+	@Get('projects/:projectId/ai-search/matrix')
 	async competitiveMatrix(
 		@Principal() principal: AuthPrincipal,
 		@Param('projectId') projectId: string,

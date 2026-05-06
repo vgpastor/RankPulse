@@ -798,7 +798,7 @@ export function buildOpenApiDocument(): unknown {
 
 	registry.registerPath({
 		method: 'get',
-		path: '/api/v1/projects/{projectId}/ai-search/competitive-matrix',
+		path: '/api/v1/projects/{projectId}/ai-search/matrix',
 		summary: 'AI Brand Radar — competitive matrix (provider × locale × brand)',
 		description:
 			'Flat list of cells the UI pivots into a heatmap. Brands with zero mentions are not present in the response — the UI fills them as 0% cells so the heatmap stays dense.',

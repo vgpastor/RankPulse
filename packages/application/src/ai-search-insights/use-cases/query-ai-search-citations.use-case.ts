@@ -38,14 +38,16 @@ export class QueryAiSearchCitationsUseCase {
 			onlyOwnDomains: query.onlyOwnDomains,
 			aiProvider: query.aiProvider,
 		});
+		const safeIso = (d: Date): string =>
+			Number.isFinite(d.getTime()) ? d.toISOString() : new Date(0).toISOString();
 		return rows.map((r) => ({
 			url: r.url,
-			domain: r.domain,
+			domain: r.domain ?? '',
 			isOwnDomain: r.isOwnDomain,
 			totalCitations: r.totalCitations,
 			providers: r.providers,
-			firstSeenAt: r.firstSeenAt.toISOString(),
-			lastSeenAt: r.lastSeenAt.toISOString(),
+			firstSeenAt: safeIso(r.firstSeenAt),
+			lastSeenAt: safeIso(r.lastSeenAt),
 		}));
 	}
 }
