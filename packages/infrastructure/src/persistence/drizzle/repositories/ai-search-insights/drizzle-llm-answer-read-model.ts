@@ -28,6 +28,14 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			own_avg_position: number | null;
 			competitor_mention_count: number;
 		}>`
+			WITH base AS (
+				SELECT
+					CASE WHEN jsonb_typeof(mentions) = 'array' THEN mentions ELSE '[]'::jsonb END AS mentions,
+					CASE WHEN jsonb_typeof(citations) = 'array' THEN citations ELSE '[]'::jsonb END AS citations
+				FROM llm_answers
+				WHERE project_id = ${projectId}
+				  AND captured_at BETWEEN ${filter.from} AND ${filter.to}
+			)
 			SELECT
 				COUNT(*)::int AS total_answers,
 				COUNT(*) FILTER (
@@ -45,9 +53,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					(SELECT COUNT(*) FROM jsonb_array_elements(mentions) m
 					 WHERE NOT COALESCE((m->>'isOwnBrand')::bool, false))
 				), 0)::int AS competitor_mention_count
-			FROM llm_answers
-			WHERE project_id = ${projectId}
-			  AND captured_at BETWEEN ${filter.from} AND ${filter.to}
+			FROM base
 		`);
 		const row = (rows as unknown as { rows?: unknown[] }).rows?.[0] ?? rows[0];
 		const r = row as {
@@ -82,7 +88,9 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			citation_count: number;
 		}>`
 			WITH base AS (
-				SELECT id, ai_provider, country, language, mentions, citations
+				SELECT id, ai_provider, country, language,
+					CASE WHEN jsonb_typeof(mentions) = 'array' THEN mentions ELSE '[]'::jsonb END AS mentions,
+					CASE WHEN jsonb_typeof(citations) = 'array' THEN citations ELSE '[]'::jsonb END AS citations
 				FROM llm_answers
 				WHERE project_id = ${projectId}
 				  AND captured_at BETWEEN ${filter.from} AND ${filter.to}
@@ -104,7 +112,8 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					(SELECT COUNT(*) FROM jsonb_array_elements(b.citations) c
 					 WHERE COALESCE((c->>'isOwnDomain')::bool, false)
 					   AND c->>'url' = (m->>'citedUrl'))::int AS citation_count
-				FROM base b, jsonb_array_elements(b.mentions) m
+				FROM base b
+				CROSS JOIN LATERAL jsonb_array_elements(b.mentions) m
 				WHERE m ? 'brand'
 			)
 			SELECT
@@ -179,14 +188,17 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					c->>'url' AS url,
 					c->>'domain' AS domain,
 					COALESCE((c->>'isOwnDomain')::bool, false) AS is_own_domain
-				FROM llm_answers a, jsonb_array_elements(a.citations) c
+				FROM llm_answers a
+				CROSS JOIN LATERAL jsonb_array_elements(
+					CASE WHEN jsonb_typeof(a.citations) = 'array' THEN a.citations ELSE '[]'::jsonb END
+				) c
 				WHERE a.project_id = ${projectId}
 				  AND a.captured_at BETWEEN ${filter.from} AND ${filter.to}
 				  AND (${aiProvider}::text IS NULL OR a.ai_provider = ${aiProvider}::text)
 			)
 			SELECT
 				url,
-				domain,
+				COALESCE(domain, '') AS domain,
 				bool_or(is_own_domain) AS is_own_domain,
 				COUNT(*)::int AS total_citations,
 				array_agg(DISTINCT ai_provider) AS providers,
@@ -230,15 +242,21 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			total_answers: number;
 			answers_with_own_mention: number;
 		}>`
+			WITH base AS (
+				SELECT
+					captured_at,
+					CASE WHEN jsonb_typeof(mentions) = 'array' THEN mentions ELSE '[]'::jsonb END AS mentions
+				FROM llm_answers
+				WHERE brand_prompt_id = ${brandPromptId}
+				  AND captured_at BETWEEN ${filter.from} AND ${filter.to}
+			)
 			SELECT
 				to_char(captured_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day,
 				COUNT(*)::int AS total_answers,
 				COUNT(*) FILTER (
 					WHERE jsonb_path_exists(mentions, '$[*] ? (@.isOwnBrand == true)')
 				)::int AS answers_with_own_mention
-			FROM llm_answers
-			WHERE brand_prompt_id = ${brandPromptId}
-			  AND captured_at BETWEEN ${filter.from} AND ${filter.to}
+			FROM base
 			GROUP BY day
 			ORDER BY day
 		`);
@@ -292,6 +310,14 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			last_week_total: number;
 			last_week_own_mentions: number;
 		}>`
+			WITH base AS (
+				SELECT ai_provider, country, language, captured_at,
+					CASE WHEN jsonb_typeof(mentions) = 'array' THEN mentions ELSE '[]'::jsonb END AS mentions
+				FROM llm_answers
+				WHERE project_id = ${projectId}
+				  AND captured_at >= ${lastWeekStart}
+				  AND captured_at <= ${asOf}
+			)
 			SELECT
 				ai_provider,
 				country,
@@ -309,10 +335,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					  AND captured_at < ${thisWeekStart}
 					  AND jsonb_path_exists(mentions, '$[*] ? (@.isOwnBrand == true)')
 				)::int AS last_week_own_mentions
-			FROM llm_answers
-			WHERE project_id = ${projectId}
-			  AND captured_at >= ${lastWeekStart}
-			  AND captured_at <= ${asOf}
+			FROM base
 			GROUP BY ai_provider, country, language
 		`);
 		const list = ((rows as unknown as { rows?: unknown[] }).rows ?? rows) as Array<{
@@ -376,7 +399,10 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					c->>'domain' AS domain,
 					to_char(a.captured_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day,
 					BOOL_OR(COALESCE((c->>'isOwnDomain')::bool, false)) AS cited
-				FROM llm_answers a, jsonb_array_elements(a.citations) c
+				FROM llm_answers a
+				CROSS JOIN LATERAL jsonb_array_elements(
+					CASE WHEN jsonb_typeof(a.citations) = 'array' THEN a.citations ELSE '[]'::jsonb END
+				) c
 				WHERE a.project_id = ${projectId}
 				  AND a.captured_at BETWEEN ${filter.from} AND ${filter.to}
 				  AND COALESCE((c->>'isOwnDomain')::bool, false) = true
@@ -464,7 +490,10 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					m->>'brand' AS brand,
 					COALESCE((m->>'isOwnBrand')::bool, false) AS is_own_brand,
 					(m->>'position')::int AS position
-				FROM llm_answers a, jsonb_array_elements(a.mentions) m
+				FROM llm_answers a
+				CROSS JOIN LATERAL jsonb_array_elements(
+					CASE WHEN jsonb_typeof(a.mentions) = 'array' THEN a.mentions ELSE '[]'::jsonb END
+				) m
 				WHERE a.project_id = ${projectId}
 				  AND a.captured_at BETWEEN ${filter.from} AND ${filter.to}
 			),
