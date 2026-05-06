@@ -1,5 +1,4 @@
 import type {
-	AiSearchInsights as AiSearchInsightsUseCases,
 	BingWebmasterInsights as BingWebmasterInsightsUseCases,
 	EntityAwareness as EntityAwarenessUseCases,
 	ExperienceAnalytics as ExperienceAnalyticsUseCases,
@@ -26,74 +25,29 @@ import {
 	type WebPerformance as WebPerformanceDomain,
 } from '@rankpulse/domain';
 import type { ProviderFetchJobData } from '@rankpulse/infrastructure/queue';
-import {
-	AnthropicApiError,
-	type AnthropicMessagesPayload,
-	normaliseAnthropicResponse,
-} from '@rankpulse/provider-anthropic';
-import {
-	BingApiError,
-	extractDailyRows as extractBingDailyRows,
-	type RankAndTrafficStatsResponse,
-} from '@rankpulse/provider-bing';
-import {
-	CloudflareRadarApiError,
-	type DomainRankResponse,
-	extractSnapshot as extractRadarSnapshot,
-} from '@rankpulse/provider-cloudflare-radar';
+import { AnthropicApiError } from '@rankpulse/provider-anthropic';
+import { BingApiError } from '@rankpulse/provider-bing';
+import { CloudflareRadarApiError } from '@rankpulse/provider-cloudflare-radar';
 import type { ProviderRegistry } from '@rankpulse/provider-core';
 import {
 	DataForSeoApiError,
 	extractTop10Domains,
 	type SerpLiveResponse,
 } from '@rankpulse/provider-dataforseo';
+import { Ga4ApiError } from '@rankpulse/provider-ga4';
+import { GoogleAiStudioApiError } from '@rankpulse/provider-google-ai-studio';
+import { GscApiError } from '@rankpulse/provider-gsc';
 import {
-	extractRows as extractGa4Rows,
-	Ga4ApiError,
-	type RunReportParams,
-	type RunReportResponse,
-} from '@rankpulse/provider-ga4';
-import {
-	type GeminiPayload,
-	GoogleAiStudioApiError,
-	normaliseGeminiResponse,
-} from '@rankpulse/provider-google-ai-studio';
-import {
-	extractGscRows,
-	GscApiError,
-	type SearchAnalyticsParams,
-	type SearchAnalyticsResponse,
-} from '@rankpulse/provider-gsc';
-import {
-	type AdsInsightsParams,
-	type AdsInsightsResponse,
-	extractAdsInsightRows,
 	extractPixelEventRows,
 	MetaApiError,
 	type PixelEventsStatsParams,
 	type PixelEventsStatsResponse,
 } from '@rankpulse/provider-meta';
-import {
-	ClarityApiError,
-	type DataExportResponse,
-	extractSnapshot as extractClaritySnapshot,
-} from '@rankpulse/provider-microsoft-clarity';
-import {
-	normaliseOpenAiResponse,
-	OpenAiApiError,
-	type OpenAiResponsePayload,
-} from '@rankpulse/provider-openai';
-import { extractSnapshot, PageSpeedApiError, type RunPagespeedResponse } from '@rankpulse/provider-pagespeed';
-import {
-	normalisePerplexityResponse,
-	PerplexityApiError,
-	type PerplexityChatPayload,
-} from '@rankpulse/provider-perplexity';
-import {
-	extractPageviews,
-	type PageviewsPerArticleResponse,
-	WikipediaApiError,
-} from '@rankpulse/provider-wikipedia';
+import { ClarityApiError } from '@rankpulse/provider-microsoft-clarity';
+import { OpenAiApiError } from '@rankpulse/provider-openai';
+import { PageSpeedApiError } from '@rankpulse/provider-pagespeed';
+import { PerplexityApiError } from '@rankpulse/provider-perplexity';
+import { WikipediaApiError } from '@rankpulse/provider-wikipedia';
 import { type Clock, type IdGenerator, NotFoundError, resolveDateTokens } from '@rankpulse/shared';
 import type { Logger } from 'pino';
 import { extractMultiDomainRankings, isMultiDomainSerpJob } from './extract-multi-domain-rankings.js';
@@ -198,7 +152,6 @@ export interface ProviderFetchProcessorDeps {
 	ingestMetaPixelEventsUseCase: MetaAdsAttributionUseCases.IngestMetaPixelEventsUseCase;
 	ingestMetaAdsInsightsUseCase: MetaAdsAttributionUseCases.IngestMetaAdsInsightsUseCase;
 	recordExperienceSnapshotUseCase: ExperienceAnalyticsUseCases.RecordExperienceSnapshotUseCase;
-	recordLlmAnswerUseCase: AiSearchInsightsUseCases.RecordLlmAnswerUseCase;
 	clock: Clock;
 	ids: IdGenerator;
 	logger: Logger;
@@ -425,213 +378,10 @@ export class ProviderFetchProcessor {
 				}
 			}
 
-			if (
-				!routerHandled &&
-				definition.providerId.value === 'pagespeed' &&
-				definition.endpointId.value === 'psi-runpagespeed'
-			) {
-				// Issue #18 — Core Web Vitals. Under ADR 0001 the
-				// `trackedPageId` is stamped into systemParams by the
-				// Auto-Schedule handler when the operator tracks a page;
-				// reaching this guard means the schedule was created
-				// off-path (manual route bypassing the handler) and we
-				// must surface a programmer error rather than silently
-				// drop the ingest.
-				const psiParams = resolvedParams as { trackedPageId?: string };
-				if (!psiParams.trackedPageId) {
-					throw new NotFoundError(
-						`psi-runpagespeed processor reached without trackedPageId in systemParams. ` +
-							`Auto-Schedule handler should have set this. See ADR 0001.`,
-					);
-				}
-				const snapshot = extractSnapshot(fetchResult as RunPagespeedResponse, this.deps.clock.now());
-				await this.deps.recordPageSpeedSnapshotUseCase.execute({
-					trackedPageId: psiParams.trackedPageId,
-					observedAt: snapshot.observedAt,
-					lcpMs: snapshot.lcpMs,
-					inpMs: snapshot.inpMs,
-					cls: snapshot.cls,
-					fcpMs: snapshot.fcpMs,
-					ttfbMs: snapshot.ttfbMs,
-					performanceScore: snapshot.performanceScore,
-					seoScore: snapshot.seoScore,
-					accessibilityScore: snapshot.accessibilityScore,
-					bestPracticesScore: snapshot.bestPracticesScore,
-				});
-			}
-
-			if (
-				!routerHandled &&
-				definition.providerId.value === 'wikipedia' &&
-				definition.endpointId.value === 'wikipedia-pageviews-per-article'
-			) {
-				// Issue #33 — entity-awareness ingest. Under ADR 0001 the
-				// `wikipediaArticleId` is stamped into systemParams by the
-				// LinkWikipediaArticle Auto-Schedule handler.
-				const wpParams = resolvedParams as { wikipediaArticleId?: string };
-				if (!wpParams.wikipediaArticleId) {
-					throw new NotFoundError(
-						`wikipedia-pageviews-per-article processor reached without wikipediaArticleId in systemParams. ` +
-							`Auto-Schedule handler should have set this. See ADR 0001.`,
-					);
-				}
-				const observations = extractPageviews(fetchResult as PageviewsPerArticleResponse);
-				await this.deps.ingestWikipediaPageviewsUseCase.execute({
-					articleId: wpParams.wikipediaArticleId,
-					rows: observations.map((o) => ({
-						observedAt: o.observedAt,
-						views: o.views,
-						access: o.access,
-						agent: o.agent,
-						granularity: o.granularity,
-					})),
-				});
-			}
-
-			if (
-				!routerHandled &&
-				definition.providerId.value === 'google-search-console' &&
-				definition.endpointId.value === 'gsc-search-analytics'
-			) {
-				// Use the RESOLVED params: extractGscRows uses startDate/endDate
-				// to bucket the rows, and the persisted definition keeps the
-				// token form. `gscPropertyId` is a literal string in both.
-				// Under ADR 0001 the LinkGscProperty Auto-Schedule handler
-				// stamps `gscPropertyId` into systemParams.
-				const gscParams = resolvedParams as unknown as SearchAnalyticsParams & { gscPropertyId?: string };
-				if (!gscParams.gscPropertyId) {
-					throw new NotFoundError(
-						`gsc-search-analytics processor reached without gscPropertyId in systemParams. ` +
-							`Auto-Schedule handler should have set this. See ADR 0001.`,
-					);
-				}
-				const rows = extractGscRows(fetchResult as SearchAnalyticsResponse, {
-					dimensions: gscParams.dimensions ?? ['date'],
-					startDate: gscParams.startDate,
-					endDate: gscParams.endDate,
-				});
-				await this.deps.ingestGscRowsUseCase.execute({
-					gscPropertyId: gscParams.gscPropertyId,
-					rawPayloadId,
-					rows,
-				});
-			}
-
-			if (
-				!routerHandled &&
-				definition.providerId.value === 'microsoft-clarity' &&
-				definition.endpointId.value === 'clarity-data-export'
-			) {
-				// Issue #43 — experience-analytics ingest. Under ADR 0001 the
-				// LinkClarityProject Auto-Schedule handler stamps
-				// `clarityProjectId` into systemParams. The ACL needs an
-				// observed date, which we pin to the cron's wall-clock day
-				// (Clarity returns aggregated metrics over the requested
-				// numOfDays window — we stamp it as the day the cron fired).
-				const clarityParams = resolvedParams as { clarityProjectId?: string };
-				if (!clarityParams.clarityProjectId) {
-					throw new NotFoundError(
-						`clarity-data-export processor reached without clarityProjectId in systemParams. ` +
-							`Auto-Schedule handler should have set this. See ADR 0001.`,
-					);
-				}
-				const observedDate = this.deps.clock.now().toISOString().slice(0, 10);
-				const snap = extractClaritySnapshot(fetchResult as DataExportResponse, observedDate);
-				await this.deps.recordExperienceSnapshotUseCase.execute({
-					clarityProjectId: clarityParams.clarityProjectId,
-					observedDate: snap.observedDate,
-					sessionsCount: snap.sessionsCount,
-					botSessionsCount: snap.botSessionsCount,
-					distinctUserCount: snap.distinctUserCount,
-					pagesPerSession: snap.pagesPerSession,
-					rageClicks: snap.rageClicks,
-					deadClicks: snap.deadClicks,
-					avgEngagementSeconds: snap.avgEngagementSeconds,
-					avgScrollDepth: snap.avgScrollDepth,
-					rawPayloadId,
-				});
-			}
-
-			if (
-				!routerHandled &&
-				definition.providerId.value === 'cloudflare-radar' &&
-				definition.endpointId.value === 'radar-domain-rank'
-			) {
-				// Issue #25 — macro-context (Cloudflare Radar) ingest. Under
-				// ADR 0001 the AddMonitoredDomain Auto-Schedule handler
-				// stamps `monitoredDomainId` into systemParams.
-				const cfParams = resolvedParams as { monitoredDomainId?: string };
-				if (!cfParams.monitoredDomainId) {
-					throw new NotFoundError(
-						`radar-domain-rank processor reached without monitoredDomainId in systemParams. ` +
-							`Auto-Schedule handler should have set this. See ADR 0001.`,
-					);
-				}
-				const snap = extractRadarSnapshot(fetchResult as DomainRankResponse, this.deps.clock.now());
-				await this.deps.recordRadarRankUseCase.execute({
-					monitoredDomainId: cfParams.monitoredDomainId,
-					observedDate: snap.observedDate,
-					rank: snap.rank,
-					bucket: snap.bucket,
-					categories: snap.categories,
-					rawPayloadId,
-				});
-			}
-
-			if (
-				!routerHandled &&
-				definition.providerId.value === 'bing-webmaster' &&
-				definition.endpointId.value === 'bing-rank-and-traffic-stats'
-			) {
-				// Issue #20 — Bing daily-traffic ingest. Under ADR 0001 the
-				// LinkBingProperty Auto-Schedule handler stamps
-				// `bingPropertyId` into systemParams. The query-stats
-				// endpoint uses a different aggregation shape and is wired
-				// separately when we add a query-history dispatch.
-				const bingParams = resolvedParams as { bingPropertyId?: string };
-				if (!bingParams.bingPropertyId) {
-					throw new NotFoundError(
-						`bing-rank-and-traffic-stats processor reached without bingPropertyId in systemParams. ` +
-							`Auto-Schedule handler should have set this. See ADR 0001.`,
-					);
-				}
-				const rows = extractBingDailyRows(fetchResult as RankAndTrafficStatsResponse);
-				await this.deps.ingestBingTrafficUseCase.execute({
-					bingPropertyId: bingParams.bingPropertyId,
-					rawPayloadId,
-					rows,
-				});
-			}
-
-			if (
-				!routerHandled &&
-				definition.providerId.value === 'google-analytics-4' &&
-				definition.endpointId.value === 'ga4-run-report'
-			) {
-				// Issue #17 — GA4 ingest. Under ADR 0001 the LinkGa4Property
-				// Auto-Schedule handler stamps `ga4PropertyId` into
-				// systemParams when the operator links the property.
-				const ga4Params = resolvedParams as unknown as RunReportParams & { ga4PropertyId?: string };
-				if (!ga4Params.ga4PropertyId) {
-					throw new NotFoundError(
-						`ga4-run-report processor reached without ga4PropertyId in systemParams. ` +
-							`Auto-Schedule handler should have set this. See ADR 0001.`,
-					);
-				}
-				const rows = extractGa4Rows(fetchResult as RunReportResponse, {
-					startDate: ga4Params.startDate,
-					endDate: ga4Params.endDate,
-				});
-				await this.deps.ingestGa4RowsUseCase.execute({
-					ga4PropertyId: ga4Params.ga4PropertyId,
-					rawPayloadId,
-					rows: rows.map((r) => ({
-						observedDate: r.observedDate,
-						dimensions: r.dimensions,
-						metrics: r.metrics,
-					})),
-				});
-			}
+			// Phase 5 deleted 7 router-handled if-else blocks here:
+			// pagespeed, wikipedia, gsc, microsoft-clarity, cloudflare-radar,
+			// bing-webmaster, google-analytics-4. Their dispatch is now driven
+			// by the manifest IngestBinding + adapter map in worker/main.ts.
 
 			if (
 				!routerHandled &&
@@ -665,103 +415,20 @@ export class ProviderFetchProcessor {
 				});
 			}
 
-			if (
-				!routerHandled &&
-				definition.providerId.value === 'meta' &&
-				definition.endpointId.value === 'meta-ads-insights'
-			) {
-				// Issue #45 — Meta Ads Insights ingest. The job's systemParams
-				// must carry `metaAdAccountId`, populated by
-				// AutoScheduleOnMetaAdAccountLinkedHandler. The `level` param
-				// drives the row granularity (campaign by default). Manual
-				// schedule is gated at the controller — reaching here without
-				// the id is a programmer error.
-				const metaParams = resolvedParams as unknown as AdsInsightsParams & {
-					metaAdAccountId?: string;
-				};
-				if (!metaParams.metaAdAccountId) {
-					throw new NotFoundError(
-						'meta-ads-insights processor reached without metaAdAccountId in systemParams. ' +
-							'Auto-Schedule handler should have set this. See ADR 0001.',
-					);
-				}
-				const fallbackDate =
-					typeof metaParams.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(metaParams.endDate)
-						? metaParams.endDate
-						: dateBucket;
-				const rows = extractAdsInsightRows(
-					fetchResult as AdsInsightsResponse,
-					metaParams.level ?? 'campaign',
-					fallbackDate,
-				);
-				await this.deps.ingestMetaAdsInsightsUseCase.execute({
-					metaAdAccountId: metaParams.metaAdAccountId,
-					rawPayloadId,
-					rows,
-				});
-			}
-
+			// `meta-ads-insights` is router-handled (ADR 0002 Phase 5 — see
+			// worker/main.ts adapter map).
+			//
 			// `meta-custom-audiences` is intentionally a raw-payload-only
 			// endpoint: we don't time-series the audience inventory because
 			// Meta's `approximate_count_*` bands are too noisy. The raw
 			// payload is persisted above; downstream consumers can read it
 			// from raw_payloads until a dedicated read model lands.
-
-			if (
-				!routerHandled &&
-				definition.providerId.value === 'openai' &&
-				definition.endpointId.value === 'openai-responses-with-web-search'
-			) {
-				await this.ingestAiSearchAnswer(
-					resolvedParams,
-					rawPayloadId,
-					normaliseOpenAiResponse(fetchResult as OpenAiResponsePayload),
-					runLog,
-					'openai-responses-with-web-search',
-				);
-			}
-
-			if (
-				!routerHandled &&
-				definition.providerId.value === 'anthropic' &&
-				definition.endpointId.value === 'anthropic-messages-with-web-search'
-			) {
-				await this.ingestAiSearchAnswer(
-					resolvedParams,
-					rawPayloadId,
-					normaliseAnthropicResponse(fetchResult as AnthropicMessagesPayload),
-					runLog,
-					'anthropic-messages-with-web-search',
-				);
-			}
-
-			if (
-				!routerHandled &&
-				definition.providerId.value === 'perplexity' &&
-				definition.endpointId.value === 'perplexity-sonar-search'
-			) {
-				await this.ingestAiSearchAnswer(
-					resolvedParams,
-					rawPayloadId,
-					normalisePerplexityResponse(fetchResult as PerplexityChatPayload),
-					runLog,
-					'perplexity-sonar-search',
-				);
-			}
-
-			if (
-				!routerHandled &&
-				definition.providerId.value === 'google-ai-studio' &&
-				definition.endpointId.value === 'google-ai-studio-gemini-grounded'
-			) {
-				await this.ingestAiSearchAnswer(
-					resolvedParams,
-					rawPayloadId,
-					normaliseGeminiResponse(fetchResult as GeminiPayload),
-					runLog,
-					'google-ai-studio-gemini-grounded',
-				);
-			}
+			//
+			// AI Brand Radar (openai, anthropic, perplexity, google-ai-studio)
+			// is also router-handled — the adapter calls
+			// `recordLlmAnswerUseCase` directly with the manifest's normalised
+			// LLM-answer shape, replacing the four if-else blocks that used to
+			// route through `this.ingestAiSearchAnswer`.
 
 			run.complete(rawPayloadId, this.deps.clock.now());
 			definition.markRan(this.deps.clock.now());
@@ -808,52 +475,5 @@ export class ProviderFetchProcessor {
 			await this.deps.jobRunRepo.save(run);
 			throw err;
 		}
-	}
-
-	/**
-	 * Shared ingest path for the 4 AI Brand Radar endpoints. Each provider's
-	 * ACL produces the same `NormalisedLlmAnswer` shape, so the routing here
-	 * is identical — only the upstream parser differs (handled at the call
-	 * site). systemParams must carry `brandPromptId`, `country`, `language`
-	 * (set by AutoScheduleOnBrandPromptCreatedHandler when the user creates
-	 * a BrandPrompt). The use case fans the captured raw response through
-	 * the LLM-as-judge to extract mentions and citations, then persists the
-	 * LlmAnswer row.
-	 */
-	private async ingestAiSearchAnswer(
-		resolvedParams: Record<string, unknown>,
-		rawPayloadId: string,
-		normalised: {
-			aiProvider: string;
-			model: string;
-			rawText: string;
-			citationUrls: readonly string[];
-			tokenUsage: ReturnType<typeof Object>;
-			costCents: number;
-		},
-		runLog: Logger,
-		endpointId: string,
-	): Promise<void> {
-		const aiParams = resolvedParams as {
-			brandPromptId?: string;
-			country?: string;
-			language?: string;
-		};
-		if (!aiParams.brandPromptId || !aiParams.country || !aiParams.language) {
-			runLog.warn(
-				{ aiParams, endpointId },
-				`${endpointId} job missing brandPromptId/country/language in systemParams; skipping ingest`,
-			);
-			return;
-		}
-		await this.deps.recordLlmAnswerUseCase.execute({
-			brandPromptId: aiParams.brandPromptId,
-			country: aiParams.country,
-			language: aiParams.language,
-			rawPayloadId,
-			response: normalised as unknown as Parameters<
-				typeof this.deps.recordLlmAnswerUseCase.execute
-			>[0]['response'],
-		});
 	}
 }

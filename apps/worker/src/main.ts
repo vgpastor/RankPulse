@@ -384,7 +384,6 @@ async function bootstrap(): Promise<void> {
 		ingestMetaPixelEventsUseCase,
 		ingestMetaAdsInsightsUseCase,
 		recordExperienceSnapshotUseCase,
-		recordLlmAnswerUseCase,
 		clock: SystemClock,
 		ids: SystemIdGenerator,
 		logger,
