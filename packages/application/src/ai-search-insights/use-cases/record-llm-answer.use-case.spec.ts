@@ -71,6 +71,7 @@ describe('RecordLlmAnswerUseCase', () => {
 					position: 1,
 					sentiment: 'positive',
 					citedUrl: 'https://patroltech.com/features',
+					isOwnBrand: true,
 				}),
 			],
 			judgeTokenUsage: AiSearchInsights.TokenUsage.create({

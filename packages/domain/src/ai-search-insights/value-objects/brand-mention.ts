@@ -7,12 +7,19 @@ import { isSentiment, type Sentiment } from './sentiment.js';
  * brand is significantly more salient (search behaviour studies put 60% of
  * downstream clicks on the first listed item) — that's why "average position"
  * is one of the headline metrics in the dashboard.
+ *
+ * `isOwnBrand` is set by the MentionExtractor against the resolved watchlist:
+ * a true value means "this is one of the project's own brands", false means
+ * "this is a competitor / other brand we're tracking". Plumbed through the VO
+ * (rather than re-derived in the aggregate from the citation URL) because a
+ * mention without a citation is still a valid signal of brand awareness.
  */
 export interface BrandMentionProps {
 	readonly brand: string;
 	readonly position: number;
 	readonly sentiment: Sentiment;
 	readonly citedUrl: string | null;
+	readonly isOwnBrand: boolean;
 }
 
 export class BrandMention {
@@ -33,7 +40,13 @@ export class BrandMention {
 		if (citedUrl !== null && citedUrl.length === 0) {
 			throw new InvalidInputError('BrandMention.citedUrl cannot be an empty string');
 		}
-		return new BrandMention({ brand, position: props.position, sentiment: props.sentiment, citedUrl });
+		return new BrandMention({
+			brand,
+			position: props.position,
+			sentiment: props.sentiment,
+			citedUrl,
+			isOwnBrand: props.isOwnBrand,
+		});
 	}
 
 	get brand(): string {
@@ -47,6 +60,9 @@ export class BrandMention {
 	}
 	get citedUrl(): string | null {
 		return this.props.citedUrl;
+	}
+	get isOwnBrand(): boolean {
+		return this.props.isOwnBrand;
 	}
 
 	toJSON(): BrandMentionProps {

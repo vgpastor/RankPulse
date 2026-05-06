@@ -24,6 +24,11 @@ export const BrandPromptHistoryDrawer = ({ projectId, prompt, onClose }: BrandPr
 		queryKey: ['project', projectId, 'brand-prompts', promptId, 'answers'],
 		queryFn: () => api.aiSearch.listAnswersForPrompt(projectId, promptId, { limit: 20 }),
 		enabled: open && promptId.length > 0,
+		// Captures only land once a day (07:00 UTC); a 5-min stale window
+		// avoids re-fetching when the user opens / closes the drawer twice
+		// in a row, while still picking up new captures on the next session.
+		staleTime: 5 * 60 * 1000,
+		gcTime: 30 * 60 * 1000,
 	});
 
 	return (

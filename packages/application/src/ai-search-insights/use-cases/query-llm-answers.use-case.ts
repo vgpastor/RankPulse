@@ -16,6 +16,7 @@ export interface BrandMentionDto {
 	position: number;
 	sentiment: AiSearchInsights.Sentiment;
 	citedUrl: string | null;
+	isOwnBrand: boolean;
 }
 
 export interface CitationDto {

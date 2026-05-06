@@ -24,7 +24,7 @@ const makeBaseInput = () => ({
 });
 
 describe('LlmAnswer', () => {
-	it('emits LlmAnswerRecorded with own-brand metadata when the citation matches an own domain', () => {
+	it('emits LlmAnswerRecorded with own-brand metadata when an isOwnBrand mention is present', () => {
 		const ownCitation = Citation.create({
 			url: 'https://patroltech.com/security',
 			domain: 'patroltech.com',
@@ -35,12 +35,14 @@ describe('LlmAnswer', () => {
 			position: 1,
 			sentiment: 'positive',
 			citedUrl: 'https://patroltech.com/security',
+			isOwnBrand: true,
 		});
 		const competitorMention = BrandMention.create({
 			brand: 'Tracktik',
 			position: 2,
 			sentiment: 'neutral',
 			citedUrl: null,
+			isOwnBrand: false,
 		});
 
 		const answer = LlmAnswer.record({
@@ -65,12 +67,36 @@ describe('LlmAnswer', () => {
 		expect(evt.competitorMentionCount).toBe(1);
 	});
 
+	it('detects own brand from isOwnBrand even when no citation is present', () => {
+		const ownMentionNoCitation = BrandMention.create({
+			brand: 'Patroltech',
+			position: 1,
+			sentiment: 'positive',
+			citedUrl: null,
+			isOwnBrand: true,
+		});
+
+		const answer = LlmAnswer.record({
+			...makeBaseInput(),
+			mentions: [ownMentionNoCitation],
+			citations: [],
+		});
+
+		const evt = answer.pullEvents()[0] as unknown as {
+			mentionsOwnBrand: boolean;
+			ownPosition: number | null;
+		};
+		expect(evt.mentionsOwnBrand).toBe(true);
+		expect(evt.ownPosition).toBe(1);
+	});
+
 	it('treats an answer with only competitor mentions as not mentioning the own brand', () => {
 		const competitorOnly = BrandMention.create({
 			brand: 'Tracktik',
 			position: 1,
 			sentiment: 'positive',
 			citedUrl: null,
+			isOwnBrand: false,
 		});
 
 		const answer = LlmAnswer.record({
@@ -85,5 +111,29 @@ describe('LlmAnswer', () => {
 		};
 		expect(evt.mentionsOwnBrand).toBe(false);
 		expect(evt.competitorMentionCount).toBe(1);
+	});
+
+	it('picks the earliest own-brand position when multiple are mentioned', () => {
+		const earlyOwn = BrandMention.create({
+			brand: 'Patroltech',
+			position: 3,
+			sentiment: 'positive',
+			citedUrl: null,
+			isOwnBrand: true,
+		});
+		const lateOwn = BrandMention.create({
+			brand: 'PatroltechAlt',
+			position: 5,
+			sentiment: 'neutral',
+			citedUrl: null,
+			isOwnBrand: true,
+		});
+		const answer = LlmAnswer.record({
+			...makeBaseInput(),
+			mentions: [lateOwn, earlyOwn],
+			citations: [],
+		});
+		const evt = answer.pullEvents()[0] as unknown as { ownPosition: number | null };
+		expect(evt.ownPosition).toBe(3);
 	});
 });

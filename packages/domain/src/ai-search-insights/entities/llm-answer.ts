@@ -54,8 +54,16 @@ export class LlmAnswer extends AggregateRoot {
 		rawPayloadId: string | null;
 		now: Date;
 	}): LlmAnswer {
-		const ownMention = input.mentions.find((m) => isOwnByCitation(m, input.citations));
-		const competitorMentions = input.mentions.filter((m) => !isOwnByCitation(m, input.citations));
+		// `isOwnBrand` is set by the MentionExtractor against the resolved
+		// watchlist — the aggregate just trusts the value rather than re-deriving
+		// from citations. That preserves the signal when the LLM mentions our
+		// brand by name without citing a URL (a frequent and meaningful case).
+		const ownMentions = input.mentions.filter((m) => m.isOwnBrand);
+		const competitorMentions = input.mentions.filter((m) => !m.isOwnBrand);
+		const firstOwnMention = ownMentions.reduce<BrandMention | null>(
+			(best, current) => (best === null || current.position < best.position ? current : best),
+			null,
+		);
 		const ownCitations = input.citations.filter((c) => c.isOwnDomain);
 
 		const answer = new LlmAnswer({
@@ -83,8 +91,8 @@ export class LlmAnswer extends AggregateRoot {
 				model: input.model,
 				country: input.location.country,
 				language: input.location.language,
-				mentionsOwnBrand: ownMention !== undefined,
-				ownPosition: ownMention?.position ?? null,
+				mentionsOwnBrand: firstOwnMention !== null,
+				ownPosition: firstOwnMention?.position ?? null,
 				ownCitationCount: ownCitations.length,
 				competitorMentionCount: competitorMentions.length,
 				occurredAt: input.now,
@@ -141,14 +149,3 @@ export class LlmAnswer extends AggregateRoot {
 		return this.props.capturedAt;
 	}
 }
-
-/**
- * A mention is "ours" if it cites a URL that resolves to a domain we own.
- * Not bulletproof (the LLM may mention us by name without citing) but it's
- * the only signal that survives without leaking watchlist `isOwnBrand` data
- * into the value object itself.
- */
-const isOwnByCitation = (mention: BrandMention, citations: readonly Citation[]): boolean => {
-	if (!mention.citedUrl) return false;
-	return citations.some((c) => c.url === mention.citedUrl && c.isOwnDomain);
-};

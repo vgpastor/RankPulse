@@ -5,6 +5,11 @@ export interface PauseBrandPromptCommand {
 	brandPromptId: string;
 }
 
+export interface BrandPromptStateResult {
+	brandPromptId: string;
+	pausedAt: string | null;
+}
+
 export class PauseBrandPromptUseCase {
 	constructor(
 		private readonly prompts: AiSearchInsights.BrandPromptRepository,
@@ -12,15 +17,18 @@ export class PauseBrandPromptUseCase {
 		private readonly events: SharedKernel.EventPublisher,
 	) {}
 
-	async execute(cmd: PauseBrandPromptCommand): Promise<void> {
+	async execute(cmd: PauseBrandPromptCommand): Promise<BrandPromptStateResult> {
 		const id = cmd.brandPromptId as AiSearchInsights.BrandPromptId;
 		const prompt = await this.prompts.findById(id);
 		if (!prompt) {
 			throw new NotFoundError(`BrandPrompt ${cmd.brandPromptId} not found`);
 		}
-		prompt.pause(this.clock.now());
-		await this.prompts.save(prompt);
-		await this.events.publish(prompt.pullEvents());
+		if (prompt.isActive()) {
+			prompt.pause(this.clock.now());
+			await this.prompts.save(prompt);
+			await this.events.publish(prompt.pullEvents());
+		}
+		return { brandPromptId: id, pausedAt: prompt.pausedAt?.toISOString() ?? null };
 	}
 }
 
@@ -31,14 +39,17 @@ export class ResumeBrandPromptUseCase {
 		private readonly events: SharedKernel.EventPublisher,
 	) {}
 
-	async execute(cmd: PauseBrandPromptCommand): Promise<void> {
+	async execute(cmd: PauseBrandPromptCommand): Promise<BrandPromptStateResult> {
 		const id = cmd.brandPromptId as AiSearchInsights.BrandPromptId;
 		const prompt = await this.prompts.findById(id);
 		if (!prompt) {
 			throw new NotFoundError(`BrandPrompt ${cmd.brandPromptId} not found`);
 		}
-		prompt.resume(this.clock.now());
-		await this.prompts.save(prompt);
-		await this.events.publish(prompt.pullEvents());
+		if (!prompt.isActive()) {
+			prompt.resume(this.clock.now());
+			await this.prompts.save(prompt);
+			await this.events.publish(prompt.pullEvents());
+		}
+		return { brandPromptId: id, pausedAt: prompt.pausedAt?.toISOString() ?? null };
 	}
 }

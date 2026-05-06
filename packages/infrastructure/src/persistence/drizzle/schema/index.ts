@@ -942,7 +942,15 @@ export const llmAnswers = pgTable(
 		rawText: text('raw_text').notNull(),
 		mentions: jsonb('mentions')
 			.notNull()
-			.$type<readonly { brand: string; position: number; sentiment: string; citedUrl: string | null }[]>()
+			.$type<
+				readonly {
+					brand: string;
+					position: number;
+					sentiment: string;
+					citedUrl: string | null;
+					isOwnBrand: boolean;
+				}[]
+			>()
 			.default([]),
 		citations: jsonb('citations')
 			.notNull()

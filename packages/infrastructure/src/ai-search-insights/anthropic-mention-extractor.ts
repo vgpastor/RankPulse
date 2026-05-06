@@ -21,10 +21,13 @@ const ANTHROPIC_VERSION_HEADER = '2023-06-01';
  *  - Cache write surcharge: $1.00 (5-min TTL) — first call only.
  *  - Output: $4.00
  *
- * Cached tokens are 10x cheaper, hence the system instruction caching:
- * the watchlist + extraction schema is the bulk of the input and rarely
- * changes within a 5-min window. With 30 prompts × 4 providers fanned out
- * in a 1-hour scheduling slot, the cache hit rate runs at ~98% in practice.
+ * Caching note: Anthropic only caches prompt blocks ≥2048 tokens for Haiku
+ * (≥1024 for Sonnet/Opus). Our system instruction below is ~500 tokens, so
+ * `cache_control` is currently a no-op for Haiku — we still ship it so it
+ * engages automatically the day Anthropic lowers the threshold or we move
+ * the watchlist into the cached block. Today's cost per call is the
+ * uncached price; ~$0.0009 per extraction at typical sizes (~200 input
+ * + ~150 output). 3600 calls/month ≈ $3.20.
  */
 const PRICING = {
 	inputPerM: 0.8,
@@ -221,6 +224,7 @@ export class AnthropicMentionExtractor implements AiSearchInsights.MentionExtrac
 					position: c.position,
 					sentiment,
 					citedUrl,
+					isOwnBrand: known.isOwnBrand,
 				}),
 			);
 		}

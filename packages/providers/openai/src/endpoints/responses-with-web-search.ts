@@ -102,7 +102,11 @@ const buildBody = (params: ResponsesWithWebSearchParams): unknown => ({
 	model: params.model,
 	input: params.prompt,
 	tools: [{ type: 'web_search' }],
-	tool_choice: 'auto',
+	// `'required'` forces the model to call A tool — since `web_search` is
+	// the only one declared, this guarantees grounding. `'auto'` lets the
+	// model skip web_search when it thinks it has enough training-data
+	// knowledge, which silently breaks the citation rate metric.
+	tool_choice: 'required',
 	temperature: 0,
 	// 4000 tokens covers nearly every realistic LLM-search answer; longer
 	// answers either truncate (acceptable for our use case) or fail with

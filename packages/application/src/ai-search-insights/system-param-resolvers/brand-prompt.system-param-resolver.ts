@@ -26,20 +26,20 @@ export class BrandPromptSystemParamResolver implements SystemParamResolver {
 		if (input.providerId !== 'openai') return {};
 		if (input.endpointId !== 'openai-responses-with-web-search') return {};
 
-		const candidate = input.params['brandPromptId'];
+		const candidate = input.params.brandPromptId;
 		if (typeof candidate !== 'string') return {};
 
 		const prompt = await this.prompts.findById(candidate as AiSearchInsights.BrandPromptId);
 		if (!prompt) return {};
 
-		const country = input.params['locationCountry'];
-		const language = input.params['locationLanguage'];
+		const country = input.params.locationCountry;
+		const language = input.params.locationLanguage;
 		const out: Record<string, unknown> = {
 			brandPromptId: prompt.id,
 			organizationId: prompt.organizationId,
 		};
-		if (typeof country === 'string') out['country'] = country;
-		if (typeof language === 'string') out['language'] = language;
+		if (typeof country === 'string') out.country = country;
+		if (typeof language === 'string') out.language = language;
 		return out;
 	}
 }

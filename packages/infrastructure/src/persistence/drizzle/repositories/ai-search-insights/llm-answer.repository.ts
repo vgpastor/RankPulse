@@ -72,10 +72,14 @@ export class DrizzleLlmAnswerRepository implements AiSearchInsights.LlmAnswerRep
 		brandPromptId: AiSearchInsights.BrandPromptId,
 		limit: number,
 	): Promise<readonly AiSearchInsights.LlmAnswer[]> {
+		// Default 30-day window mirrors `listForProject`. Without this guard
+		// the query scans every chunk in the hypertable on a paused/orphaned
+		// prompt, even when limit=20.
+		const since = sql<Date>`now() - interval '30 days'`;
 		const rows = await this.db
 			.select()
 			.from(llmAnswers)
-			.where(eq(llmAnswers.brandPromptId, brandPromptId))
+			.where(and(eq(llmAnswers.brandPromptId, brandPromptId), gte(llmAnswers.capturedAt, since)))
 			.orderBy(desc(llmAnswers.capturedAt))
 			.limit(limit);
 		return rows.map((r) => this.toAggregate(r));
@@ -91,6 +95,11 @@ export class DrizzleLlmAnswerRepository implements AiSearchInsights.LlmAnswerRep
 				position: m.position,
 				sentiment: AiSearchInsights.isSentiment(m.sentiment) ? m.sentiment : 'neutral',
 				citedUrl: m.citedUrl ?? null,
+				// Defensive default for any pre-isOwnBrand rows persisted before
+				// this column was added to the jsonb shape. Brand-new deploys
+				// will always have it; this just keeps a bad rehydrate from
+				// crashing the query if a stale record sneaks through.
+				isOwnBrand: m.isOwnBrand === true,
 			}),
 		);
 		const citations = (row.citations ?? []).map((c) =>

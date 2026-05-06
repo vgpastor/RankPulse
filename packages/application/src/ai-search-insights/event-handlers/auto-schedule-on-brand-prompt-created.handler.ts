@@ -1,8 +1,8 @@
-import type {
-	AiSearchInsights,
-	ProjectManagement,
+import {
+	type AiSearchInsights,
+	type ProjectManagement,
 	ProviderConnectivity,
-	SharedKernel,
+	type SharedKernel,
 } from '@rankpulse/domain';
 import type { ScheduleEndpointFetchUseCase } from '../../provider-connectivity/use-cases/schedule-endpoint-fetch.use-case.js';
 
@@ -75,9 +75,10 @@ export class AutoScheduleOnBrandPromptCreatedHandler {
 				);
 				return;
 			}
-			const openaiCreds = await this.credentials.listForProvider(organizationId, {
-				value: OPENAI_AUTO_SCHEDULE_DEFAULTS.providerId,
-			} as ProviderConnectivity.ProviderId);
+			const openaiCreds = await this.credentials.listForProvider(
+				organizationId,
+				ProviderConnectivity.ProviderId.create(OPENAI_AUTO_SCHEDULE_DEFAULTS.providerId),
+			);
 			if (openaiCreds.length === 0) {
 				this.logger.info(
 					{ brandPromptId, projectId },
@@ -86,43 +87,48 @@ export class AutoScheduleOnBrandPromptCreatedHandler {
 				return;
 			}
 
-			for (const location of project.locations) {
-				try {
-					const result = await this.scheduleEndpointFetch.execute({
-						projectId,
-						providerId: OPENAI_AUTO_SCHEDULE_DEFAULTS.providerId,
-						endpointId: OPENAI_AUTO_SCHEDULE_DEFAULTS.endpointId,
-						params: {
-							prompt: text,
-							locationCountry: location.country,
-							locationLanguage: location.language,
-							model: OPENAI_AUTO_SCHEDULE_DEFAULTS.model,
-							brandPromptId,
-						},
-						systemParams: {
-							organizationId,
-							brandPromptId,
-							country: location.country,
-							language: location.language,
-						},
-						cron: OPENAI_AUTO_SCHEDULE_DEFAULTS.cron,
-						credentialOverrideId: null,
-					});
-					this.logger.info(
-						{ brandPromptId, definitionId: result.definitionId, locale: location.toString() },
-						'auto-scheduled OpenAI fetch for brand prompt',
-					);
-				} catch (innerErr) {
-					this.logger.error(
-						{
-							brandPromptId,
-							locale: location.toString(),
-							err: innerErr instanceof Error ? innerErr.message : String(innerErr),
-						},
-						'auto-schedule failed for one locale; continuing others',
-					);
-				}
-			}
+			// Fan out concurrently — `ScheduleEndpointFetchUseCase` deduplicates
+			// on `(projectId, providerId, endpointId, paramsHash)` so concurrent
+			// inserts for distinct locales don't race against each other.
+			await Promise.all(
+				project.locations.map(async (location) => {
+					try {
+						const result = await this.scheduleEndpointFetch.execute({
+							projectId,
+							providerId: OPENAI_AUTO_SCHEDULE_DEFAULTS.providerId,
+							endpointId: OPENAI_AUTO_SCHEDULE_DEFAULTS.endpointId,
+							params: {
+								prompt: text,
+								locationCountry: location.country,
+								locationLanguage: location.language,
+								model: OPENAI_AUTO_SCHEDULE_DEFAULTS.model,
+								brandPromptId,
+							},
+							systemParams: {
+								organizationId,
+								brandPromptId,
+								country: location.country,
+								language: location.language,
+							},
+							cron: OPENAI_AUTO_SCHEDULE_DEFAULTS.cron,
+							credentialOverrideId: null,
+						});
+						this.logger.info(
+							{ brandPromptId, definitionId: result.definitionId, locale: location.toString() },
+							'auto-scheduled OpenAI fetch for brand prompt',
+						);
+					} catch (innerErr) {
+						this.logger.error(
+							{
+								brandPromptId,
+								locale: location.toString(),
+								err: innerErr instanceof Error ? innerErr.message : String(innerErr),
+							},
+							'auto-schedule failed for one locale; continuing others',
+						);
+					}
+				}),
+			);
 		} catch (err) {
 			this.logger.error(
 				{ brandPromptId, err: err instanceof Error ? err.message : String(err) },

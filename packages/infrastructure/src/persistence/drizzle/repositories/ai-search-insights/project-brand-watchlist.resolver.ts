@@ -22,21 +22,16 @@ export class ProjectBrandWatchlistResolver implements AiSearchInsights.BrandWatc
 	async resolveForProject(
 		projectId: ProjectManagement.ProjectId,
 	): Promise<readonly AiSearchInsights.BrandWatchEntry[]> {
-		const [project] = await this.db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
+		const [projectRows, ownDomainsRows, competitorRows] = await Promise.all([
+			this.db.select().from(projects).where(eq(projects.id, projectId)).limit(1),
+			this.db.select().from(projectDomains).where(eq(projectDomains.projectId, projectId)),
+			this.db.select().from(competitors).where(eq(competitors.projectId, projectId)),
+		]);
+
+		const project = projectRows[0];
 		if (!project) return [];
 
-		const ownDomainsRows = await this.db
-			.select()
-			.from(projectDomains)
-			.where(eq(projectDomains.projectId, projectId));
-		const competitorRows = await this.db
-			.select()
-			.from(competitors)
-			.where(eq(competitors.projectId, projectId));
-
-		const ownDomains = [project.primaryDomain, ...ownDomainsRows.map((r) => r.domain)].filter(
-			(d, idx, arr) => arr.indexOf(d) === idx,
-		);
+		const ownDomains = [...new Set([project.primaryDomain, ...ownDomainsRows.map((r) => r.domain)])];
 
 		const ownBrand = AiSearchInsights.BrandWatchEntry.create({
 			name: brandNameFromDomain(project.primaryDomain),

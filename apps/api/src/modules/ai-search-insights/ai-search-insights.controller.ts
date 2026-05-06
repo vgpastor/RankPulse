@@ -84,21 +84,11 @@ export class AiSearchInsightsController {
 		@Body(new ZodValidationPipe(AiSearchInsightsContracts.PauseBrandPromptRequest))
 		body: AiSearchInsightsContracts.PauseBrandPromptRequest,
 	): Promise<{ brandPromptId: string; pausedAt: string | null }> {
-		const prompt = await this.requirePrompt(principal, projectId, promptId);
-		if (body.paused) {
-			if (prompt.isActive()) {
-				await this.pausePrompt.execute({ brandPromptId: promptId });
-			}
-		} else {
-			if (!prompt.isActive()) {
-				await this.resumePrompt.execute({ brandPromptId: promptId });
-			}
-		}
-		const refreshed = await this.promptRepo.findById(promptId as AiSearchInsights.BrandPromptId);
-		return {
-			brandPromptId: promptId,
-			pausedAt: refreshed?.pausedAt?.toISOString() ?? null,
-		};
+		await this.requirePrompt(principal, projectId, promptId);
+		const result = body.paused
+			? await this.pausePrompt.execute({ brandPromptId: promptId })
+			: await this.resumePrompt.execute({ brandPromptId: promptId });
+		return result;
 	}
 
 	@Delete('projects/:projectId/brand-prompts/:promptId')

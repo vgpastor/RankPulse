@@ -45,6 +45,7 @@ export const BrandMentionDtoSchema = z.object({
 	position: z.number().int().positive(),
 	sentiment: SentimentSchema,
 	citedUrl: z.string().nullable(),
+	isOwnBrand: z.boolean(),
 });
 export type BrandMentionDtoSchema = z.infer<typeof BrandMentionDtoSchema>;
 
