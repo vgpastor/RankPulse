@@ -7,4 +7,5 @@ export * from './endpoints/contact-attributes.js';
 export * from './endpoints/conversation-stats.js';
 export * from './endpoints/email-statistics.js';
 export * from './http.js';
+export * from './manifest.js';
 export * from './provider.js';
