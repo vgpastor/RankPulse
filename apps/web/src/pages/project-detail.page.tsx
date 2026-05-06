@@ -172,6 +172,12 @@ export const ProjectDetailPage = () => {
 								GSC
 							</Button>
 						</Link>
+						<Link to="/projects/$id/ga4" params={{ id: project.id }}>
+							<Button variant="secondary" size="sm">
+								<Activity size={14} />
+								GA4
+							</Button>
+						</Link>
 						<Link to="/projects/$id/brand-prompts" params={{ id: project.id }}>
 							<Button variant="secondary" size="sm">
 								<Sparkles size={14} />

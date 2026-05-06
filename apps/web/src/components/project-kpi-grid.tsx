@@ -265,6 +265,15 @@ export const ProjectKpiGrid = ({ project }: ProjectKpiGridProps) => {
 				sparkline={
 					ga4.sessions.length > 0 ? { values: ga4.sessions, ariaLabel: t('ga4SessionsSparkline') } : undefined
 				}
+				onClick={(() => {
+					const first = ga4Properties.data?.[0];
+					if (!first) return undefined;
+					return () =>
+						void navigate({
+							to: '/projects/$id/ga4/$propertyId',
+							params: { id: projectId, propertyId: first.id },
+						});
+				})()}
 			/>
 			<KpiCard
 				label={t('gscClicks')}

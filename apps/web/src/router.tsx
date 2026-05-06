@@ -11,6 +11,8 @@ import { AiSearchCitationsPage } from './pages/ai-search-citations.page.js';
 import { AiSearchMatrixPage } from './pages/ai-search-matrix.page.js';
 import { BrandPromptsPage } from './pages/brand-prompts.page.js';
 import { CredentialsPage } from './pages/credentials.page.js';
+import { Ga4PropertiesPage } from './pages/ga4-properties.page.js';
+import { Ga4TrafficPage } from './pages/ga4-traffic.page.js';
 import { GscPerformancePage } from './pages/gsc-performance.page.js';
 import { GscPropertiesPage } from './pages/gsc-properties.page.js';
 import { LoginPage } from './pages/login.page.js';
@@ -106,6 +108,18 @@ const projectGscPropertiesRoute = createRoute({
 	component: GscPropertiesPage,
 });
 
+const projectGa4PropertiesRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/ga4',
+	component: Ga4PropertiesPage,
+});
+
+const projectGa4TrafficRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/ga4/$propertyId',
+	component: Ga4TrafficPage,
+});
+
 const projectBrandPromptsRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/projects/$id/brand-prompts',
@@ -153,6 +167,8 @@ const routeTree = rootRoute.addChildren([
 	projectSchedulesRoute,
 	projectGscPropertiesRoute,
 	projectGscPerformanceRoute,
+	projectGa4PropertiesRoute,
+	projectGa4TrafficRoute,
 	projectBrandPromptsRoute,
 	projectAiSearchCitationsRoute,
 	projectAiSearchMatrixRoute,
