@@ -1,0 +1,32 @@
+{
+	"name": "@rankpulse/provider-microsoft-clarity",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"development": "./src/index.ts",
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json",
+		"typecheck": "tsc --noEmit",
+		"test:unit": "vitest run --passWithNoTests",
+		"test": "vitest run --passWithNoTests",
+		"clean": "rm -rf dist .turbo *.tsbuildinfo"
+	},
+	"dependencies": {
+		"@rankpulse/domain": "workspace:*",
+		"@rankpulse/provider-core": "workspace:*",
+		"@rankpulse/shared": "workspace:*",
+		"zod": "4.4.3"
+	},
+	"devDependencies": {
+		"typescript": "6.0.3",
+		"vitest": "4.1.5"
+	}
+}

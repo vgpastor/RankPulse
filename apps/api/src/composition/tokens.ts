@@ -131,6 +131,15 @@ export const Tokens = {
 	RemoveMonitoredDomain: Symbol('RemoveMonitoredDomainUseCase'),
 	QueryRadarHistory: Symbol('QueryRadarHistoryUseCase'),
 
+	// Experience-Analytics (Microsoft Clarity) ports
+	ClarityProjectRepository: Symbol('ClarityProjectRepository'),
+	ExperienceSnapshotRepository: Symbol('ExperienceSnapshotRepository'),
+
+	// Experience-Analytics use cases
+	LinkClarityProject: Symbol('LinkClarityProjectUseCase'),
+	UnlinkClarityProject: Symbol('UnlinkClarityProjectUseCase'),
+	QueryExperienceHistory: Symbol('QueryExperienceHistoryUseCase'),
+
 	// Infrastructure handles
 	DrizzleClient: Symbol('DrizzleClient'),
 	JwtService: Symbol('JwtService'),
