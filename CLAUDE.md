@@ -274,8 +274,8 @@ pnpm clean      # borra dist/.turbo/*.tsbuildinfo de todos los packages
    endpoints, schedules, **`cacheTtl`** e **`idempotencyWindow`**.
 3. Regístralo en `pnpm-workspace.yaml` (ya cubierto por `packages/providers/*`).
 4. Importa el módulo en `apps/api/src/app.module.ts` y `apps/worker/...`.
-5. Añade el provider al BACKLOG / issues con etiquetas `provider` + `free-source`
-   o `paid-source`.
+5. Abre la issue de seguimiento con etiquetas `provider` + `free-source`
+   o `paid-source`, y reclámala antes de empezar (ver "Claim de issues").
 
 ### 7.3 Nuevo átomo / molécula UI
 
@@ -339,20 +339,53 @@ pnpm clean      # borra dist/.turbo/*.tsbuildinfo de todos los packages
   - `dx` — developer experience / tooling.
   - `user-action` — requiere acción del product owner (creds, billing).
   - `enhancement` / `bug` / `documentation` — tipo de cambio.
+  - `wip` — issue actualmente en curso (ver "Claim de issues" abajo).
 - **Discussions** — para RFCs y debates abiertos, no en Issues.
 - **PRs** — referencian la issue con `Closes #123` para auto-cerrarla al merge.
+
+#### Claim de issues (evitar trabajo duplicado)
+
+> **Regla dura, válida tanto para humanos como para agentes IA:** antes de
+> escribir una sola línea de código sobre una issue, **recláma­la**. Si ya
+> está reclamada por otro, **NO empieces** — escoge otra o coordina en el
+> hilo de la issue.
+
+Procedimiento de claim:
+
+1. Asígnate la issue: `gh issue edit <id> --add-assignee @me`.
+2. Añádele el label `wip`: `gh issue edit <id> --add-label wip`.
+3. Deja un comentario corto: `gh issue comment <id> --body "Tomando esto"`
+   (opcionalmente con ETA).
+
+Antes de empezar, comprueba que **nadie** la haya reclamado ya:
+
+```bash
+gh issue view <id> --json assignees,labels,comments
+gh issue list --label wip --state open   # qué hay en vuelo ahora mismo
+```
+
+Si la issue tiene `assignees` no vacío **o** lleva el label `wip`, **abandona**
+y elige otra. Solo se "roba" una issue si han pasado >7 días de inactividad y
+el assignee no responde en el hilo en 24h.
+
+Al terminar (PR mergeado): el `Closes #N` cierra la issue, y el label `wip` se
+retira automáticamente al cierre (o quítalo a mano si la issue queda abierta
+por otra razón).
 
 **Reglas para el agente IA:**
 
 1. Antes de crear código nuevo significativo, **busca o abre una issue**
    (`gh issue create` o el MCP de GitHub). Enlaza el PR con `Closes #N`.
-2. **No** crees ni edites `BACKLOG.md`, `TODO.md`, `ROADMAP.md` ni similares
+2. **Recláma la issue antes de tocar código** (asignación + label `wip` +
+   comentario). Si otra persona/agente ya la tiene, **no la cojas** — busca
+   otra. Esta regla es absoluta.
+3. **No** crees ni edites `BACKLOG.md`, `TODO.md`, `ROADMAP.md` ni similares
    dentro del repo. Si encuentras uno antiguo, propon su retirada en una issue.
-3. Las decisiones técnicas se documentan en Discussions o en un ADR
+4. Las decisiones técnicas se documentan en Discussions o en un ADR
    (`docs/adr/NNNN-titulo.md`) — **nunca** en un fichero suelto en raíz.
-4. Para descubrir trabajo pendiente:
+5. Para descubrir trabajo pendiente:
    ```bash
-   gh issue list --state open
+   gh issue list --state open --search "no:assignee -label:wip"  # libres
    gh issue list --label provider
    gh issue list --milestone "v1.1 — Free providers expansion"
    gh issue view <id>
