@@ -47,7 +47,7 @@ Five sub-projects deliver the change in one PR with ordered commits:
 - **A2** Auto-Schedule Handler Registry: 10 standalone handler files collapse to config entries inside each `ContextModule.compose`, dispatched by a generic `buildAutoScheduleHandlers` factory.
 - **A3** Worker Processor → Ingest Router: 818-LOC processor shrinks to ~250 LOC; the 12 if-else dispatch blocks become a `Map` lookup inside `IngestRouter.dispatch`.
 - **A4** composition-root + worker main modularization: both shrink to ~150 LOC iterating manifests/modules.
-- **A5** Persistence cleanup: split `schema/index.ts` per context (drizzle-kit detects no diff); extract `DrizzleRepository<T>` base for the universal `findById` pattern.
+- **A5** Persistence cleanup: extract `DrizzleRepository<T>` base for the universal `findById` pattern. *(Schema split deferred — see Tema F note below.)*
 
 ## Consequences
 
@@ -70,6 +70,7 @@ Five sub-projects deliver the change in one PR with ordered commits:
 - **OpenAPI auto-derivation** from Zod schemas (Tema C) — separate ADR will follow.
 - **Outbox pattern** for cross-process events (Tema D) — separate ADR; the audit identified this as an architectural debt to be addressed when horizontal scaling becomes a real constraint.
 - **Frontend templates** (Tema E) — coordinates with PR #84 (currently draft).
+- **Schema split per bounded context (Tema F)** — originally part of A5 in this ADR; surfaced at execution time as blocked by a technical constraint that the schema's own file header explicitly documents: *"defining tables in one module avoids the cross-file `.js` ESM imports that drizzle-kit's CJS loader cannot resolve"*. Splitting requires upgrading drizzle-kit, restructuring the schema build pipeline, or pre-bundling — none of those fit this PR's scope. The `DrizzleRepository<T>` base class part of A5 is preserved (it doesn't depend on splitting).
 
 ## Acceptance criteria (high-level)
 

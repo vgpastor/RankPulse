@@ -37,13 +37,14 @@ This is **Tema A + A5** from the architectural audit (2026-05-06):
 - **A2** — Auto-Schedule Handler Registry: 10 near-duplicate handlers collapse to a config-driven factory.
 - **A3** — Worker Processor → Ingest Router: 818-LOC dispatch monolith becomes a thin `IngestRouter` driven by `ProviderManifest.endpoints[].ingest`.
 - **A4** — composition-root + worker main modularization: 793-LOC + 290-LOC both become ~150 LOC iterating manifests/modules.
-- **A5** — Persistence cleanup: split `schema/index.ts` per context, extract `DrizzleRepository<T>` base class.
+- **A5** — Persistence cleanup: extract `DrizzleRepository<T>` base class. (Schema split per context **deferred** — see "Out of scope" note below: drizzle-kit's CJS loader cannot resolve cross-file `.js` ESM imports, a constraint the schema header explicitly documents.)
 
 Out of scope (separate themes, follow-up issues):
 
 - **Tema C** — OpenAPI auto-derivation + SDK auto-generation.
 - **Tema D** — Outbox pattern for cross-process events (replace `InMemoryEventPublisher`).
 - **Tema E** — Frontend templates (`<ResourcePage>`, `<FormDrawer>`, `queryKeys.ts`).
+- **Tema F (Schema split)** — Splitting `packages/infrastructure/src/persistence/drizzle/schema/index.ts` per bounded context was originally part of A5 in this PR. Deferred after baseline check at task 2.1 surfaced the technical constraint documented in the schema's own file header: *"defining tables in one module avoids the cross-file `.js` ESM imports that drizzle-kit's CJS loader cannot resolve"*. Splitting requires either upgrading drizzle-kit to a version with ESM-compatible loading, restructuring the schema build pipeline, or pre-bundling. None of those are in scope here. The DrizzleRepository<T> base class part of A5 is preserved (Phase 8) — it doesn't depend on splitting.
 
 The PR is one consolidated change with **ordered commits keeping the branch buildable throughout**. See "Migration path" below.
 
@@ -639,7 +640,7 @@ Ordered commits, each keeping `pnpm typecheck && pnpm test && pnpm build` green.
 - [ ] `apps/worker/src/main.ts` < 150 LOC; uses the same `SharedDeps` factory.
 - [ ] `provider-fetch.processor.ts` < 300 LOC; the 12 if-else dispatch blocks are gone.
 - [ ] The 10 `auto-schedule-on-*.handler.ts` files are gone; their logic lives in `ContextModule.compose()` configs.
-- [ ] `schema/index.ts` < 30 LOC barrel; per-context schema files exist.
+- [ ] ~~`schema/index.ts` < 30 LOC barrel; per-context schema files exist.~~ **Deferred (Tema F)** — drizzle-kit CJS loader constraint, see "Out of scope".
 - [ ] `DrizzleRepository<T>` base class exists; at least 5 repos use it.
 - [ ] All 220+ existing tests pass. New tests cover the new abstractions and at least 3 integration scenarios.
 - [ ] `CLAUDE.md` § 7 updated. ADR 0002 committed. `docs/recipes/adding-a-provider.md` exists.
