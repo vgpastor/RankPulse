@@ -1,4 +1,5 @@
-import type { ProjectManagement, WebPerformance } from '@rankpulse/domain';
+import type { ProjectManagement } from '@rankpulse/domain';
+import { WebPerformance } from '@rankpulse/domain';
 import { InvalidInputError, NotFoundError } from '@rankpulse/shared';
 import type { SystemParamResolver } from '../../provider-connectivity/use-cases/schedule-endpoint-fetch.use-case.js';
 
@@ -34,13 +35,15 @@ export class TrackedPageSystemParamResolver implements SystemParamResolver {
 			);
 		}
 
-		// The repo `findByTuple` accepts the raw primitives; value-objects
-		// are constructed inside the infrastructure adapter to keep this
-		// resolver minimal-surface.
+		// Construct value objects — the repo dereferences `.value` on PageUrl
+		// during the SQL where-clause, so passing a raw string yields
+		// UNDEFINED_VALUE in postgres-js. PageUrl.create() validates the
+		// scheme/length too, so a bad params.url short-circuits here with
+		// InvalidInputError instead of leaking an SQL error to the caller.
 		const page = await this.pages.findByTuple(
 			input.projectId as ProjectManagement.ProjectId,
-			url as unknown as WebPerformance.PageUrl,
-			strategy as unknown as WebPerformance.PageSpeedStrategy,
+			WebPerformance.PageUrl.create(url),
+			strategy as WebPerformance.PageSpeedStrategy,
 		);
 		if (!page) {
 			throw new NotFoundError(
