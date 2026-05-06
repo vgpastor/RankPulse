@@ -19,6 +19,7 @@ import { GscPerformancePage } from './pages/gsc-performance.page.js';
 import { GscPropertiesPage } from './pages/gsc-properties.page.js';
 import { LoginPage } from './pages/login.page.js';
 import { OnboardingPage } from './pages/onboarding.page.js';
+import { PortfolioComparePage } from './pages/portfolio-compare.page.js';
 import { PortfoliosPage } from './pages/portfolios.page.js';
 import { ProjectDetailPage } from './pages/project-detail.page.js';
 import { ProjectsPage } from './pages/projects.page.js';
@@ -170,6 +171,12 @@ const portfoliosRoute = createRoute({
 	component: PortfoliosPage,
 });
 
+const portfolioCompareRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/portfolios/$id/compare',
+	component: PortfolioComparePage,
+});
+
 const routeTree = rootRoute.addChildren([
 	indexRoute,
 	loginRoute,
@@ -190,6 +197,7 @@ const routeTree = rootRoute.addChildren([
 	projectCompetitorsRoute,
 	credentialsRoute,
 	portfoliosRoute,
+	portfolioCompareRoute,
 ]);
 
 export const router = new Router({
