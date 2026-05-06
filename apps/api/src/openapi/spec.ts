@@ -1,5 +1,6 @@
 import { extendZodWithOpenApi, OpenAPIRegistry, OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi';
 import {
+	AiSearchInsightsContracts,
 	IdentityAccessContracts,
 	ProjectManagementContracts,
 	ProviderConnectivityContracts,
@@ -590,6 +591,142 @@ export function buildOpenApiDocument(): unknown {
 					'application/json': {
 						schema: z.array(SearchConsoleInsightsContracts.GscPerformancePointDto),
 					},
+				},
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	// ---- ai-search-insights ----
+
+	registry.registerPath({
+		method: 'post',
+		path: '/api/v1/projects/{projectId}/brand-prompts',
+		summary: 'Register a new BrandPrompt to monitor across LLM-search providers',
+		description:
+			'Creates a BrandPrompt and fans out one daily JobDefinition per (LocationLanguage × connected AI provider) automatically. Requires the org to have at least one LLM provider credential connected.',
+		tags: ['ai-search-insights'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid() }),
+			body: {
+				content: {
+					'application/json': { schema: AiSearchInsightsContracts.RegisterBrandPromptRequest },
+				},
+			},
+		},
+		responses: {
+			201: {
+				description: 'BrandPrompt created',
+				content: {
+					'application/json': { schema: AiSearchInsightsContracts.RegisterBrandPromptResponse },
+				},
+			},
+			...errorResponses([400, 401, 403, 404, 409]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/projects/{projectId}/brand-prompts',
+		summary: 'List BrandPrompts registered for a project',
+		tags: ['ai-search-insights'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: { params: z.object({ projectId: z.string().uuid() }) },
+		responses: {
+			200: {
+				description: 'BrandPrompts',
+				content: {
+					'application/json': { schema: AiSearchInsightsContracts.ListBrandPromptsResponse },
+				},
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'patch',
+		path: '/api/v1/projects/{projectId}/brand-prompts/{promptId}',
+		summary: 'Pause or resume a BrandPrompt',
+		description:
+			'Pausing suspends the daily fan-out without deleting the prompt or its history. Resuming reactivates it.',
+		tags: ['ai-search-insights'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid(), promptId: z.string().uuid() }),
+			body: {
+				content: {
+					'application/json': { schema: AiSearchInsightsContracts.PauseBrandPromptRequest },
+				},
+			},
+		},
+		responses: {
+			200: {
+				description: 'Updated',
+				content: {
+					'application/json': {
+						schema: z.object({
+							brandPromptId: z.string().uuid(),
+							pausedAt: z.string().datetime().nullable(),
+						}),
+					},
+				},
+			},
+			...errorResponses([400, 401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'delete',
+		path: '/api/v1/projects/{projectId}/brand-prompts/{promptId}',
+		summary: 'Delete a BrandPrompt',
+		description:
+			'Removes the prompt and cancels future scheduled fetches. Historical LlmAnswers are kept so the dashboards can still surface past data.',
+		tags: ['ai-search-insights'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: { params: z.object({ projectId: z.string().uuid(), promptId: z.string().uuid() }) },
+		responses: {
+			204: { description: 'Deleted' },
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/projects/{projectId}/brand-prompts/{promptId}/answers',
+		summary: 'List LLM answers captured for a specific BrandPrompt',
+		tags: ['ai-search-insights'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid(), promptId: z.string().uuid() }),
+			query: AiSearchInsightsContracts.ListLlmAnswersQuery,
+		},
+		responses: {
+			200: {
+				description: 'Captured answers (paginated, latest first)',
+				content: {
+					'application/json': { schema: AiSearchInsightsContracts.ListLlmAnswersResponse },
+				},
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/projects/{projectId}/ai-search/answers',
+		summary: 'List captured LLM answers across all prompts in a project',
+		tags: ['ai-search-insights'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid() }),
+			query: AiSearchInsightsContracts.ListLlmAnswersQuery,
+		},
+		responses: {
+			200: {
+				description: 'Captured answers (paginated, latest first)',
+				content: {
+					'application/json': { schema: AiSearchInsightsContracts.ListLlmAnswersResponse },
 				},
 			},
 			...errorResponses([401, 403, 404]),

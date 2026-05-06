@@ -1,5 +1,6 @@
 import type { Provider, ValueProvider } from '@nestjs/common';
 import {
+	AiSearchInsights as AISIUseCases,
 	BingWebmasterInsights as BWIUseCases,
 	EntityAwareness as EAUseCases,
 	ExperienceAnalytics as EXAUseCases,
@@ -13,8 +14,18 @@ import {
 	TrafficAnalytics as TAUseCases,
 	WebPerformance as WPUseCases,
 } from '@rankpulse/application';
-import type { ProjectManagement } from '@rankpulse/domain';
-import { Crypto, DrizzlePersistence, Events, Queue as QueueAdapters } from '@rankpulse/infrastructure';
+import {
+	type AiSearchInsights,
+	AiSearchInsights as AiSearchInsightsDomain,
+	type ProjectManagement,
+} from '@rankpulse/domain';
+import {
+	AiSearchInsights as AiSearchInsightsInfra,
+	Crypto,
+	DrizzlePersistence,
+	Events,
+	Queue as QueueAdapters,
+} from '@rankpulse/infrastructure';
 import { BingProvider } from '@rankpulse/provider-bing';
 import { BrevoProvider } from '@rankpulse/provider-brevo';
 import { CloudflareRadarProvider } from '@rankpulse/provider-cloudflare-radar';
@@ -24,12 +35,37 @@ import { Ga4Provider } from '@rankpulse/provider-ga4';
 import { GscProvider } from '@rankpulse/provider-gsc';
 import { MetaProvider } from '@rankpulse/provider-meta';
 import { ClarityProvider } from '@rankpulse/provider-microsoft-clarity';
+import { OpenAiProvider } from '@rankpulse/provider-openai';
 import { InvalidInputError, SystemClock, SystemIdGenerator } from '@rankpulse/shared';
 import { JwtService } from '../common/auth/jwt.service.js';
 import type { AppEnv } from '../config/env.js';
 import { Tokens } from './tokens.js';
 
 const value = <T>(token: symbol, useValue: T): ValueProvider<T> => ({ provide: token, useValue });
+
+/**
+ * Stand-in `MentionExtractor` used when `ANTHROPIC_API_KEY` is not set. The
+ * worker still records the captured raw response so historical data isn't
+ * lost; mention rows just stay empty until the operator configures a real
+ * extractor. We log a one-line warning at composition time (not on every
+ * call) so the operator notices the missing config without flooding logs.
+ */
+const noopMentionExtractor = (): AiSearchInsights.MentionExtractor => {
+	// eslint-disable-next-line no-console
+	console.warn(
+		'[ai-search-insights] ANTHROPIC_API_KEY not set — mention extraction disabled. ' +
+			'Captured LLM responses will be persisted with empty mentions until a key is configured.',
+	);
+	return {
+		async extract() {
+			return {
+				mentions: [],
+				judgeTokenUsage: AiSearchInsightsDomain.TokenUsage.zero(),
+				judgeCostCents: 0,
+			};
+		},
+	};
+};
 
 export interface BootstrapResult {
 	providers: Provider[];
@@ -92,6 +128,10 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const clarityProjectRepo = new DrizzlePersistence.DrizzleClarityProjectRepository(drizzle.db);
 	const experienceSnapshotRepo = new DrizzlePersistence.DrizzleExperienceSnapshotRepository(drizzle.db);
 
+	const brandPromptRepo = new DrizzlePersistence.DrizzleBrandPromptRepository(drizzle.db);
+	const llmAnswerRepo = new DrizzlePersistence.DrizzleLlmAnswerRepository(drizzle.db);
+	const brandWatchlistResolver = new DrizzlePersistence.ProjectBrandWatchlistResolver(drizzle.db);
+
 	const jobScheduler = new QueueAdapters.BullMqJobScheduler({
 		connection: { url: env.REDIS_URL },
 	});
@@ -105,6 +145,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	providerRegistry.register(new MetaProvider());
 	providerRegistry.register(new ClarityProvider());
 	providerRegistry.register(new BrevoProvider());
+	providerRegistry.register(new OpenAiProvider());
 
 	const registerOrganization = new IAUseCases.RegisterOrganizationUseCase(
 		orgRepo,
@@ -246,6 +287,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 			new MCUseCases.MonitoredDomainSystemParamResolver(monitoredDomainRepo),
 			new MAAUseCases.MetaPixelSystemParamResolver(metaPixelRepo),
 			new MAAUseCases.MetaAdAccountSystemParamResolver(metaAdAccountRepo),
+			new AISIUseCases.BrandPromptSystemParamResolver(brandPromptRepo),
 		],
 	);
 	const recordApiUsage = new PCUseCases.RecordApiUsageUseCase(
@@ -388,6 +430,63 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		experienceSnapshotRepo,
 	);
 
+	// Sub-issue #61 of #27 — AI Brand Radar foundation.
+	// MentionExtractor: optional. If ANTHROPIC_API_KEY is missing, we wire a
+	// no-op extractor that returns empty mentions so the worker still
+	// persists raw responses without crashing. The operator gets a clear
+	// log line directing them to set the key once they want extraction.
+	const mentionExtractor: AiSearchInsights.MentionExtractor = env.ANTHROPIC_API_KEY
+		? new AiSearchInsightsInfra.AnthropicMentionExtractor({ apiKey: env.ANTHROPIC_API_KEY })
+		: noopMentionExtractor();
+
+	const registerBrandPrompt = new AISIUseCases.RegisterBrandPromptUseCase(
+		brandPromptRepo,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const pauseBrandPrompt = new AISIUseCases.PauseBrandPromptUseCase(
+		brandPromptRepo,
+		SystemClock,
+		eventPublisher,
+	);
+	const resumeBrandPrompt = new AISIUseCases.ResumeBrandPromptUseCase(
+		brandPromptRepo,
+		SystemClock,
+		eventPublisher,
+	);
+	const deleteBrandPrompt = new AISIUseCases.DeleteBrandPromptUseCase(brandPromptRepo);
+	const listBrandPrompts = new AISIUseCases.ListBrandPromptsUseCase(brandPromptRepo);
+	const recordLlmAnswer = new AISIUseCases.RecordLlmAnswerUseCase(
+		brandPromptRepo,
+		llmAnswerRepo,
+		brandWatchlistResolver,
+		mentionExtractor,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const queryLlmAnswers = new AISIUseCases.QueryLlmAnswersUseCase(llmAnswerRepo);
+
+	const autoScheduleOnBrandPromptCreated = new AISIUseCases.AutoScheduleOnBrandPromptCreatedHandler(
+		scheduleEndpointFetch,
+		projectRepo,
+		credentialRepo,
+		{
+			info: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.log(`[auto-schedule-on-brand-prompt-created] ${msg}`, meta);
+			},
+			error: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.error(`[auto-schedule-on-brand-prompt-created] ${msg}`, meta);
+			},
+		},
+	);
+	eventPublisher.on('BrandPromptCreated', (event) => {
+		void autoScheduleOnBrandPromptCreated.handle(event);
+	});
+
 	// BACKLOG #23 / #21 — auto-schedule daily GSC fetch on property link.
 	// Subscribes to the in-memory event bus; the handler is fire-and-forget,
 	// errors are swallowed and logged so a scheduler outage doesn't 500 the
@@ -521,6 +620,18 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.LinkClarityProject, linkClarityProject),
 		value(Tokens.UnlinkClarityProject, unlinkClarityProject),
 		value(Tokens.QueryExperienceHistory, queryExperienceHistory),
+
+		value(Tokens.BrandPromptRepository, brandPromptRepo),
+		value(Tokens.LlmAnswerRepository, llmAnswerRepo),
+		value(Tokens.BrandWatchlistResolver, brandWatchlistResolver),
+		value(Tokens.MentionExtractor, mentionExtractor),
+		value(Tokens.RegisterBrandPrompt, registerBrandPrompt),
+		value(Tokens.PauseBrandPrompt, pauseBrandPrompt),
+		value(Tokens.ResumeBrandPrompt, resumeBrandPrompt),
+		value(Tokens.DeleteBrandPrompt, deleteBrandPrompt),
+		value(Tokens.ListBrandPrompts, listBrandPrompts),
+		value(Tokens.RecordLlmAnswer, recordLlmAnswer),
+		value(Tokens.QueryLlmAnswers, queryLlmAnswers),
 	];
 
 	return {

@@ -169,6 +169,12 @@ export const ProjectDetailPage = () => {
 								GSC
 							</Button>
 						</Link>
+						<Link to="/projects/$id/brand-prompts" params={{ id: project.id }}>
+							<Button variant="secondary" size="sm">
+								<Sparkles size={14} />
+								AI Radar
+							</Button>
+						</Link>
 						<Badge
 							variant={
 								project.kind === 'OWN' ? 'default' : project.kind === 'COMPETITOR' ? 'warning' : 'secondary'

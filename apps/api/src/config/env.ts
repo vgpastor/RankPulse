@@ -37,6 +37,14 @@ const EnvSchema = z.object({
 		.string()
 		.optional()
 		.transform((v) => v !== 'false'),
+	/**
+	 * API key for the LLM-as-judge that extracts brand mentions from
+	 * captured LLM-search responses (sub-issue #61 / parent #27). When
+	 * absent the worker persists captured raw text without running the
+	 * mention extractor — the dashboards continue rendering historical
+	 * data, but no new mention rows are produced until configured.
+	 */
+	ANTHROPIC_API_KEY: z.string().min(20).optional(),
 });
 
 export type AppEnv = z.infer<typeof EnvSchema>;

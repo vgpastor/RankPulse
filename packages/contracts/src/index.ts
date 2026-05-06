@@ -1,3 +1,4 @@
+export * as AiSearchInsightsContracts from './ai-search-insights/index.js';
 export * as BingWebmasterInsightsContracts from './bing-webmaster-insights/index.js';
 export * as EntityAwarenessContracts from './entity-awareness/index.js';
 export * as ExperienceAnalyticsContracts from './experience-analytics/index.js';

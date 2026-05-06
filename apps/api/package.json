@@ -33,6 +33,7 @@
 		"@rankpulse/provider-gsc": "workspace:*",
 		"@rankpulse/provider-meta": "workspace:*",
 		"@rankpulse/provider-microsoft-clarity": "workspace:*",
+		"@rankpulse/provider-openai": "workspace:*",
 		"@rankpulse/shared": "workspace:*",
 		"drizzle-orm": "0.45.2",
 		"helmet": "8.1.0",

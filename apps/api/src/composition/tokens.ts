@@ -154,6 +154,21 @@ export const Tokens = {
 	UnlinkClarityProject: Symbol('UnlinkClarityProjectUseCase'),
 	QueryExperienceHistory: Symbol('QueryExperienceHistoryUseCase'),
 
+	// AI-Search-Insights ports
+	BrandPromptRepository: Symbol('BrandPromptRepository'),
+	LlmAnswerRepository: Symbol('LlmAnswerRepository'),
+	BrandWatchlistResolver: Symbol('BrandWatchlistResolver'),
+	MentionExtractor: Symbol('MentionExtractor'),
+
+	// AI-Search-Insights use cases
+	RegisterBrandPrompt: Symbol('RegisterBrandPromptUseCase'),
+	PauseBrandPrompt: Symbol('PauseBrandPromptUseCase'),
+	ResumeBrandPrompt: Symbol('ResumeBrandPromptUseCase'),
+	DeleteBrandPrompt: Symbol('DeleteBrandPromptUseCase'),
+	ListBrandPrompts: Symbol('ListBrandPromptsUseCase'),
+	RecordLlmAnswer: Symbol('RecordLlmAnswerUseCase'),
+	QueryLlmAnswers: Symbol('QueryLlmAnswersUseCase'),
+
 	// Infrastructure handles
 	DrizzleClient: Symbol('DrizzleClient'),
 	JwtService: Symbol('JwtService'),

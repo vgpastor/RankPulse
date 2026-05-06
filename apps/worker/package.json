@@ -28,6 +28,7 @@
 		"@rankpulse/provider-gsc": "workspace:*",
 		"@rankpulse/provider-meta": "workspace:*",
 		"@rankpulse/provider-microsoft-clarity": "workspace:*",
+		"@rankpulse/provider-openai": "workspace:*",
 		"@rankpulse/provider-pagespeed": "workspace:*",
 		"@rankpulse/provider-wikipedia": "workspace:*",
 		"@rankpulse/shared": "workspace:*",

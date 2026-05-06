@@ -11,6 +11,11 @@
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"
 		},
+		"./ai-search-insights": {
+			"development": "./src/ai-search-insights/index.ts",
+			"types": "./dist/ai-search-insights/index.d.ts",
+			"default": "./dist/ai-search-insights/index.js"
+		},
 		"./persistence/drizzle": {
 			"development": "./src/persistence/drizzle/index.ts",
 			"types": "./dist/persistence/drizzle/index.d.ts",

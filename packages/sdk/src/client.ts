@@ -1,4 +1,5 @@
 import { HttpClient, type HttpClientOptions } from './http.js';
+import { AiSearchResource } from './resources/ai-search.js';
 import { AuthResource } from './resources/auth.js';
 import { BingResource } from './resources/bing.js';
 import { ClarityResource } from './resources/clarity.js';
@@ -18,6 +19,7 @@ export interface RankPulseClientOptions extends HttpClientOptions {
 const DEFAULT_PREFIX = '/api/v1';
 
 export class RankPulseClient {
+	readonly aiSearch: AiSearchResource;
 	readonly auth: AuthResource;
 	readonly projects: ProjectsResource;
 	readonly providers: ProvidersResource;
@@ -34,6 +36,7 @@ export class RankPulseClient {
 		const prefix = options.apiPrefix ?? DEFAULT_PREFIX;
 		const baseUrl = `${options.baseUrl.replace(/\/$/, '')}${prefix}`;
 		const http = new HttpClient({ ...options, baseUrl });
+		this.aiSearch = new AiSearchResource(http);
 		this.auth = new AuthResource(http);
 		this.projects = new ProjectsResource(http);
 		this.providers = new ProvidersResource(http);
