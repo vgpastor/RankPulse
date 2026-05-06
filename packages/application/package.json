@@ -26,6 +26,11 @@
 			"types": "./dist/identity-access/index.d.ts",
 			"default": "./dist/identity-access/index.js"
 		},
+		"./macro-context": {
+			"development": "./src/macro-context/index.ts",
+			"types": "./dist/macro-context/index.d.ts",
+			"default": "./dist/macro-context/index.js"
+		},
 		"./project-management": {
 			"development": "./src/project-management/index.ts",
 			"types": "./dist/project-management/index.d.ts",

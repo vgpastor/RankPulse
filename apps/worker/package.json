@@ -20,6 +20,7 @@
 		"@rankpulse/domain": "workspace:*",
 		"@rankpulse/infrastructure": "workspace:*",
 		"@rankpulse/provider-bing": "workspace:*",
+		"@rankpulse/provider-cloudflare-radar": "workspace:*",
 		"@rankpulse/provider-core": "workspace:*",
 		"@rankpulse/provider-dataforseo": "workspace:*",
 		"@rankpulse/provider-ga4": "workspace:*",

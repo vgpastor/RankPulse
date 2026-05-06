@@ -1,6 +1,7 @@
 import {
 	BingWebmasterInsights as BingWebmasterInsightsUseCases,
 	EntityAwareness as EntityAwarenessUseCases,
+	MacroContext as MacroContextUseCases,
 	ProjectManagement as ProjectManagementUseCases,
 	ProviderConnectivity as ProviderConnectivityUseCases,
 	RankTracking as RankTrackingUseCases,
@@ -46,6 +47,8 @@ async function bootstrap(): Promise<void> {
 	const bingTrafficObservationRepo = new DrizzlePersistence.DrizzleBingTrafficObservationRepository(
 		drizzle.db,
 	);
+	const monitoredDomainRepo = new DrizzlePersistence.DrizzleMonitoredDomainRepository(drizzle.db);
+	const radarRankSnapshotRepo = new DrizzlePersistence.DrizzleRadarRankSnapshotRepository(drizzle.db);
 
 	const vault = new Crypto.LibsodiumCredentialVault(env.RANKPULSE_MASTER_KEY);
 	const eventPublisher = new Events.InMemoryEventPublisher();
@@ -108,6 +111,12 @@ async function bootstrap(): Promise<void> {
 		eventPublisher,
 		SystemClock,
 	);
+	const recordRadarRankUseCase = new MacroContextUseCases.RecordRadarRankUseCase(
+		monitoredDomainRepo,
+		radarRankSnapshotRepo,
+		eventPublisher,
+		SystemClock,
+	);
 
 	const processor = new ProviderFetchProcessor({
 		registry,
@@ -123,6 +132,7 @@ async function bootstrap(): Promise<void> {
 		trackedPageRepo,
 		ga4PropertyRepo,
 		bingPropertyRepo,
+		monitoredDomainRepo,
 		vault,
 		resolveCredentialUseCase,
 		recordApiUsageUseCase,
@@ -133,6 +143,7 @@ async function bootstrap(): Promise<void> {
 		recordPageSpeedSnapshotUseCase,
 		ingestGa4RowsUseCase,
 		ingestBingTrafficUseCase,
+		recordRadarRankUseCase,
 		clock: SystemClock,
 		ids: SystemIdGenerator,
 		logger,

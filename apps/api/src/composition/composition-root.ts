@@ -3,6 +3,7 @@ import {
 	BingWebmasterInsights as BWIUseCases,
 	EntityAwareness as EAUseCases,
 	IdentityAccess as IAUseCases,
+	MacroContext as MCUseCases,
 	ProviderConnectivity as PCUseCases,
 	ProjectManagement as PMUseCases,
 	RankTracking as RTUseCases,
@@ -13,6 +14,7 @@ import {
 import type { ProjectManagement } from '@rankpulse/domain';
 import { Crypto, DrizzlePersistence, Events, Queue as QueueAdapters } from '@rankpulse/infrastructure';
 import { BingProvider } from '@rankpulse/provider-bing';
+import { CloudflareRadarProvider } from '@rankpulse/provider-cloudflare-radar';
 import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
 import { Ga4Provider } from '@rankpulse/provider-ga4';
@@ -76,6 +78,8 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const bingTrafficObservationRepo = new DrizzlePersistence.DrizzleBingTrafficObservationRepository(
 		drizzle.db,
 	);
+	const monitoredDomainRepo = new DrizzlePersistence.DrizzleMonitoredDomainRepository(drizzle.db);
+	const radarRankSnapshotRepo = new DrizzlePersistence.DrizzleRadarRankSnapshotRepository(drizzle.db);
 
 	const jobScheduler = new QueueAdapters.BullMqJobScheduler({
 		connection: { url: env.REDIS_URL },
@@ -86,6 +90,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	providerRegistry.register(new GscProvider());
 	providerRegistry.register(new Ga4Provider());
 	providerRegistry.register(new BingProvider());
+	providerRegistry.register(new CloudflareRadarProvider());
 
 	const registerOrganization = new IAUseCases.RegisterOrganizationUseCase(
 		orgRepo,
@@ -309,6 +314,19 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		bingTrafficObservationRepo,
 	);
 
+	// Issue #25 — macro-context use cases
+	const addMonitoredDomain = new MCUseCases.AddMonitoredDomainUseCase(
+		monitoredDomainRepo,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const removeMonitoredDomain = new MCUseCases.RemoveMonitoredDomainUseCase(monitoredDomainRepo, SystemClock);
+	const queryRadarHistory = new MCUseCases.QueryRadarHistoryUseCase(
+		monitoredDomainRepo,
+		radarRankSnapshotRepo,
+	);
+
 	// BACKLOG #23 / #21 — auto-schedule daily GSC fetch on property link.
 	// Subscribes to the in-memory event bus; the handler is fire-and-forget,
 	// errors are swallowed and logged so a scheduler outage doesn't 500 the
@@ -419,6 +437,12 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.LinkBingProperty, linkBingProperty),
 		value(Tokens.UnlinkBingProperty, unlinkBingProperty),
 		value(Tokens.QueryBingTraffic, queryBingTraffic),
+
+		value(Tokens.MonitoredDomainRepository, monitoredDomainRepo),
+		value(Tokens.RadarRankSnapshotRepository, radarRankSnapshotRepo),
+		value(Tokens.AddMonitoredDomain, addMonitoredDomain),
+		value(Tokens.RemoveMonitoredDomain, removeMonitoredDomain),
+		value(Tokens.QueryRadarHistory, queryRadarHistory),
 	];
 
 	return {

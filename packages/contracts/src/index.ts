@@ -1,6 +1,7 @@
 export * as BingWebmasterInsightsContracts from './bing-webmaster-insights/index.js';
 export * as EntityAwarenessContracts from './entity-awareness/index.js';
 export * as IdentityAccessContracts from './identity-access/index.js';
+export * as MacroContextContracts from './macro-context/index.js';
 export * as ProjectManagementContracts from './project-management/index.js';
 export * as ProviderConnectivityContracts from './provider-connectivity/index.js';
 export * as RankTrackingContracts from './rank-tracking/index.js';
