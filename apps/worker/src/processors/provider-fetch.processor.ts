@@ -1,8 +1,10 @@
 import type {
+	AiSearchInsights as AiSearchInsightsUseCases,
 	BingWebmasterInsights as BingWebmasterInsightsUseCases,
 	EntityAwareness as EntityAwarenessUseCases,
 	ExperienceAnalytics as ExperienceAnalyticsUseCases,
 	MacroContext as MacroContextUseCases,
+	MetaAdsAttribution as MetaAdsAttributionUseCases,
 	ProjectManagement as ProjectManagementUseCases,
 	ProviderConnectivity as ProviderConnectivityUseCases,
 	RankTracking as RankTrackingUseCases,
@@ -15,6 +17,7 @@ import {
 	type EntityAwareness as EntityAwarenessDomain,
 	type ExperienceAnalytics as ExperienceAnalyticsDomain,
 	type MacroContext as MacroContextDomain,
+	type MetaAdsAttribution as MetaAdsAttributionDomain,
 	type ProjectManagement,
 	ProviderConnectivity,
 	type RankTracking as RankTrackingDomain,
@@ -23,6 +26,11 @@ import {
 	type WebPerformance as WebPerformanceDomain,
 } from '@rankpulse/domain';
 import type { ProviderFetchJobData } from '@rankpulse/infrastructure/queue';
+import {
+	AnthropicApiError,
+	type AnthropicMessagesPayload,
+	normaliseAnthropicResponse,
+} from '@rankpulse/provider-anthropic';
 import {
 	BingApiError,
 	extractDailyRows as extractBingDailyRows,
@@ -46,17 +54,41 @@ import {
 	type RunReportResponse,
 } from '@rankpulse/provider-ga4';
 import {
+	type GeminiPayload,
+	GoogleAiStudioApiError,
+	normaliseGeminiResponse,
+} from '@rankpulse/provider-google-ai-studio';
+import {
 	extractGscRows,
 	GscApiError,
 	type SearchAnalyticsParams,
 	type SearchAnalyticsResponse,
 } from '@rankpulse/provider-gsc';
 import {
+	type AdsInsightsParams,
+	type AdsInsightsResponse,
+	extractAdsInsightRows,
+	extractPixelEventRows,
+	MetaApiError,
+	type PixelEventsStatsParams,
+	type PixelEventsStatsResponse,
+} from '@rankpulse/provider-meta';
+import {
 	ClarityApiError,
 	type DataExportResponse,
 	extractSnapshot as extractClaritySnapshot,
 } from '@rankpulse/provider-microsoft-clarity';
+import {
+	normaliseOpenAiResponse,
+	OpenAiApiError,
+	type OpenAiResponsePayload,
+} from '@rankpulse/provider-openai';
 import { extractSnapshot, PageSpeedApiError, type RunPagespeedResponse } from '@rankpulse/provider-pagespeed';
+import {
+	normalisePerplexityResponse,
+	PerplexityApiError,
+	type PerplexityChatPayload,
+} from '@rankpulse/provider-perplexity';
 import {
 	extractPageviews,
 	type PageviewsPerArticleResponse,
@@ -104,9 +136,25 @@ const isQuotaExhaustedError = (err: unknown): boolean => {
 	// Cloudflare Radar enforces per-account rate limits at the platform edge;
 	// 429 is the throttle signal. Auto-pause until the operator topples up.
 	if (err instanceof CloudflareRadarApiError && (err.status === 402 || err.status === 429)) return true;
+	// Meta Marketing API: 80004 / 17 / 4 = "rate limit reached" surfaced as
+	// HTTP 400 with a specific subcode (not normalised yet); the platform
+	// also returns a hard 429 once the Business Use Case bucket spills.
+	// We auto-pause on 402/429 so the cron stops drilling through quota.
+	if (err instanceof MetaApiError && (err.status === 402 || err.status === 429)) return true;
 	// Microsoft Clarity allows 10 req/day per project on the free tier;
 	// 429 once the budget is spent. Auto-pause until the next day window.
 	if (err instanceof ClarityApiError && (err.status === 402 || err.status === 429)) return true;
+	// OpenAI returns 429 (rate limit) and 401/403 (key revoked/no quota); all
+	// non-recoverable without operator action.
+	if (err instanceof OpenAiApiError && (err.status === 402 || err.status === 429)) return true;
+	// Anthropic returns 429 (rate limit / monthly cap), 402 (over-balance).
+	if (err instanceof AnthropicApiError && (err.status === 402 || err.status === 429)) return true;
+	// Perplexity returns 429 once the requests-per-minute or monthly request
+	// quota is hit. Auto-pause until the operator tops up.
+	if (err instanceof PerplexityApiError && (err.status === 402 || err.status === 429)) return true;
+	// Google AI Studio (Gemini) returns 429 RESOURCE_EXHAUSTED when the
+	// per-project rate or daily-grounding quota is spent. Auto-pause.
+	if (err instanceof GoogleAiStudioApiError && (err.status === 402 || err.status === 429)) return true;
 	return false;
 };
 
@@ -131,6 +179,8 @@ export interface ProviderFetchProcessorDeps {
 	ga4PropertyRepo: TrafficAnalyticsDomain.Ga4PropertyRepository;
 	bingPropertyRepo: BingWebmasterInsightsDomain.BingPropertyRepository;
 	monitoredDomainRepo: MacroContextDomain.MonitoredDomainRepository;
+	metaPixelRepo: MetaAdsAttributionDomain.MetaPixelRepository;
+	metaAdAccountRepo: MetaAdsAttributionDomain.MetaAdAccountRepository;
 	clarityProjectRepo: ExperienceAnalyticsDomain.ClarityProjectRepository;
 	vault: ProviderConnectivity.CredentialVault;
 	resolveCredentialUseCase: ProviderConnectivityUseCases.ResolveProviderCredentialUseCase;
@@ -143,7 +193,10 @@ export interface ProviderFetchProcessorDeps {
 	ingestGa4RowsUseCase: TrafficAnalyticsUseCases.IngestGa4RowsUseCase;
 	ingestBingTrafficUseCase: BingWebmasterInsightsUseCases.IngestBingTrafficUseCase;
 	recordRadarRankUseCase: MacroContextUseCases.RecordRadarRankUseCase;
+	ingestMetaPixelEventsUseCase: MetaAdsAttributionUseCases.IngestMetaPixelEventsUseCase;
+	ingestMetaAdsInsightsUseCase: MetaAdsAttributionUseCases.IngestMetaAdsInsightsUseCase;
 	recordExperienceSnapshotUseCase: ExperienceAnalyticsUseCases.RecordExperienceSnapshotUseCase;
+	recordLlmAnswerUseCase: AiSearchInsightsUseCases.RecordLlmAnswerUseCase;
 	clock: Clock;
 	ids: IdGenerator;
 	logger: Logger;
@@ -548,6 +601,120 @@ export class ProviderFetchProcessor {
 				});
 			}
 
+			if (
+				definition.providerId.value === 'meta' &&
+				definition.endpointId.value === 'meta-pixel-events-stats'
+			) {
+				// Issue #45 — Meta Pixel daily-events ingest. The job's
+				// systemParams must carry `metaPixelId` (set by the
+				// MetaPixelSystemParamResolver when the operator schedules
+				// against a linked pixel). Missing-id case logs warn + skips,
+				// mirroring the GA4/GSC ingests.
+				const metaParams = resolvedParams as unknown as PixelEventsStatsParams & {
+					metaPixelId?: string;
+				};
+				if (!metaParams.metaPixelId) {
+					runLog.warn({}, 'meta-pixel-events-stats job missing metaPixelId in systemParams; skipping ingest');
+				} else {
+					const fallbackDate =
+						typeof metaParams.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(metaParams.endDate)
+							? metaParams.endDate
+							: dateBucket;
+					const rows = extractPixelEventRows(fetchResult as PixelEventsStatsResponse, fallbackDate);
+					await this.deps.ingestMetaPixelEventsUseCase.execute({
+						metaPixelId: metaParams.metaPixelId,
+						rawPayloadId,
+						rows,
+					});
+				}
+			}
+
+			if (definition.providerId.value === 'meta' && definition.endpointId.value === 'meta-ads-insights') {
+				// Issue #45 — Meta Ads Insights ingest. The job's systemParams
+				// must carry `metaAdAccountId`, set by the
+				// MetaAdAccountSystemParamResolver. The `level` param drives
+				// the row granularity (campaign by default).
+				const metaParams = resolvedParams as unknown as AdsInsightsParams & {
+					metaAdAccountId?: string;
+				};
+				if (!metaParams.metaAdAccountId) {
+					runLog.warn({}, 'meta-ads-insights job missing metaAdAccountId in systemParams; skipping ingest');
+				} else {
+					const fallbackDate =
+						typeof metaParams.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(metaParams.endDate)
+							? metaParams.endDate
+							: dateBucket;
+					const rows = extractAdsInsightRows(
+						fetchResult as AdsInsightsResponse,
+						metaParams.level ?? 'campaign',
+						fallbackDate,
+					);
+					await this.deps.ingestMetaAdsInsightsUseCase.execute({
+						metaAdAccountId: metaParams.metaAdAccountId,
+						rawPayloadId,
+						rows,
+					});
+				}
+			}
+
+			// `meta-custom-audiences` is intentionally a raw-payload-only
+			// endpoint: we don't time-series the audience inventory because
+			// Meta's `approximate_count_*` bands are too noisy. The raw
+			// payload is persisted above; downstream consumers can read it
+			// from raw_payloads until a dedicated read model lands.
+
+			if (
+				definition.providerId.value === 'openai' &&
+				definition.endpointId.value === 'openai-responses-with-web-search'
+			) {
+				await this.ingestAiSearchAnswer(
+					resolvedParams,
+					rawPayloadId,
+					normaliseOpenAiResponse(fetchResult as OpenAiResponsePayload),
+					runLog,
+					'openai-responses-with-web-search',
+				);
+			}
+
+			if (
+				definition.providerId.value === 'anthropic' &&
+				definition.endpointId.value === 'anthropic-messages-with-web-search'
+			) {
+				await this.ingestAiSearchAnswer(
+					resolvedParams,
+					rawPayloadId,
+					normaliseAnthropicResponse(fetchResult as AnthropicMessagesPayload),
+					runLog,
+					'anthropic-messages-with-web-search',
+				);
+			}
+
+			if (
+				definition.providerId.value === 'perplexity' &&
+				definition.endpointId.value === 'perplexity-sonar-search'
+			) {
+				await this.ingestAiSearchAnswer(
+					resolvedParams,
+					rawPayloadId,
+					normalisePerplexityResponse(fetchResult as PerplexityChatPayload),
+					runLog,
+					'perplexity-sonar-search',
+				);
+			}
+
+			if (
+				definition.providerId.value === 'google-ai-studio' &&
+				definition.endpointId.value === 'google-ai-studio-gemini-grounded'
+			) {
+				await this.ingestAiSearchAnswer(
+					resolvedParams,
+					rawPayloadId,
+					normaliseGeminiResponse(fetchResult as GeminiPayload),
+					runLog,
+					'google-ai-studio-gemini-grounded',
+				);
+			}
+
 			run.complete(rawPayloadId, this.deps.clock.now());
 			definition.markRan(this.deps.clock.now());
 			await this.deps.jobDefRepo.save(definition);
@@ -593,5 +760,52 @@ export class ProviderFetchProcessor {
 			await this.deps.jobRunRepo.save(run);
 			throw err;
 		}
+	}
+
+	/**
+	 * Shared ingest path for the 4 AI Brand Radar endpoints. Each provider's
+	 * ACL produces the same `NormalisedLlmAnswer` shape, so the routing here
+	 * is identical — only the upstream parser differs (handled at the call
+	 * site). systemParams must carry `brandPromptId`, `country`, `language`
+	 * (set by AutoScheduleOnBrandPromptCreatedHandler when the user creates
+	 * a BrandPrompt). The use case fans the captured raw response through
+	 * the LLM-as-judge to extract mentions and citations, then persists the
+	 * LlmAnswer row.
+	 */
+	private async ingestAiSearchAnswer(
+		resolvedParams: Record<string, unknown>,
+		rawPayloadId: string,
+		normalised: {
+			aiProvider: string;
+			model: string;
+			rawText: string;
+			citationUrls: readonly string[];
+			tokenUsage: ReturnType<typeof Object>;
+			costCents: number;
+		},
+		runLog: Logger,
+		endpointId: string,
+	): Promise<void> {
+		const aiParams = resolvedParams as {
+			brandPromptId?: string;
+			country?: string;
+			language?: string;
+		};
+		if (!aiParams.brandPromptId || !aiParams.country || !aiParams.language) {
+			runLog.warn(
+				{ aiParams, endpointId },
+				`${endpointId} job missing brandPromptId/country/language in systemParams; skipping ingest`,
+			);
+			return;
+		}
+		await this.deps.recordLlmAnswerUseCase.execute({
+			brandPromptId: aiParams.brandPromptId,
+			country: aiParams.country,
+			language: aiParams.language,
+			rawPayloadId,
+			response: normalised as unknown as Parameters<
+				typeof this.deps.recordLlmAnswerUseCase.execute
+			>[0]['response'],
+		});
 	}
 }

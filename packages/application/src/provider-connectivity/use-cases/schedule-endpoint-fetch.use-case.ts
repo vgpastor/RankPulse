@@ -10,6 +10,26 @@ export interface EndpointParamsValidator {
 	validate(providerId: string, endpointId: string, params: unknown): Record<string, unknown>;
 }
 
+/**
+ * Cross-context system-param resolver — fallback for bounded contexts that
+ * haven't yet adopted the per-context Auto-Schedule handler pattern (ADR
+ * 0001). Auto-schedule handlers populate `systemParams` directly when they
+ * dispatch this use case, so the resolver loop is a no-op for those flows;
+ * the loop still runs to support manual `POST /providers/.../schedule`
+ * calls against contexts (Meta) that lack an auto-schedule handler.
+ *
+ * New bounded contexts SHOULD prefer the auto-schedule handler pattern;
+ * the resolver port is kept here pending the Meta migration.
+ */
+export interface SystemParamResolver {
+	resolve(input: {
+		projectId: string;
+		providerId: string;
+		endpointId: string;
+		params: Record<string, unknown>;
+	}): Promise<Record<string, unknown>>;
+}
+
 export interface ScheduleEndpointFetchCommand {
 	projectId: string;
 	providerId: string;
@@ -49,6 +69,7 @@ export class ScheduleEndpointFetchUseCase {
 		private readonly clock: Clock,
 		private readonly ids: IdGenerator,
 		private readonly events: SharedKernel.EventPublisher,
+		private readonly systemParamResolvers: SystemParamResolver[] = [],
 	) {}
 
 	async execute(cmd: ScheduleEndpointFetchCommand): Promise<ScheduleEndpointFetchResult> {
@@ -77,7 +98,20 @@ export class ScheduleEndpointFetchUseCase {
 			if (existing) return { definitionId: existing.id };
 		}
 
-		const finalParams: Record<string, unknown> = { ...validatedParams, ...(cmd.systemParams ?? {}) };
+		// Run cross-context resolvers (Meta — pending migration to handler
+		// pattern). No-op when the resolver list is empty.
+		let resolvedSystemParams: Record<string, unknown> = { ...(cmd.systemParams ?? {}) };
+		for (const resolver of this.systemParamResolvers) {
+			const extra = await resolver.resolve({
+				projectId: cmd.projectId,
+				providerId: providerId.value,
+				endpointId: endpointId.value,
+				params: validatedParams,
+			});
+			resolvedSystemParams = { ...resolvedSystemParams, ...extra };
+		}
+
+		const finalParams: Record<string, unknown> = { ...validatedParams, ...resolvedSystemParams };
 
 		const id = this.ids.generate() as ProviderConnectivity.ProviderJobDefinitionId;
 		const definition = ProviderConnectivity.ProviderJobDefinition.schedule({

@@ -59,6 +59,10 @@ describe('ProvidersController.scheduleEndpoint — entity-bound gate', () => {
 		['microsoft-clarity', 'clarity-data-export', 'clarity/projects'],
 		['pagespeed', 'psi-runpagespeed', 'page-speed/pages'],
 		['cloudflare-radar', 'radar-domain-rank', 'radar/domains'],
+		['openai', 'openai-responses-with-web-search', 'brand-prompts'],
+		['anthropic', 'anthropic-messages-with-web-search', 'brand-prompts'],
+		['perplexity', 'perplexity-sonar-search', 'brand-prompts'],
+		['google-ai-studio', 'google-ai-studio-gemini-grounded', 'brand-prompts'],
 	])('rejects POST .../schedule for %s/%s with 400 pointing to %s', async (providerId, endpointId, hint) => {
 		const { controller, scheduleExecute } = buildController();
 		await expect(

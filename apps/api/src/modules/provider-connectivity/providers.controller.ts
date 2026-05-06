@@ -70,6 +70,24 @@ const ENTITY_BOUND_ENDPOINTS: Record<string, { provider: string; preferredRoute:
 		provider: 'cloudflare-radar',
 		preferredRoute: '/api/v1/projects/:projectId/radar/domains',
 	},
+	// AI Brand Radar — auto-scheduled by AutoScheduleOnBrandPromptCreatedHandler
+	// (one schedule per provider × project locale).
+	'openai-responses-with-web-search': {
+		provider: 'openai',
+		preferredRoute: '/api/v1/projects/:projectId/brand-prompts',
+	},
+	'anthropic-messages-with-web-search': {
+		provider: 'anthropic',
+		preferredRoute: '/api/v1/projects/:projectId/brand-prompts',
+	},
+	'perplexity-sonar-search': {
+		provider: 'perplexity',
+		preferredRoute: '/api/v1/projects/:projectId/brand-prompts',
+	},
+	'google-ai-studio-gemini-grounded': {
+		provider: 'google-ai-studio',
+		preferredRoute: '/api/v1/projects/:projectId/brand-prompts',
+	},
 };
 
 @Controller('providers')

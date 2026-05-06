@@ -18,6 +18,11 @@ export const ENTITY_BOUND_ENDPOINT_IDS = new Set<string>([
 	'clarity-data-export',
 	'psi-runpagespeed',
 	'radar-domain-rank',
+	// AI Brand Radar — fanned out by AutoScheduleOnBrandPromptCreatedHandler.
+	'openai-responses-with-web-search',
+	'anthropic-messages-with-web-search',
+	'perplexity-sonar-search',
+	'google-ai-studio-gemini-grounded',
 ]);
 
 /**
@@ -32,4 +37,8 @@ export const ENTITY_LINK_ROUTE_HINT: Record<string, string> = {
 	'clarity-data-export': 'Link a Clarity project in Settings → Providers → Microsoft Clarity.',
 	'psi-runpagespeed': 'Track a page in Settings → Web Performance.',
 	'radar-domain-rank': 'Add a monitored domain in Settings → Macro Context.',
+	'openai-responses-with-web-search': 'Register a brand prompt in Settings → AI Brand Radar.',
+	'anthropic-messages-with-web-search': 'Register a brand prompt in Settings → AI Brand Radar.',
+	'perplexity-sonar-search': 'Register a brand prompt in Settings → AI Brand Radar.',
+	'google-ai-studio-gemini-grounded': 'Register a brand prompt in Settings → AI Brand Radar.',
 };

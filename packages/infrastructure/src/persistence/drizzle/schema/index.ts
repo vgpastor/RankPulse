@@ -5,6 +5,7 @@ import { sql } from 'drizzle-orm';
 import {
 	bigint,
 	boolean,
+	date,
 	doublePrecision,
 	index,
 	integer,
@@ -882,3 +883,293 @@ export const clarityDailyMetrics = pgTable(
 
 export type ClarityProjectRow = typeof clarityProjects.$inferSelect;
 export type ClarityDailyMetricRow = typeof clarityDailyMetrics.$inferSelect;
+
+// ---- meta-ads-attribution (Meta Pixel + Marketing API) ----
+
+/**
+ * Issue #45 — Meta Pixels linked to a project. The handle is the bare
+ * numeric pixel id (Meta surfaces pixels as int64 strings in the Graph
+ * API). One pixel per (project, handle) tuple.
+ */
+export const metaPixels = pgTable(
+	'meta_pixels',
+	{
+		id: uuid('id').primaryKey(),
+		organizationId: uuid('organization_id')
+			.notNull()
+			.references(() => organizations.id, { onDelete: 'cascade' }),
+		projectId: uuid('project_id')
+			.notNull()
+			.references(() => projects.id, { onDelete: 'cascade' }),
+		pixelHandle: text('pixel_handle').notNull(),
+		credentialId: uuid('credential_id').references(() => providerCredentials.id, { onDelete: 'set null' }),
+		linkedAt: timestamp('linked_at', { withTimezone: true }).notNull().defaultNow(),
+		unlinkedAt: timestamp('unlinked_at', { withTimezone: true }),
+	},
+	(t) => ({
+		uniqueByProjectHandle: uniqueIndex('meta_pixels_project_handle_unique').on(t.projectId, t.pixelHandle),
+		projectIdx: index('meta_pixels_project_idx').on(t.projectId),
+	}),
+);
+
+/**
+ * Issue #45 — Meta ad accounts linked to a project. The handle is the
+ * bare numeric `act_<digits>` id without the prefix; the API client
+ * adds the prefix when building URLs.
+ */
+export const metaAdAccounts = pgTable(
+	'meta_ad_accounts',
+	{
+		id: uuid('id').primaryKey(),
+		organizationId: uuid('organization_id')
+			.notNull()
+			.references(() => organizations.id, { onDelete: 'cascade' }),
+		projectId: uuid('project_id')
+			.notNull()
+			.references(() => projects.id, { onDelete: 'cascade' }),
+		adAccountHandle: text('ad_account_handle').notNull(),
+		credentialId: uuid('credential_id').references(() => providerCredentials.id, { onDelete: 'set null' }),
+		linkedAt: timestamp('linked_at', { withTimezone: true }).notNull().defaultNow(),
+		unlinkedAt: timestamp('unlinked_at', { withTimezone: true }),
+	},
+	(t) => ({
+		uniqueByProjectHandle: uniqueIndex('meta_ad_accounts_project_handle_unique').on(
+			t.projectId,
+			t.adAccountHandle,
+		),
+		projectIdx: index('meta_ad_accounts_project_idx').on(t.projectId),
+	}),
+);
+
+/**
+ * Time-series of Meta Pixel daily events. Natural PK is
+ * (meta_pixel_id, observed_date, event_name) — re-running the same
+ * window is a no-op (`onConflictDoNothing`).
+ */
+export const metaPixelEventsDaily = pgTable(
+	'meta_pixel_events_daily',
+	{
+		metaPixelId: uuid('meta_pixel_id')
+			.notNull()
+			.references(() => metaPixels.id, { onDelete: 'cascade' }),
+		projectId: uuid('project_id').notNull(),
+		observedDate: text('observed_date').notNull(), // YYYY-MM-DD
+		eventName: text('event_name').notNull(),
+		eventCount: integer('event_count').notNull(),
+		valueSum: doublePrecision('value_sum').notNull(),
+		rawPayloadId: uuid('raw_payload_id'),
+	},
+	(t) => ({
+		pk: primaryKey({ columns: [t.metaPixelId, t.observedDate, t.eventName] }),
+		projectIdx: index('meta_pixel_events_daily_project_idx').on(t.projectId, t.observedDate),
+	}),
+);
+
+/**
+ * Time-series of Meta Ads insights at the (account, day, level, entity)
+ * granularity. `level` is one of account|campaign|adset|ad and
+ * `entity_id` is the corresponding upstream id. `entity_name` is best-
+ * effort cached from the response so the read side can label without
+ * a Marketing-API roundtrip.
+ *
+ * `spend` is double precision because Meta returns it as a USD-string
+ * with cents — the precision is tighter than float allows for huge
+ * accounts, but the read side does its own currency normalisation
+ * downstream.
+ */
+export const metaAdsInsightsDaily = pgTable(
+	'meta_ads_insights_daily',
+	{
+		metaAdAccountId: uuid('meta_ad_account_id')
+			.notNull()
+			.references(() => metaAdAccounts.id, { onDelete: 'cascade' }),
+		projectId: uuid('project_id').notNull(),
+		observedDate: text('observed_date').notNull(), // YYYY-MM-DD
+		level: text('level').notNull(), // account|campaign|adset|ad
+		entityId: text('entity_id').notNull(),
+		entityName: text('entity_name').notNull().default(''),
+		impressions: integer('impressions').notNull(),
+		clicks: integer('clicks').notNull(),
+		spend: doublePrecision('spend').notNull(),
+		conversions: integer('conversions').notNull(),
+		rawPayloadId: uuid('raw_payload_id'),
+	},
+	(t) => ({
+		pk: primaryKey({ columns: [t.metaAdAccountId, t.observedDate, t.level, t.entityId] }),
+		projectIdx: index('meta_ads_insights_daily_project_idx').on(t.projectId, t.observedDate),
+	}),
+);
+
+export type MetaPixelRow = typeof metaPixels.$inferSelect;
+export type MetaAdAccountRow = typeof metaAdAccounts.$inferSelect;
+export type MetaPixelEventDailyRow = typeof metaPixelEventsDaily.$inferSelect;
+export type MetaAdsInsightDailyRow = typeof metaAdsInsightsDaily.$inferSelect;
+
+// ---- ai-search-insights ----
+
+/**
+ * Issue #61 / parent #27 — registered prompt the user wants monitored across
+ * all connected LLM-search providers (OpenAI/Anthropic/Perplexity/Gemini).
+ * One BrandPrompt fans out to N JobDefinitions (`prompt × LocationLanguage ×
+ * AiProvider`) via the AutoSchedule handler.
+ */
+export const brandPrompts = pgTable(
+	'brand_prompts',
+	{
+		id: uuid('id').primaryKey(),
+		organizationId: uuid('organization_id')
+			.notNull()
+			.references(() => organizations.id, { onDelete: 'cascade' }),
+		projectId: uuid('project_id')
+			.notNull()
+			.references(() => projects.id, { onDelete: 'cascade' }),
+		text: text('text').notNull(),
+		kind: text('kind').notNull(),
+		pausedAt: timestamp('paused_at', { withTimezone: true }),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	},
+	(t) => ({
+		uniqueByProjectText: uniqueIndex('brand_prompts_project_text_unique').on(t.projectId, t.text),
+		projectIdx: index('brand_prompts_project_idx').on(t.projectId),
+	}),
+);
+
+/**
+ * Time-series store of LLM responses captured from a BrandPrompt fan-out.
+ * Promoted to a TimescaleDB hypertable (chunk_time_interval = 7d) by the
+ * accompanying SQL migration. Compressed after 7 days.
+ *
+ * `mentions` and `citations` are jsonb because the cardinality per row is
+ * small (typically <10) and they're never queried into — the dashboards
+ * use the continuous aggregates planned for sub-issue #63 instead. Storing
+ * them inline keeps the natural lookup ("show me the answer with its
+ * extracted mentions") to a single row read.
+ *
+ * `raw_text` is kept on the row even though `raw_payload_id` points at a
+ * full payload, because the dashboards highlight the mention spans inline
+ * and re-fetching the payload jsonb just for that is wasteful.
+ */
+export const llmAnswers = pgTable(
+	'llm_answers',
+	{
+		capturedAt: timestamp('captured_at', { withTimezone: true }).notNull(),
+		id: uuid('id').notNull(),
+		brandPromptId: uuid('brand_prompt_id').notNull(),
+		projectId: uuid('project_id').notNull(),
+		aiProvider: text('ai_provider').notNull(),
+		model: text('model').notNull(),
+		country: text('country').notNull(),
+		language: text('language').notNull(),
+		rawText: text('raw_text').notNull(),
+		mentions: jsonb('mentions')
+			.notNull()
+			.$type<
+				readonly {
+					brand: string;
+					position: number;
+					sentiment: string;
+					citedUrl: string | null;
+					isOwnBrand: boolean;
+				}[]
+			>()
+			.default([]),
+		citations: jsonb('citations')
+			.notNull()
+			.$type<readonly { url: string; domain: string; isOwnDomain: boolean }[]>()
+			.default([]),
+		inputTokens: integer('input_tokens').notNull().default(0),
+		outputTokens: integer('output_tokens').notNull().default(0),
+		cachedInputTokens: integer('cached_input_tokens').notNull().default(0),
+		webSearchCalls: integer('web_search_calls').notNull().default(0),
+		costMillicents: bigint('cost_millicents', { mode: 'number' }).notNull().default(0),
+		rawPayloadId: uuid('raw_payload_id'),
+	},
+	(t) => ({
+		pk: primaryKey({ columns: [t.capturedAt, t.id] }),
+		promptIdx: index('llm_answers_prompt_idx').on(t.brandPromptId, t.capturedAt),
+		projectIdx: index('llm_answers_project_idx').on(t.projectId, t.capturedAt),
+		providerIdx: index('llm_answers_provider_locale_idx').on(
+			t.projectId,
+			t.aiProvider,
+			t.country,
+			t.language,
+			t.capturedAt,
+		),
+	}),
+);
+
+export type BrandPromptRow = typeof brandPrompts.$inferSelect;
+export type LlmAnswerRow = typeof llmAnswers.$inferSelect;
+
+// ---- email-engagement & chat-engagement (Brevo) ----
+
+/**
+ * Issue #44 — daily aggregates of Brevo (Sendinblue) email + transactional
+ * activity. Natural PK is (project_id, day) so re-running the same day's
+ * cron is idempotent. Promoted to a TimescaleDB hypertable on `day` when
+ * the extension is available (see migration 0010).
+ *
+ * Counts are non-negative integers; the ACL coerces NaN/negative to 0
+ * before insert. `complaints` (recipient-marked spam) is split from
+ * `blocked` (server-side block) on purpose — both signals matter and
+ * conflating them would drop information.
+ */
+export const emailEngagementDaily = pgTable(
+	'email_engagement_daily',
+	{
+		projectId: uuid('project_id').notNull(),
+		// `date` (PostgreSQL DATE, no time component) so TimescaleDB can
+		// promote this table to a hypertable on `day` directly. We treat
+		// the calendar day as UTC across the codebase.
+		day: date('day').notNull(),
+		sent: integer('sent').notNull().default(0),
+		delivered: integer('delivered').notNull().default(0),
+		opened: integer('opened').notNull().default(0),
+		uniqueOpened: integer('unique_opened').notNull().default(0),
+		clicked: integer('clicked').notNull().default(0),
+		uniqueClicked: integer('unique_clicked').notNull().default(0),
+		bounced: integer('bounced').notNull().default(0),
+		unsubscribed: integer('unsubscribed').notNull().default(0),
+		complaints: integer('complaints').notNull().default(0),
+		blocked: integer('blocked').notNull().default(0),
+		invalid: integer('invalid').notNull().default(0),
+		// Sentinel `''` (empty string) marks the global aggregate row from
+		// email-statistics. Brevo campaign ids are always positive integers
+		// stringified, so `''` never collides. NOT NULL because the column is
+		// part of the PK and Postgres rejects NULL in PK columns anyway —
+		// being explicit here avoids the subtle runtime failure.
+		campaignId: text('campaign_id').notNull().default(''),
+		rawPayloadId: uuid('raw_payload_id'),
+	},
+	(t) => ({
+		pk: primaryKey({ columns: [t.projectId, t.day, t.campaignId] }),
+		dayIdx: index('email_engagement_daily_day_idx').on(t.day),
+	}),
+);
+
+/**
+ * Issue #44 — daily aggregates of Brevo Conversations widget activity.
+ * `started` and `completed` are independent counters because a conversation
+ * can start on one day and complete on the next; the ACL buckets them on
+ * the calendar day each event landed (UTC). `avg_duration_seconds` is
+ * NULL when no conversation completed on that day — never `0` for missing,
+ * because zero is a legitimate value (instant abandon).
+ */
+export const chatConversationsDaily = pgTable(
+	'chat_conversations_daily',
+	{
+		projectId: uuid('project_id').notNull(),
+		day: date('day').notNull(),
+		started: integer('started').notNull().default(0),
+		completed: integer('completed').notNull().default(0),
+		avgDurationSeconds: integer('avg_duration_seconds'),
+		rawPayloadId: uuid('raw_payload_id'),
+	},
+	(t) => ({
+		pk: primaryKey({ columns: [t.projectId, t.day] }),
+		dayIdx: index('chat_conversations_daily_day_idx').on(t.day),
+	}),
+);
+
+export type EmailEngagementDailyRow = typeof emailEngagementDaily.$inferSelect;
+export type ChatConversationsDailyRow = typeof chatConversationsDaily.$inferSelect;

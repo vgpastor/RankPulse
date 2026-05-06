@@ -7,12 +7,14 @@ import { JwtAuthGuard } from './common/auth/jwt-auth.guard.js';
 import { DomainExceptionFilter } from './common/domain-exception.filter.js';
 import { Tokens } from './composition/tokens.js';
 import type { AppEnv } from './config/env.js';
+import { AiSearchInsightsModule } from './modules/ai-search-insights/ai-search-insights.module.js';
 import { BingWebmasterInsightsModule } from './modules/bing-webmaster-insights/bing-webmaster-insights.module.js';
 import { EntityAwarenessModule } from './modules/entity-awareness/entity-awareness.module.js';
 import { ExperienceAnalyticsModule } from './modules/experience-analytics/experience-analytics.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { IdentityAccessModule } from './modules/identity-access/identity-access.module.js';
 import { MacroContextModule } from './modules/macro-context/macro-context.module.js';
+import { MetaAdsAttributionModule } from './modules/meta-ads-attribution/meta-ads-attribution.module.js';
 import { ProjectManagementModule } from './modules/project-management/project-management.module.js';
 import { ProviderConnectivityModule } from './modules/provider-connectivity/provider-connectivity.module.js';
 import { RankTrackingModule } from './modules/rank-tracking/rank-tracking.module.js';
@@ -53,7 +55,9 @@ export class AppModule {
 			TrafficAnalyticsModule,
 			BingWebmasterInsightsModule,
 			MacroContextModule,
+			MetaAdsAttributionModule,
 			ExperienceAnalyticsModule,
+			AiSearchInsightsModule,
 		];
 		if (env.OPENAPI_ENABLED) imports.push(OpenApiModule);
 

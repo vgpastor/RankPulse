@@ -131,6 +131,20 @@ export const Tokens = {
 	RemoveMonitoredDomain: Symbol('RemoveMonitoredDomainUseCase'),
 	QueryRadarHistory: Symbol('QueryRadarHistoryUseCase'),
 
+	// Meta-Ads-Attribution ports
+	MetaPixelRepository: Symbol('MetaPixelRepository'),
+	MetaAdAccountRepository: Symbol('MetaAdAccountRepository'),
+	MetaPixelEventDailyRepository: Symbol('MetaPixelEventDailyRepository'),
+	MetaAdsInsightDailyRepository: Symbol('MetaAdsInsightDailyRepository'),
+
+	// Meta-Ads-Attribution use cases
+	LinkMetaPixel: Symbol('LinkMetaPixelUseCase'),
+	UnlinkMetaPixel: Symbol('UnlinkMetaPixelUseCase'),
+	LinkMetaAdAccount: Symbol('LinkMetaAdAccountUseCase'),
+	UnlinkMetaAdAccount: Symbol('UnlinkMetaAdAccountUseCase'),
+	QueryMetaPixelEvents: Symbol('QueryMetaPixelEventsUseCase'),
+	QueryMetaAdsInsights: Symbol('QueryMetaAdsInsightsUseCase'),
+
 	// Experience-Analytics (Microsoft Clarity) ports
 	ClarityProjectRepository: Symbol('ClarityProjectRepository'),
 	ExperienceSnapshotRepository: Symbol('ExperienceSnapshotRepository'),
@@ -139,6 +153,26 @@ export const Tokens = {
 	LinkClarityProject: Symbol('LinkClarityProjectUseCase'),
 	UnlinkClarityProject: Symbol('UnlinkClarityProjectUseCase'),
 	QueryExperienceHistory: Symbol('QueryExperienceHistoryUseCase'),
+
+	// AI-Search-Insights ports
+	BrandPromptRepository: Symbol('BrandPromptRepository'),
+	LlmAnswerRepository: Symbol('LlmAnswerRepository'),
+	LlmAnswerReadModel: Symbol('LlmAnswerReadModel'),
+	BrandWatchlistResolver: Symbol('BrandWatchlistResolver'),
+	MentionExtractor: Symbol('MentionExtractor'),
+
+	// AI-Search-Insights use cases
+	RegisterBrandPrompt: Symbol('RegisterBrandPromptUseCase'),
+	PauseBrandPrompt: Symbol('PauseBrandPromptUseCase'),
+	ResumeBrandPrompt: Symbol('ResumeBrandPromptUseCase'),
+	DeleteBrandPrompt: Symbol('DeleteBrandPromptUseCase'),
+	ListBrandPrompts: Symbol('ListBrandPromptsUseCase'),
+	RecordLlmAnswer: Symbol('RecordLlmAnswerUseCase'),
+	QueryLlmAnswers: Symbol('QueryLlmAnswersUseCase'),
+	QueryAiSearchPresence: Symbol('QueryAiSearchPresenceUseCase'),
+	QueryAiSearchSov: Symbol('QueryAiSearchSovUseCase'),
+	QueryAiSearchCitations: Symbol('QueryAiSearchCitationsUseCase'),
+	QueryPromptSovDaily: Symbol('QueryPromptSovDailyUseCase'),
 
 	// Infrastructure handles
 	DrizzleClient: Symbol('DrizzleClient'),

@@ -7,6 +7,8 @@ import {
 	redirect,
 } from '@tanstack/react-router';
 import { useAuthStore } from './lib/auth-store.js';
+import { AiSearchCitationsPage } from './pages/ai-search-citations.page.js';
+import { BrandPromptsPage } from './pages/brand-prompts.page.js';
 import { CredentialsPage } from './pages/credentials.page.js';
 import { GscPerformancePage } from './pages/gsc-performance.page.js';
 import { GscPropertiesPage } from './pages/gsc-properties.page.js';
@@ -103,6 +105,18 @@ const projectGscPropertiesRoute = createRoute({
 	component: GscPropertiesPage,
 });
 
+const projectBrandPromptsRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/brand-prompts',
+	component: BrandPromptsPage,
+});
+
+const projectAiSearchCitationsRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/ai-search/citations',
+	component: AiSearchCitationsPage,
+});
+
 const projectGscPerformanceRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/projects/$id/gsc/$propertyId',
@@ -132,6 +146,8 @@ const routeTree = rootRoute.addChildren([
 	projectSchedulesRoute,
 	projectGscPropertiesRoute,
 	projectGscPerformanceRoute,
+	projectBrandPromptsRoute,
+	projectAiSearchCitationsRoute,
 	credentialsRoute,
 	portfoliosRoute,
 ]);

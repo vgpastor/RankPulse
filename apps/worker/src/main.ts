@@ -1,8 +1,10 @@
 import {
+	AiSearchInsights as AiSearchInsightsUseCases,
 	BingWebmasterInsights as BingWebmasterInsightsUseCases,
 	EntityAwareness as EntityAwarenessUseCases,
 	ExperienceAnalytics as ExperienceAnalyticsUseCases,
 	MacroContext as MacroContextUseCases,
+	MetaAdsAttribution as MetaAdsAttributionUseCases,
 	ProjectManagement as ProjectManagementUseCases,
 	ProviderConnectivity as ProviderConnectivityUseCases,
 	RankTracking as RankTrackingUseCases,
@@ -10,7 +12,14 @@ import {
 	TrafficAnalytics as TrafficAnalyticsUseCases,
 	WebPerformance as WebPerformanceUseCases,
 } from '@rankpulse/application';
-import { Crypto, DrizzlePersistence, Events, Queue as QueueAdapters } from '@rankpulse/infrastructure';
+import { AiSearchInsights as AiSearchInsightsDomain } from '@rankpulse/domain';
+import {
+	AiSearchInsights as AiSearchInsightsInfra,
+	Crypto,
+	DrizzlePersistence,
+	Events,
+	Queue as QueueAdapters,
+} from '@rankpulse/infrastructure';
 import { SystemClock, SystemIdGenerator } from '@rankpulse/shared';
 import { Worker } from 'bullmq';
 import IORedis from 'ioredis';
@@ -50,8 +59,30 @@ async function bootstrap(): Promise<void> {
 	);
 	const monitoredDomainRepo = new DrizzlePersistence.DrizzleMonitoredDomainRepository(drizzle.db);
 	const radarRankSnapshotRepo = new DrizzlePersistence.DrizzleRadarRankSnapshotRepository(drizzle.db);
+	const metaPixelRepo = new DrizzlePersistence.DrizzleMetaPixelRepository(drizzle.db);
+	const metaAdAccountRepo = new DrizzlePersistence.DrizzleMetaAdAccountRepository(drizzle.db);
+	const metaPixelEventDailyRepo = new DrizzlePersistence.DrizzleMetaPixelEventDailyRepository(drizzle.db);
+	const metaAdsInsightDailyRepo = new DrizzlePersistence.DrizzleMetaAdsInsightDailyRepository(drizzle.db);
 	const clarityProjectRepo = new DrizzlePersistence.DrizzleClarityProjectRepository(drizzle.db);
 	const experienceSnapshotRepo = new DrizzlePersistence.DrizzleExperienceSnapshotRepository(drizzle.db);
+	const brandPromptRepo = new DrizzlePersistence.DrizzleBrandPromptRepository(drizzle.db);
+	const llmAnswerRepo = new DrizzlePersistence.DrizzleLlmAnswerRepository(drizzle.db);
+	const brandWatchlistResolver = new DrizzlePersistence.ProjectBrandWatchlistResolver(drizzle.db);
+
+	const mentionExtractor = env.ANTHROPIC_API_KEY
+		? new AiSearchInsightsInfra.AnthropicMentionExtractor({ apiKey: env.ANTHROPIC_API_KEY })
+		: ({
+				async extract() {
+					logger.warn(
+						'[ai-search-insights] ANTHROPIC_API_KEY not set — captured LLM responses will be persisted with empty mentions',
+					);
+					return {
+						mentions: [],
+						judgeTokenUsage: AiSearchInsightsDomain.TokenUsage.zero(),
+						judgeCostCents: 0,
+					};
+				},
+			} satisfies AiSearchInsightsDomain.MentionExtractor);
 
 	const vault = new Crypto.LibsodiumCredentialVault(env.RANKPULSE_MASTER_KEY);
 	const eventPublisher = new Events.InMemoryEventPublisher();
@@ -120,11 +151,32 @@ async function bootstrap(): Promise<void> {
 		eventPublisher,
 		SystemClock,
 	);
+	const ingestMetaPixelEventsUseCase = new MetaAdsAttributionUseCases.IngestMetaPixelEventsUseCase(
+		metaPixelRepo,
+		metaPixelEventDailyRepo,
+		eventPublisher,
+		SystemClock,
+	);
+	const ingestMetaAdsInsightsUseCase = new MetaAdsAttributionUseCases.IngestMetaAdsInsightsUseCase(
+		metaAdAccountRepo,
+		metaAdsInsightDailyRepo,
+		eventPublisher,
+		SystemClock,
+	);
 	const recordExperienceSnapshotUseCase = new ExperienceAnalyticsUseCases.RecordExperienceSnapshotUseCase(
 		clarityProjectRepo,
 		experienceSnapshotRepo,
 		eventPublisher,
 		SystemClock,
+	);
+	const recordLlmAnswerUseCase = new AiSearchInsightsUseCases.RecordLlmAnswerUseCase(
+		brandPromptRepo,
+		llmAnswerRepo,
+		brandWatchlistResolver,
+		mentionExtractor,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
 	);
 
 	const processor = new ProviderFetchProcessor({
@@ -142,6 +194,8 @@ async function bootstrap(): Promise<void> {
 		ga4PropertyRepo,
 		bingPropertyRepo,
 		monitoredDomainRepo,
+		metaPixelRepo,
+		metaAdAccountRepo,
 		clarityProjectRepo,
 		vault,
 		resolveCredentialUseCase,
@@ -154,7 +208,10 @@ async function bootstrap(): Promise<void> {
 		ingestGa4RowsUseCase,
 		ingestBingTrafficUseCase,
 		recordRadarRankUseCase,
+		ingestMetaPixelEventsUseCase,
+		ingestMetaAdsInsightsUseCase,
 		recordExperienceSnapshotUseCase,
+		recordLlmAnswerUseCase,
 		clock: SystemClock,
 		ids: SystemIdGenerator,
 		logger,
