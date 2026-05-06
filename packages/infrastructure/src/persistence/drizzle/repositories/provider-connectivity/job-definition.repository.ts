@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { type ProjectManagement, ProviderConnectivity } from '@rankpulse/domain';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { providerJobDefinitions } from '../../schema/index.js';
 
@@ -96,6 +96,29 @@ export class DrizzleJobDefinitionRepository implements ProviderConnectivity.JobD
 			)
 			.limit(1);
 		return row ? this.toAggregate(row) : null;
+	}
+
+	async findByProjectEndpointAndSystemParam(
+		projectId: ProjectManagement.ProjectId,
+		endpointId: ProviderConnectivity.EndpointId,
+		systemParamKey: string,
+		systemParamValue: string,
+	): Promise<ProviderConnectivity.ProviderJobDefinition | null> {
+		const rows = await this.db
+			.select()
+			.from(providerJobDefinitions)
+			.where(
+				and(
+					eq(providerJobDefinitions.projectId, projectId),
+					eq(providerJobDefinitions.endpointId, endpointId.value),
+					// jsonb path query: params->>'<key>' = '<value>'
+					sql`${providerJobDefinitions.params}->>${systemParamKey} = ${systemParamValue}`,
+				),
+			)
+			.limit(1);
+		const row = rows[0];
+		if (!row) return null;
+		return this.toAggregate(row);
 	}
 
 	async listForProject(
