@@ -27,6 +27,11 @@ import {
 } from '@rankpulse/domain';
 import type { ProviderFetchJobData } from '@rankpulse/infrastructure/queue';
 import {
+	AnthropicApiError,
+	type AnthropicMessagesPayload,
+	normaliseAnthropicResponse,
+} from '@rankpulse/provider-anthropic';
+import {
 	BingApiError,
 	extractDailyRows as extractBingDailyRows,
 	type RankAndTrafficStatsResponse,
@@ -48,6 +53,11 @@ import {
 	type RunReportParams,
 	type RunReportResponse,
 } from '@rankpulse/provider-ga4';
+import {
+	type GeminiPayload,
+	GoogleAiStudioApiError,
+	normaliseGeminiResponse,
+} from '@rankpulse/provider-google-ai-studio';
 import {
 	extractGscRows,
 	GscApiError,
@@ -74,6 +84,11 @@ import {
 	type OpenAiResponsePayload,
 } from '@rankpulse/provider-openai';
 import { extractSnapshot, PageSpeedApiError, type RunPagespeedResponse } from '@rankpulse/provider-pagespeed';
+import {
+	normalisePerplexityResponse,
+	PerplexityApiError,
+	type PerplexityChatPayload,
+} from '@rankpulse/provider-perplexity';
 import {
 	extractPageviews,
 	type PageviewsPerArticleResponse,
@@ -132,6 +147,14 @@ const isQuotaExhaustedError = (err: unknown): boolean => {
 	// OpenAI returns 429 (rate limit) and 401/403 (key revoked/no quota); all
 	// non-recoverable without operator action.
 	if (err instanceof OpenAiApiError && (err.status === 402 || err.status === 429)) return true;
+	// Anthropic returns 429 (rate limit / monthly cap), 402 (over-balance).
+	if (err instanceof AnthropicApiError && (err.status === 402 || err.status === 429)) return true;
+	// Perplexity returns 429 once the requests-per-minute or monthly request
+	// quota is hit. Auto-pause until the operator tops up.
+	if (err instanceof PerplexityApiError && (err.status === 402 || err.status === 429)) return true;
+	// Google AI Studio (Gemini) returns 429 RESOURCE_EXHAUSTED when the
+	// per-project rate or daily-grounding quota is spent. Auto-pause.
+	if (err instanceof GoogleAiStudioApiError && (err.status === 402 || err.status === 429)) return true;
 	return false;
 };
 
@@ -635,32 +658,52 @@ export class ProviderFetchProcessor {
 				definition.providerId.value === 'openai' &&
 				definition.endpointId.value === 'openai-responses-with-web-search'
 			) {
-				// Sub-issue #61 of #27 — AI Brand Radar capture pipeline.
-				// systemParams must carry `brandPromptId`, `country`, `language`
-				// (set by AutoScheduleOnBrandPromptCreatedHandler when the user
-				// creates a BrandPrompt). The use case fans the captured raw
-				// response through the LLM-as-judge to extract mentions and
-				// citations, then persists the LlmAnswer row.
-				const aiParams = resolvedParams as {
-					brandPromptId?: string;
-					country?: string;
-					language?: string;
-				};
-				if (!aiParams.brandPromptId || !aiParams.country || !aiParams.language) {
-					runLog.warn(
-						{ aiParams },
-						'openai-responses-with-web-search job missing brandPromptId/country/language in systemParams; skipping ingest',
-					);
-				} else {
-					const normalised = normaliseOpenAiResponse(fetchResult as OpenAiResponsePayload);
-					await this.deps.recordLlmAnswerUseCase.execute({
-						brandPromptId: aiParams.brandPromptId,
-						country: aiParams.country,
-						language: aiParams.language,
-						rawPayloadId,
-						response: normalised,
-					});
-				}
+				await this.ingestAiSearchAnswer(
+					resolvedParams,
+					rawPayloadId,
+					normaliseOpenAiResponse(fetchResult as OpenAiResponsePayload),
+					runLog,
+					'openai-responses-with-web-search',
+				);
+			}
+
+			if (
+				definition.providerId.value === 'anthropic' &&
+				definition.endpointId.value === 'anthropic-messages-with-web-search'
+			) {
+				await this.ingestAiSearchAnswer(
+					resolvedParams,
+					rawPayloadId,
+					normaliseAnthropicResponse(fetchResult as AnthropicMessagesPayload),
+					runLog,
+					'anthropic-messages-with-web-search',
+				);
+			}
+
+			if (
+				definition.providerId.value === 'perplexity' &&
+				definition.endpointId.value === 'perplexity-sonar-search'
+			) {
+				await this.ingestAiSearchAnswer(
+					resolvedParams,
+					rawPayloadId,
+					normalisePerplexityResponse(fetchResult as PerplexityChatPayload),
+					runLog,
+					'perplexity-sonar-search',
+				);
+			}
+
+			if (
+				definition.providerId.value === 'google-ai-studio' &&
+				definition.endpointId.value === 'google-ai-studio-gemini-grounded'
+			) {
+				await this.ingestAiSearchAnswer(
+					resolvedParams,
+					rawPayloadId,
+					normaliseGeminiResponse(fetchResult as GeminiPayload),
+					runLog,
+					'google-ai-studio-gemini-grounded',
+				);
 			}
 
 			run.complete(rawPayloadId, this.deps.clock.now());
@@ -689,5 +732,52 @@ export class ProviderFetchProcessor {
 			await this.deps.jobRunRepo.save(run);
 			throw err;
 		}
+	}
+
+	/**
+	 * Shared ingest path for the 4 AI Brand Radar endpoints. Each provider's
+	 * ACL produces the same `NormalisedLlmAnswer` shape, so the routing here
+	 * is identical — only the upstream parser differs (handled at the call
+	 * site). systemParams must carry `brandPromptId`, `country`, `language`
+	 * (set by AutoScheduleOnBrandPromptCreatedHandler when the user creates
+	 * a BrandPrompt). The use case fans the captured raw response through
+	 * the LLM-as-judge to extract mentions and citations, then persists the
+	 * LlmAnswer row.
+	 */
+	private async ingestAiSearchAnswer(
+		resolvedParams: Record<string, unknown>,
+		rawPayloadId: string,
+		normalised: {
+			aiProvider: string;
+			model: string;
+			rawText: string;
+			citationUrls: readonly string[];
+			tokenUsage: ReturnType<typeof Object>;
+			costCents: number;
+		},
+		runLog: Logger,
+		endpointId: string,
+	): Promise<void> {
+		const aiParams = resolvedParams as {
+			brandPromptId?: string;
+			country?: string;
+			language?: string;
+		};
+		if (!aiParams.brandPromptId || !aiParams.country || !aiParams.language) {
+			runLog.warn(
+				{ aiParams, endpointId },
+				`${endpointId} job missing brandPromptId/country/language in systemParams; skipping ingest`,
+			);
+			return;
+		}
+		await this.deps.recordLlmAnswerUseCase.execute({
+			brandPromptId: aiParams.brandPromptId,
+			country: aiParams.country,
+			language: aiParams.language,
+			rawPayloadId,
+			response: normalised as unknown as Parameters<
+				typeof this.deps.recordLlmAnswerUseCase.execute
+			>[0]['response'],
+		});
 	}
 }

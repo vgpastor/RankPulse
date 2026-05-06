@@ -16,39 +16,72 @@ const NOOP_LOGGER: EventHandlerLogger = {
 	error: () => {},
 };
 
-/**
- * Defaults for the auto-created OpenAI Responses API JobDefinition.
- *
- * Kept here (not in the provider package) because it's an orchestration
- * decision: the AutoSchedule handler in the application layer decides how
- * BrandPrompts fan out across providers. The provider package only declares
- * the descriptor; the handler picks which descriptor to schedule against.
- */
-export const OPENAI_AUTO_SCHEDULE_DEFAULTS = {
-	providerId: 'openai',
-	endpointId: 'openai-responses-with-web-search',
-	cron: '0 7 * * *',
-	model: 'gpt-5-mini',
-};
+interface AiProviderScheduleDefinition {
+	readonly providerId: string;
+	readonly endpointId: string;
+	readonly model: string;
+	readonly cron: string;
+}
 
 /**
- * Sub-issue #61 of #27 — auto-schedule the OpenAI Responses fetch when a
- * BrandPrompt is created.
+ * The four AI-search providers RankPulse fans out to. Each entry maps a
+ * `provider-connectivity` provider id (used to look up credentials) to the
+ * descriptor id the worker dispatches against.
  *
- * Fan-out logic:
- *  - Reads the project to get its `LocationLanguage[]` set.
- *  - Reads `CredentialRepository.listForProvider(org, 'openai')` to confirm
- *    the org has at least one OpenAI credential. Without one, we skip
- *    silently (logging) and the user gets prompted to connect OpenAI in
- *    the UI before any captures will happen.
- *  - For each LocationLanguage, calls `ScheduleEndpointFetchUseCase` once.
+ * Adding a fifth provider is one entry here + one descriptor in the
+ * provider package + one dispatch branch in the worker processor — the
+ * domain layer stays untouched.
+ */
+export const AI_SEARCH_PROVIDER_DEFINITIONS: readonly AiProviderScheduleDefinition[] = [
+	{
+		providerId: 'openai',
+		endpointId: 'openai-responses-with-web-search',
+		model: 'gpt-5-mini',
+		cron: '0 7 * * *',
+	},
+	{
+		providerId: 'anthropic',
+		endpointId: 'anthropic-messages-with-web-search',
+		model: 'claude-sonnet-4-6',
+		cron: '0 7 * * *',
+	},
+	{
+		providerId: 'perplexity',
+		endpointId: 'perplexity-sonar-search',
+		model: 'sonar',
+		cron: '0 7 * * *',
+	},
+	{
+		providerId: 'google-ai-studio',
+		endpointId: 'google-ai-studio-gemini-grounded',
+		model: 'gemini-2.5-flash',
+		cron: '0 7 * * *',
+	},
+];
+
+/**
+ * Backwards-compat alias used by the OpenAI sub-issue (#61) tests. Equivalent
+ * to the first entry of `AI_SEARCH_PROVIDER_DEFINITIONS`. Kept exported until
+ * downstream callers migrate.
+ */
+export const OPENAI_AUTO_SCHEDULE_DEFAULTS = AI_SEARCH_PROVIDER_DEFINITIONS[0]!;
+
+/**
+ * Sub-issues #61 + #62 — auto-schedule the LLM-search fetches when a
+ * BrandPrompt is created. Fans out to every connected AI provider × every
+ * project locale.
  *
- * If the project has no locations yet, the handler ALSO skips with a log;
- * the project-management UI normally enforces ≥1 location before letting
- * the user reach the AI Brand Radar page, so this branch is defensive.
- *
- * Sub-issue #62 (multi-provider) extends this loop with Anthropic /
- * Perplexity / Gemini once their providers exist.
+ * Behaviour:
+ *  - Loads the project to know its `LocationLanguage[]`. No locations →
+ *    skip with a log (the user must add at least one country/language to
+ *    the project first).
+ *  - For each provider in `AI_SEARCH_PROVIDER_DEFINITIONS` whose
+ *    credential exists in the org, schedule one JobDefinition per locale.
+ *    Providers without a credential are skipped silently (logged).
+ *  - All scheduling calls are issued concurrently. The downstream
+ *    `ScheduleEndpointFetchUseCase` deduplicates on
+ *    `(projectId, providerId, endpointId, paramsHash)`, so re-publishes
+ *    of `BrandPromptCreated` are idempotent.
  */
 export class AutoScheduleOnBrandPromptCreatedHandler {
 	constructor(
@@ -56,11 +89,13 @@ export class AutoScheduleOnBrandPromptCreatedHandler {
 		private readonly projects: ProjectManagement.ProjectRepository,
 		private readonly credentials: ProviderConnectivity.CredentialRepository,
 		private readonly logger: EventHandlerLogger = NOOP_LOGGER,
+		private readonly providerDefinitions: readonly AiProviderScheduleDefinition[] = AI_SEARCH_PROVIDER_DEFINITIONS,
 	) {}
 
 	async handle(event: SharedKernel.DomainEvent): Promise<void> {
 		if (event.type !== 'BrandPromptCreated') return;
-		const { brandPromptId, projectId, organizationId, text } = event as AiSearchInsights.BrandPromptCreated;
+		const promptEvent = event as AiSearchInsights.BrandPromptCreated;
+		const { brandPromptId, projectId } = promptEvent;
 
 		try {
 			const project = await this.projects.findById(projectId);
@@ -75,33 +110,53 @@ export class AutoScheduleOnBrandPromptCreatedHandler {
 				);
 				return;
 			}
-			const openaiCreds = await this.credentials.listForProvider(
-				organizationId,
-				ProviderConnectivity.ProviderId.create(OPENAI_AUTO_SCHEDULE_DEFAULTS.providerId),
+
+			// Provider credentials are looked up concurrently; each entry then
+			// expands into N locale-scheduled JobDefinitions, all issued in
+			// parallel. Failures on one provider/locale combo are logged but
+			// don't abort siblings.
+			await Promise.all(
+				this.providerDefinitions.map((def) => this.scheduleProvider(def, promptEvent, project)),
 			);
-			if (openaiCreds.length === 0) {
+		} catch (err) {
+			this.logger.error(
+				{ brandPromptId, err: err instanceof Error ? err.message : String(err) },
+				'auto-schedule failed on BrandPromptCreated — operator must schedule manually',
+			);
+		}
+	}
+
+	private async scheduleProvider(
+		def: AiProviderScheduleDefinition,
+		event: AiSearchInsights.BrandPromptCreated,
+		project: ProjectManagement.Project,
+	): Promise<void> {
+		const { brandPromptId, projectId, organizationId, text } = event;
+		try {
+			const creds = await this.credentials.listForProvider(
+				organizationId,
+				ProviderConnectivity.ProviderId.create(def.providerId),
+			);
+			if (creds.length === 0) {
 				this.logger.info(
-					{ brandPromptId, projectId },
-					'no OpenAI credential found in org — skipping auto-schedule until connected',
+					{ brandPromptId, projectId, providerId: def.providerId },
+					'no credential found for AI provider — skipping until connected',
 				);
 				return;
 			}
 
-			// Fan out concurrently — `ScheduleEndpointFetchUseCase` deduplicates
-			// on `(projectId, providerId, endpointId, paramsHash)` so concurrent
-			// inserts for distinct locales don't race against each other.
 			await Promise.all(
 				project.locations.map(async (location) => {
 					try {
 						const result = await this.scheduleEndpointFetch.execute({
 							projectId,
-							providerId: OPENAI_AUTO_SCHEDULE_DEFAULTS.providerId,
-							endpointId: OPENAI_AUTO_SCHEDULE_DEFAULTS.endpointId,
+							providerId: def.providerId,
+							endpointId: def.endpointId,
 							params: {
 								prompt: text,
 								locationCountry: location.country,
 								locationLanguage: location.language,
-								model: OPENAI_AUTO_SCHEDULE_DEFAULTS.model,
+								model: def.model,
 								brandPromptId,
 							},
 							systemParams: {
@@ -110,29 +165,39 @@ export class AutoScheduleOnBrandPromptCreatedHandler {
 								country: location.country,
 								language: location.language,
 							},
-							cron: OPENAI_AUTO_SCHEDULE_DEFAULTS.cron,
+							cron: def.cron,
 							credentialOverrideId: null,
 						});
 						this.logger.info(
-							{ brandPromptId, definitionId: result.definitionId, locale: location.toString() },
-							'auto-scheduled OpenAI fetch for brand prompt',
+							{
+								brandPromptId,
+								providerId: def.providerId,
+								definitionId: result.definitionId,
+								locale: location.toString(),
+							},
+							'auto-scheduled AI provider fetch for brand prompt',
 						);
 					} catch (innerErr) {
 						this.logger.error(
 							{
 								brandPromptId,
+								providerId: def.providerId,
 								locale: location.toString(),
 								err: innerErr instanceof Error ? innerErr.message : String(innerErr),
 							},
-							'auto-schedule failed for one locale; continuing others',
+							'auto-schedule failed for one provider/locale; continuing others',
 						);
 					}
 				}),
 			);
-		} catch (err) {
+		} catch (outerErr) {
 			this.logger.error(
-				{ brandPromptId, err: err instanceof Error ? err.message : String(err) },
-				'auto-schedule failed on BrandPromptCreated — operator must schedule manually',
+				{
+					brandPromptId,
+					providerId: def.providerId,
+					err: outerErr instanceof Error ? outerErr.message : String(outerErr),
+				},
+				'auto-schedule failed for AI provider; continuing others',
 			);
 		}
 	}
