@@ -1,4 +1,5 @@
 import type { AiSearchInsights } from '@rankpulse/domain';
+import { normaliseDashboardWindow } from './window-guards.js';
 
 export interface QueryPromptSovDailyQuery {
 	brandPromptId: string;
@@ -24,8 +25,7 @@ export class QueryPromptSovDailyUseCase {
 	constructor(private readonly readModel: AiSearchInsights.LlmAnswerReadModel) {}
 
 	async execute(query: QueryPromptSovDailyQuery): Promise<readonly AiSearchSovDailyPointDto[]> {
-		const to = query.to ?? new Date();
-		const from = query.from ?? new Date(to.getTime() - DEFAULT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+		const { from, to } = normaliseDashboardWindow(query, DEFAULT_WINDOW_DAYS);
 		const points = await this.readModel.sovDailyForPrompt(
 			query.brandPromptId as AiSearchInsights.BrandPromptId,
 			{ from, to },
