@@ -1,4 +1,5 @@
 import type { AiSearchInsights, ProjectManagement } from '@rankpulse/domain';
+import { normaliseDashboardWindow } from './window-guards.js';
 
 export interface QueryAiSearchPresenceQuery {
 	projectId: string;
@@ -29,8 +30,7 @@ export class QueryAiSearchPresenceUseCase {
 	constructor(private readonly readModel: AiSearchInsights.LlmAnswerReadModel) {}
 
 	async execute(query: QueryAiSearchPresenceQuery): Promise<AiSearchPresenceDto> {
-		const to = query.to ?? new Date();
-		const from = query.from ?? new Date(to.getTime() - DEFAULT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+		const { from, to } = normaliseDashboardWindow(query, DEFAULT_WINDOW_DAYS);
 		const summary = await this.readModel.presenceForProject(query.projectId as ProjectManagement.ProjectId, {
 			from,
 			to,

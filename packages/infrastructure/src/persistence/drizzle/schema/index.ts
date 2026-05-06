@@ -326,7 +326,10 @@ export const rawPayloads = pgTable(
 		providerId: text('provider_id').notNull(),
 		endpointId: text('endpoint_id').notNull(),
 		requestHash: text('request_hash').notNull(),
-		payload: jsonb('payload').notNull(),
+		// Generic provider response — each upstream has its own shape so the
+		// `unknown` projection is intentional. Specific repositories cast to
+		// the provider's typed payload at read time.
+		payload: jsonb('payload').notNull().$type<unknown>(),
 		payloadSize: integer('payload_size').notNull(),
 		fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull().defaultNow(),
 	},
