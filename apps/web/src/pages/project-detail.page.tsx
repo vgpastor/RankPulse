@@ -178,7 +178,7 @@ export const ProjectDetailPage = () => {
 								GA4
 							</Button>
 						</Link>
-						<Link to="/projects/$id/brand-prompts" params={{ id: project.id }}>
+						<Link to="/projects/$id/ai-radar" params={{ id: project.id }}>
 							<Button variant="secondary" size="sm">
 								<Sparkles size={14} />
 								AI Radar

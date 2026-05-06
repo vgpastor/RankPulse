@@ -7,6 +7,7 @@ import {
 	redirect,
 } from '@tanstack/react-router';
 import { useAuthStore } from './lib/auth-store.js';
+import { AiRadarPage } from './pages/ai-radar.page.js';
 import { AiSearchCitationsPage } from './pages/ai-search-citations.page.js';
 import { AiSearchMatrixPage } from './pages/ai-search-matrix.page.js';
 import { BrandPromptsPage } from './pages/brand-prompts.page.js';
@@ -138,6 +139,12 @@ const projectAiSearchMatrixRoute = createRoute({
 	component: AiSearchMatrixPage,
 });
 
+const projectAiRadarRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/ai-radar',
+	component: AiRadarPage,
+});
+
 const projectGscPerformanceRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/projects/$id/gsc/$propertyId',
@@ -172,6 +179,7 @@ const routeTree = rootRoute.addChildren([
 	projectBrandPromptsRoute,
 	projectAiSearchCitationsRoute,
 	projectAiSearchMatrixRoute,
+	projectAiRadarRoute,
 	credentialsRoute,
 	portfoliosRoute,
 ]);
