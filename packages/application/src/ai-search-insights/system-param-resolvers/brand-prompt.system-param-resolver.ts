@@ -1,18 +1,16 @@
 import type { AiSearchInsights } from '@rankpulse/domain';
+import { InvalidInputError, NotFoundError } from '@rankpulse/shared';
 import type { SystemParamResolver } from '../../provider-connectivity/use-cases/schedule-endpoint-fetch.use-case.js';
+import { AI_SEARCH_PROVIDER_DEFINITIONS } from '../event-handlers/auto-schedule-on-brand-prompt-created.handler.js';
 
 /**
- * Set of `(providerId, endpointId)` pairs the AI Brand Radar fan-out can
- * target. Kept here (not in the AutoSchedule handler) so a manual
- * `POST /providers/.../schedule` call against any of these endpoints picks
- * up the same systemParams plumbing — issue #56 / bug-50 family.
+ * Derive the set of `(providerId, endpointId)` pairs from the canonical
+ * provider list so a fifth provider added in `AI_SEARCH_PROVIDER_DEFINITIONS`
+ * is automatically picked up by the resolver — no separate file to keep in
+ * sync.
  */
-const AI_SEARCH_ENDPOINT_KEYS = new Set<string>([
-	'openai|openai-responses-with-web-search',
-	'anthropic|anthropic-messages-with-web-search',
-	'perplexity|perplexity-sonar-search',
-	'google-ai-studio|google-ai-studio-gemini-grounded',
-]);
+const aiSearchEndpointKeys = (): Set<string> =>
+	new Set(AI_SEARCH_PROVIDER_DEFINITIONS.map((d) => `${d.providerId}|${d.endpointId}`));
 
 /**
  * Maps an AI-search endpoint user param payload (which carries
@@ -21,9 +19,17 @@ const AI_SEARCH_ENDPOINT_KEYS = new Set<string>([
  * response into the right BrandPrompt.
  *
  * Returns `{}` for any provider/endpoint pair that isn't an AI-search one.
+ * Throws when the prompt id is missing or doesn't exist — matches the
+ * pattern of the other system-param resolvers (GSC/GA4/Bing/Wikipedia/...)
+ * so the operator gets a clear "link the entity first" error instead of a
+ * silent ingest skip downstream.
  */
 export class BrandPromptSystemParamResolver implements SystemParamResolver {
-	constructor(private readonly prompts: AiSearchInsights.BrandPromptRepository) {}
+	private readonly endpointKeys: Set<string>;
+
+	constructor(private readonly prompts: AiSearchInsights.BrandPromptRepository) {
+		this.endpointKeys = aiSearchEndpointKeys();
+	}
 
 	async resolve(input: {
 		projectId: string;
@@ -31,13 +37,21 @@ export class BrandPromptSystemParamResolver implements SystemParamResolver {
 		endpointId: string;
 		params: Record<string, unknown>;
 	}): Promise<Record<string, unknown>> {
-		if (!AI_SEARCH_ENDPOINT_KEYS.has(`${input.providerId}|${input.endpointId}`)) return {};
+		if (!this.endpointKeys.has(`${input.providerId}|${input.endpointId}`)) return {};
 
 		const candidate = input.params.brandPromptId;
-		if (typeof candidate !== 'string') return {};
+		if (typeof candidate !== 'string') {
+			throw new InvalidInputError(
+				`${input.endpointId} schedule requires \`params.brandPromptId\` (UUID of the BrandPrompt).`,
+			);
+		}
 
 		const prompt = await this.prompts.findById(candidate as AiSearchInsights.BrandPromptId);
-		if (!prompt) return {};
+		if (!prompt) {
+			throw new NotFoundError(
+				`BrandPrompt ${candidate} not found — register it via POST /projects/${input.projectId}/brand-prompts before scheduling.`,
+			);
+		}
 
 		const country = input.params.locationCountry;
 		const language = input.params.locationLanguage;

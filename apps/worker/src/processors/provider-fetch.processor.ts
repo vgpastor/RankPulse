@@ -36,6 +36,7 @@ import {
 	extractDailyRows as extractBingDailyRows,
 	type RankAndTrafficStatsResponse,
 } from '@rankpulse/provider-bing';
+import { BrevoApiError } from '@rankpulse/provider-brevo';
 import {
 	CloudflareRadarApiError,
 	type DomainRankResponse,
@@ -144,6 +145,10 @@ const isQuotaExhaustedError = (err: unknown): boolean => {
 	// Microsoft Clarity allows 10 req/day per project on the free tier;
 	// 429 once the budget is spent. Auto-pause until the next day window.
 	if (err instanceof ClarityApiError && (err.status === 402 || err.status === 429)) return true;
+	// Brevo free tier: 300 emails/day. 429 surfaces both the per-second
+	// rate limit and the daily-quota exhaustion. 402 is the over-the-paid-tier
+	// signal. Auto-pause both — operator must top up.
+	if (err instanceof BrevoApiError && (err.status === 402 || err.status === 429)) return true;
 	// OpenAI returns 429 (rate limit) and 401/403 (key revoked/no quota); all
 	// non-recoverable without operator action.
 	if (err instanceof OpenAiApiError && (err.status === 402 || err.status === 429)) return true;
