@@ -2,6 +2,7 @@ import { Button, Drawer, FormField, Input, Select, Spinner, Textarea } from '@ra
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
+import { ENTITY_BOUND_ENDPOINT_IDS } from '../lib/entity-bound-endpoints.js';
 
 export interface ScheduleFetchDrawerProps {
 	open: boolean;
@@ -51,11 +52,10 @@ const DEFAULT_PARAMS_HINT: Record<string, string> = {
 		null,
 		2,
 	),
-	'gsc-search-analytics': JSON.stringify(
-		{ propertyId: '<gsc-property-id>', dimensions: ['query', 'page'] },
-		null,
-		2,
-	),
+	// Entity-bound endpoints (gsc-search-analytics, ga4-run-report, etc.) are
+	// intentionally absent: they're auto-scheduled by their bounded context
+	// when the underlying entity is linked, so this drawer never schedules
+	// them. See ADR 0001.
 };
 
 export const ScheduleFetchDrawer = ({ open, onClose, projectId }: ScheduleFetchDrawerProps) => {
@@ -72,8 +72,31 @@ export const ScheduleFetchDrawer = ({ open, onClose, projectId }: ScheduleFetchD
 		enabled: open,
 	});
 
-	const selectedProvider = providersQuery.data?.find((p) => p.id === providerId);
-	const endpoints = selectedProvider?.endpoints ?? [];
+	// Hide providers whose endpoints are ALL entity-bound — those JobDefinitions
+	// are created automatically when the user links the entity (ADR 0001), so
+	// they don't belong in the manual schedule flow.
+	const schedulableProviders = useMemo(
+		() =>
+			(providersQuery.data ?? []).filter((p) =>
+				p.endpoints.some((e) => !ENTITY_BOUND_ENDPOINT_IDS.has(e.id)),
+			),
+		[providersQuery.data],
+	);
+	const selectedProvider = schedulableProviders.find((p) => p.id === providerId);
+	const endpoints = useMemo(
+		() => (selectedProvider?.endpoints ?? []).filter((e) => !ENTITY_BOUND_ENDPOINT_IDS.has(e.id)),
+		[selectedProvider],
+	);
+
+	// If the user lands on a provider that no longer exists in the filtered
+	// list (e.g. the default `dataforseo` is fine, but defensive against future
+	// state) re-anchor on the first schedulable provider.
+	useEffect(() => {
+		if (schedulableProviders.length > 0 && !schedulableProviders.some((p) => p.id === providerId)) {
+			const first = schedulableProviders[0];
+			if (first) setProviderId(first.id);
+		}
+	}, [schedulableProviders, providerId]);
 
 	useEffect(() => {
 		if (endpoints.length > 0 && !endpoints.some((e) => e.id === endpointId)) {
@@ -142,10 +165,15 @@ export const ScheduleFetchDrawer = ({ open, onClose, projectId }: ScheduleFetchD
 					<Spinner />
 				) : (
 					<>
+						<p className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+							Endpoints that ingest into a per-entity hypertable (GSC, GA4, Bing, Wikipedia,
+							Clarity, PageSpeed, Cloudflare Radar) are auto-scheduled when you link the
+							entity — they're hidden here. Link those from <strong>Settings → Providers</strong>.
+						</p>
 						<FormField label="Provider">
 							{(id) => (
 								<Select id={id} value={providerId} onChange={(e) => setProviderId(e.target.value)}>
-									{providersQuery.data?.map((p) => (
+									{schedulableProviders.map((p) => (
 										<option key={p.id} value={p.id}>
 											{p.displayName}
 										</option>
