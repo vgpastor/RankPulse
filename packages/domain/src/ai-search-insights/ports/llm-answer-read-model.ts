@@ -38,6 +38,51 @@ export interface AiSearchSovDailyPoint {
 	readonly answersWithOwnMention: number;
 }
 
+export interface AiSearchMatrixCell {
+	readonly aiProvider: AiProviderName;
+	readonly country: string;
+	readonly language: string;
+	readonly brand: string;
+	readonly isOwnBrand: boolean;
+	readonly totalAnswers: number;
+	readonly answersWithMention: number;
+	readonly avgPosition: number | null;
+	readonly mentionRate: number;
+}
+
+export interface AiSearchWeeklySovDelta {
+	readonly aiProvider: AiProviderName;
+	readonly country: string;
+	readonly language: string;
+	readonly thisWeekTotal: number;
+	readonly thisWeekOwnMentions: number;
+	readonly lastWeekTotal: number;
+	readonly lastWeekOwnMentions: number;
+	readonly thisWeekRate: number;
+	readonly lastWeekRate: number;
+	readonly relativeDelta: number | null;
+}
+
+export interface AiSearchOwnCitationStreak {
+	readonly url: string;
+	readonly domain: string;
+	readonly aiProvider: AiProviderName;
+	readonly country: string;
+	readonly language: string;
+	readonly streakDays: number;
+	readonly lastSeenAt: Date;
+	readonly currentlyCited: boolean;
+}
+
+export interface AiSearchPositionLead {
+	readonly aiProvider: AiProviderName;
+	readonly country: string;
+	readonly language: string;
+	readonly ownAvgPosition: number | null;
+	readonly competitorBrand: string;
+	readonly competitorAvgPosition: number | null;
+}
+
 export interface AiSearchReadModelFilter {
 	readonly from: Date;
 	readonly to: Date;
@@ -64,4 +109,33 @@ export interface LlmAnswerReadModel {
 		brandPromptId: BrandPromptId,
 		filter: AiSearchReadModelFilter,
 	): Promise<readonly AiSearchSovDailyPoint[]>;
+	competitiveMatrixForProject(
+		projectId: ProjectId,
+		filter: AiSearchReadModelFilter,
+	): Promise<readonly AiSearchMatrixCell[]>;
+	/**
+	 * Returns per (provider × locale) own-brand mention-rate deltas comparing
+	 * the most recent 7 days against the prior 7 days. Used by the alert
+	 * evaluator to detect SoV regressions.
+	 */
+	weeklySovDeltaForProject(projectId: ProjectId, asOf: Date): Promise<readonly AiSearchWeeklySovDelta[]>;
+	/**
+	 * Owned-domain citation streaks: for each (own-domain URL, provider,
+	 * locale) returns the longest streak of consecutive days the URL was
+	 * cited within the lookback window, plus whether the most recent capture
+	 * still cites it.
+	 */
+	ownCitationStreaksForProject(
+		projectId: ProjectId,
+		filter: AiSearchReadModelFilter,
+	): Promise<readonly AiSearchOwnCitationStreak[]>;
+	/**
+	 * Competitor average-position lead: per (provider × locale × competitor
+	 * brand), returns the competitor's avg_position alongside the own brand's
+	 * avg_position so callers can flag the cases where a competitor is ahead.
+	 */
+	positionLeadsForProject(
+		projectId: ProjectId,
+		filter: AiSearchReadModelFilter,
+	): Promise<readonly AiSearchPositionLead[]>;
 }

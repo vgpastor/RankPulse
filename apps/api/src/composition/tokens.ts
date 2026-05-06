@@ -173,6 +173,8 @@ export const Tokens = {
 	QueryAiSearchSov: Symbol('QueryAiSearchSovUseCase'),
 	QueryAiSearchCitations: Symbol('QueryAiSearchCitationsUseCase'),
 	QueryPromptSovDaily: Symbol('QueryPromptSovDailyUseCase'),
+	QueryCompetitiveMatrix: Symbol('QueryCompetitiveMatrixUseCase'),
+	QueryAiSearchAlerts: Symbol('QueryAiSearchAlertsUseCase'),
 
 	// Infrastructure handles
 	DrizzleClient: Symbol('DrizzleClient'),

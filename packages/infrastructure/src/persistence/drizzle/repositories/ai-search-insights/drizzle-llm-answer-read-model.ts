@@ -253,4 +253,262 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			answersWithOwnMention: Number(r.answers_with_own_mention ?? 0),
 		}));
 	}
+
+	async competitiveMatrixForProject(
+		projectId: ProjectManagement.ProjectId,
+		filter: AiSearchInsights.AiSearchReadModelFilter,
+	): Promise<readonly AiSearchInsights.AiSearchMatrixCell[]> {
+		// Reuses the same SQL backbone as `sovForProject` so a brand only
+		// appears as a matrix cell once it has at least one mention in the
+		// window. Brands in the watchlist with zero mentions are gap-rendered
+		// client-side (as 0% cells) — that keeps the SQL cheap and the
+		// missing-brand case obvious in the UI heatmap.
+		const sov = await this.sovForProject(projectId, filter);
+		return sov.map((r) => ({
+			aiProvider: r.aiProvider,
+			country: r.country,
+			language: r.language,
+			brand: r.brand,
+			isOwnBrand: r.isOwnBrand,
+			totalAnswers: r.totalAnswers,
+			answersWithMention: r.answersWithMention,
+			avgPosition: r.avgPosition,
+			mentionRate: r.totalAnswers === 0 ? 0 : r.answersWithMention / r.totalAnswers,
+		}));
+	}
+
+	async weeklySovDeltaForProject(
+		projectId: ProjectManagement.ProjectId,
+		asOf: Date,
+	): Promise<readonly AiSearchInsights.AiSearchWeeklySovDelta[]> {
+		const thisWeekStart = new Date(asOf.getTime() - 7 * 24 * 60 * 60 * 1000);
+		const lastWeekStart = new Date(asOf.getTime() - 14 * 24 * 60 * 60 * 1000);
+		const rows = await this.db.execute(sql<{
+			ai_provider: string;
+			country: string;
+			language: string;
+			this_week_total: number;
+			this_week_own_mentions: number;
+			last_week_total: number;
+			last_week_own_mentions: number;
+		}>`
+			SELECT
+				ai_provider,
+				country,
+				language,
+				COUNT(*) FILTER (WHERE captured_at >= ${thisWeekStart})::int AS this_week_total,
+				COUNT(*) FILTER (
+					WHERE captured_at >= ${thisWeekStart}
+					  AND jsonb_path_exists(mentions, '$[*] ? (@.isOwnBrand == true)')
+				)::int AS this_week_own_mentions,
+				COUNT(*) FILTER (
+					WHERE captured_at >= ${lastWeekStart} AND captured_at < ${thisWeekStart}
+				)::int AS last_week_total,
+				COUNT(*) FILTER (
+					WHERE captured_at >= ${lastWeekStart}
+					  AND captured_at < ${thisWeekStart}
+					  AND jsonb_path_exists(mentions, '$[*] ? (@.isOwnBrand == true)')
+				)::int AS last_week_own_mentions
+			FROM llm_answers
+			WHERE project_id = ${projectId}
+			  AND captured_at >= ${lastWeekStart}
+			  AND captured_at <= ${asOf}
+			GROUP BY ai_provider, country, language
+		`);
+		const list = ((rows as unknown as { rows?: unknown[] }).rows ?? rows) as Array<{
+			ai_provider: string;
+			country: string;
+			language: string;
+			this_week_total: number;
+			this_week_own_mentions: number;
+			last_week_total: number;
+			last_week_own_mentions: number;
+		}>;
+		return list
+			.filter((r) => AiSearchInsights.isAiProviderName(r.ai_provider))
+			.map((r) => {
+				const thisWeekRate =
+					r.this_week_total === 0 ? 0 : Number(r.this_week_own_mentions) / Number(r.this_week_total);
+				const lastWeekRate =
+					r.last_week_total === 0 ? 0 : Number(r.last_week_own_mentions) / Number(r.last_week_total);
+				const relativeDelta = lastWeekRate === 0 ? null : (thisWeekRate - lastWeekRate) / lastWeekRate;
+				return {
+					aiProvider: r.ai_provider as AiSearchInsights.AiProviderName,
+					country: r.country,
+					language: r.language,
+					thisWeekTotal: Number(r.this_week_total ?? 0),
+					thisWeekOwnMentions: Number(r.this_week_own_mentions ?? 0),
+					lastWeekTotal: Number(r.last_week_total ?? 0),
+					lastWeekOwnMentions: Number(r.last_week_own_mentions ?? 0),
+					thisWeekRate,
+					lastWeekRate,
+					relativeDelta,
+				};
+			});
+	}
+
+	async ownCitationStreaksForProject(
+		projectId: ProjectManagement.ProjectId,
+		filter: AiSearchInsights.AiSearchReadModelFilter,
+	): Promise<readonly AiSearchInsights.AiSearchOwnCitationStreak[]> {
+		// Streak detection: for each (own_url × provider × locale) look at the
+		// per-day citation presence and find the longest run of consecutive
+		// days. The "currentlyCited" bit is the presence of the URL in the
+		// most recent day with any answers. Done in two SQL passes (per-day
+		// presence first, then a window function for streaks) to keep each
+		// query bounded.
+		const rows = await this.db.execute(sql<{
+			url: string;
+			domain: string;
+			ai_provider: string;
+			country: string;
+			language: string;
+			streak_days: number;
+			last_seen_at: Date;
+			currently_cited: boolean;
+		}>`
+			WITH per_day AS (
+				SELECT
+					a.ai_provider,
+					a.country,
+					a.language,
+					c->>'url' AS url,
+					c->>'domain' AS domain,
+					to_char(a.captured_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day,
+					BOOL_OR(COALESCE((c->>'isOwnDomain')::bool, false)) AS cited
+				FROM llm_answers a, jsonb_array_elements(a.citations) c
+				WHERE a.project_id = ${projectId}
+				  AND a.captured_at BETWEEN ${filter.from} AND ${filter.to}
+				  AND COALESCE((c->>'isOwnDomain')::bool, false) = true
+				GROUP BY a.ai_provider, a.country, a.language, c->>'url', c->>'domain', day
+			),
+			ordered AS (
+				SELECT *,
+					row_number() OVER (PARTITION BY ai_provider, country, language, url ORDER BY day) AS rn,
+					row_number() OVER (PARTITION BY ai_provider, country, language, url ORDER BY day)
+						- (date(day) - date('1970-01-01')) AS grp
+				FROM per_day
+				WHERE cited
+			),
+			streaks AS (
+				SELECT ai_provider, country, language, url, MAX(domain) AS domain,
+					COUNT(*) AS streak_days,
+					MAX(day) AS last_day
+				FROM ordered
+				GROUP BY ai_provider, country, language, url, grp
+			),
+			latest_per_locale AS (
+				SELECT ai_provider, country, language,
+					MAX(captured_at AT TIME ZONE 'UTC')::date AS last_capture_day
+				FROM llm_answers
+				WHERE project_id = ${projectId}
+				  AND captured_at BETWEEN ${filter.from} AND ${filter.to}
+				GROUP BY ai_provider, country, language
+			),
+			top_streak AS (
+				SELECT DISTINCT ON (ai_provider, country, language, url)
+					ai_provider, country, language, url, domain, streak_days, last_day
+				FROM streaks
+				ORDER BY ai_provider, country, language, url, streak_days DESC, last_day DESC
+			)
+			SELECT
+				t.url,
+				t.domain,
+				t.ai_provider,
+				t.country,
+				t.language,
+				t.streak_days::int,
+				(t.last_day || 'T00:00:00Z')::timestamptz AS last_seen_at,
+				(t.last_day = l.last_capture_day) AS currently_cited
+			FROM top_streak t
+			JOIN latest_per_locale l USING (ai_provider, country, language)
+		`);
+		const list = ((rows as unknown as { rows?: unknown[] }).rows ?? rows) as Array<{
+			url: string;
+			domain: string;
+			ai_provider: string;
+			country: string;
+			language: string;
+			streak_days: number;
+			last_seen_at: Date | string;
+			currently_cited: boolean;
+		}>;
+		return list
+			.filter((r) => AiSearchInsights.isAiProviderName(r.ai_provider))
+			.map((r) => ({
+				url: r.url,
+				domain: r.domain,
+				aiProvider: r.ai_provider as AiSearchInsights.AiProviderName,
+				country: r.country,
+				language: r.language,
+				streakDays: Number(r.streak_days ?? 0),
+				lastSeenAt: r.last_seen_at instanceof Date ? r.last_seen_at : new Date(r.last_seen_at),
+				currentlyCited: Boolean(r.currently_cited),
+			}));
+	}
+
+	async positionLeadsForProject(
+		projectId: ProjectManagement.ProjectId,
+		filter: AiSearchInsights.AiSearchReadModelFilter,
+	): Promise<readonly AiSearchInsights.AiSearchPositionLead[]> {
+		const rows = await this.db.execute(sql<{
+			ai_provider: string;
+			country: string;
+			language: string;
+			own_avg_position: number | null;
+			competitor_brand: string;
+			competitor_avg_position: number | null;
+		}>`
+			WITH expanded AS (
+				SELECT a.ai_provider, a.country, a.language,
+					m->>'brand' AS brand,
+					COALESCE((m->>'isOwnBrand')::bool, false) AS is_own_brand,
+					(m->>'position')::int AS position
+				FROM llm_answers a, jsonb_array_elements(a.mentions) m
+				WHERE a.project_id = ${projectId}
+				  AND a.captured_at BETWEEN ${filter.from} AND ${filter.to}
+			),
+			own_pos AS (
+				SELECT ai_provider, country, language, AVG(position)::float AS own_avg_position
+				FROM expanded
+				WHERE is_own_brand = true
+				GROUP BY ai_provider, country, language
+			),
+			competitor_pos AS (
+				SELECT ai_provider, country, language, brand AS competitor_brand,
+					AVG(position)::float AS competitor_avg_position
+				FROM expanded
+				WHERE is_own_brand = false
+				GROUP BY ai_provider, country, language, brand
+			)
+			SELECT
+				c.ai_provider,
+				c.country,
+				c.language,
+				o.own_avg_position,
+				c.competitor_brand,
+				c.competitor_avg_position
+			FROM competitor_pos c
+			LEFT JOIN own_pos o
+				ON o.ai_provider = c.ai_provider AND o.country = c.country AND o.language = c.language
+		`);
+		const list = ((rows as unknown as { rows?: unknown[] }).rows ?? rows) as Array<{
+			ai_provider: string;
+			country: string;
+			language: string;
+			own_avg_position: number | null;
+			competitor_brand: string;
+			competitor_avg_position: number | null;
+		}>;
+		return list
+			.filter((r) => AiSearchInsights.isAiProviderName(r.ai_provider))
+			.map((r) => ({
+				aiProvider: r.ai_provider as AiSearchInsights.AiProviderName,
+				country: r.country,
+				language: r.language,
+				ownAvgPosition: r.own_avg_position == null ? null : Number(r.own_avg_position),
+				competitorBrand: r.competitor_brand,
+				competitorAvgPosition: r.competitor_avg_position == null ? null : Number(r.competitor_avg_position),
+			}));
+	}
 }
