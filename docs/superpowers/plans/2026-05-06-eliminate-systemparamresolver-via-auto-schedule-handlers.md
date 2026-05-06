@@ -1224,7 +1224,7 @@ const buildEvent = (overrides: Partial<ExperienceAnalytics.ClarityProjectLinked>
 		clarityProjectId: CLARITY_PROJECT_ID,
 		projectId: PROJECT_ID,
 		organizationId: ORG_ID,
-		clarityProjectHandle: CLARITY_PROJECT_HANDLE,
+		clarityHandle: CLARITY_PROJECT_HANDLE,
 		occurredAt: new Date('2026-05-04T10:00:00Z'),
 		...overrides,
 	});
@@ -1315,7 +1315,7 @@ export class AutoScheduleOnClarityProjectLinkedHandler {
 
 	async handle(event: SharedKernel.DomainEvent): Promise<void> {
 		if (event.type !== 'ClarityProjectLinked') return;
-		const { clarityProjectId, projectId, organizationId, clarityProjectHandle } =
+		const { clarityProjectId, projectId, organizationId } =
 			event as ExperienceAnalytics.ClarityProjectLinked;
 
 		try {
@@ -1324,7 +1324,6 @@ export class AutoScheduleOnClarityProjectLinkedHandler {
 				providerId: CLARITY_AUTO_SCHEDULE_DEFAULTS.providerId,
 				endpointId: CLARITY_AUTO_SCHEDULE_DEFAULTS.endpointId,
 				params: {
-					projectId: clarityProjectHandle,
 					numOfDays: CLARITY_AUTO_SCHEDULE_DEFAULTS.numOfDays,
 				},
 				systemParams: { organizationId, clarityProjectId },
