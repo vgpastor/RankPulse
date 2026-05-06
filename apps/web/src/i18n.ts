@@ -71,6 +71,25 @@ const en = {
 		position: 'Pos.',
 		observedAt: 'Observed',
 	},
+	aiSearch: {
+		title: 'AI Brand Radar',
+		subtitle: 'Prompts monitored across ChatGPT / Claude / Perplexity / Gemini.',
+		track: 'Track prompt',
+		empty: 'No prompts tracked yet',
+		emptyDescription:
+			'Add the first prompt you want to monitor across LLM-search providers. Daily captures begin at 07:00 UTC after you connect an OpenAI credential.',
+		intent: 'Intent',
+		status: 'Status',
+		statusActive: 'active',
+		statusPaused: 'paused',
+		captures: 'Captures',
+		capturesEmpty: 'No captures yet',
+		capturesEmptyDescription:
+			'The first run is scheduled for 07:00 UTC. Connect an OpenAI credential and add at least one location to the project before then.',
+		mentionsLabel: 'Mentions',
+		citationsLabel: 'Citations',
+		confirmDelete: 'Delete this prompt? Captured history will be kept.',
+	},
 } as const;
 
 const es = {
@@ -142,6 +161,25 @@ const es = {
 		position: 'Pos.',
 		observedAt: 'Observado',
 	},
+	aiSearch: {
+		title: 'AI Brand Radar',
+		subtitle: 'Prompts monitorizados en ChatGPT / Claude / Perplexity / Gemini.',
+		track: 'Trackear prompt',
+		empty: 'Aún no hay prompts trackeados',
+		emptyDescription:
+			'Añade el primer prompt que quieras monitorizar en buscadores LLM. Las capturas diarias empiezan a las 07:00 UTC tras conectar una credencial OpenAI.',
+		intent: 'Intent',
+		status: 'Estado',
+		statusActive: 'activo',
+		statusPaused: 'pausado',
+		captures: 'Capturas',
+		capturesEmpty: 'Aún sin capturas',
+		capturesEmptyDescription:
+			'La primera ejecución está programada para las 07:00 UTC. Conecta una credencial OpenAI y añade al menos una ubicación al proyecto antes de esa hora.',
+		mentionsLabel: 'Menciones',
+		citationsLabel: 'Citaciones',
+		confirmDelete: '¿Eliminar este prompt? El histórico de capturas se mantendrá.',
+	},
 } as const;
 
 void i18next
@@ -150,7 +188,7 @@ void i18next
 	.init({
 		fallbackLng: 'en',
 		supportedLngs: ['en', 'es'],
-		ns: ['common', 'auth', 'projects', 'credentials', 'rankings'],
+		ns: ['common', 'auth', 'projects', 'credentials', 'rankings', 'aiSearch'],
 		defaultNS: 'common',
 		resources: { en, es },
 		interpolation: { escapeValue: false },

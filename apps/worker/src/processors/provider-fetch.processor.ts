@@ -1,4 +1,5 @@
 import type {
+	AiSearchInsights as AiSearchInsightsUseCases,
 	BingWebmasterInsights as BingWebmasterInsightsUseCases,
 	EntityAwareness as EntityAwarenessUseCases,
 	ExperienceAnalytics as ExperienceAnalyticsUseCases,
@@ -56,6 +57,11 @@ import {
 	type DataExportResponse,
 	extractSnapshot as extractClaritySnapshot,
 } from '@rankpulse/provider-microsoft-clarity';
+import {
+	normaliseOpenAiResponse,
+	OpenAiApiError,
+	type OpenAiResponsePayload,
+} from '@rankpulse/provider-openai';
 import { extractSnapshot, PageSpeedApiError, type RunPagespeedResponse } from '@rankpulse/provider-pagespeed';
 import {
 	extractPageviews,
@@ -107,6 +113,9 @@ const isQuotaExhaustedError = (err: unknown): boolean => {
 	// Microsoft Clarity allows 10 req/day per project on the free tier;
 	// 429 once the budget is spent. Auto-pause until the next day window.
 	if (err instanceof ClarityApiError && (err.status === 402 || err.status === 429)) return true;
+	// OpenAI returns 429 (rate limit) and 401/403 (key revoked/no quota); all
+	// non-recoverable without operator action.
+	if (err instanceof OpenAiApiError && (err.status === 402 || err.status === 429)) return true;
 	return false;
 };
 
@@ -144,6 +153,7 @@ export interface ProviderFetchProcessorDeps {
 	ingestBingTrafficUseCase: BingWebmasterInsightsUseCases.IngestBingTrafficUseCase;
 	recordRadarRankUseCase: MacroContextUseCases.RecordRadarRankUseCase;
 	recordExperienceSnapshotUseCase: ExperienceAnalyticsUseCases.RecordExperienceSnapshotUseCase;
+	recordLlmAnswerUseCase: AiSearchInsightsUseCases.RecordLlmAnswerUseCase;
 	clock: Clock;
 	ids: IdGenerator;
 	logger: Logger;
@@ -535,6 +545,38 @@ export class ProviderFetchProcessor {
 							dimensions: r.dimensions,
 							metrics: r.metrics,
 						})),
+					});
+				}
+			}
+
+			if (
+				definition.providerId.value === 'openai' &&
+				definition.endpointId.value === 'openai-responses-with-web-search'
+			) {
+				// Sub-issue #61 of #27 — AI Brand Radar capture pipeline.
+				// systemParams must carry `brandPromptId`, `country`, `language`
+				// (set by AutoScheduleOnBrandPromptCreatedHandler when the user
+				// creates a BrandPrompt). The use case fans the captured raw
+				// response through the LLM-as-judge to extract mentions and
+				// citations, then persists the LlmAnswer row.
+				const aiParams = resolvedParams as {
+					brandPromptId?: string;
+					country?: string;
+					language?: string;
+				};
+				if (!aiParams.brandPromptId || !aiParams.country || !aiParams.language) {
+					runLog.warn(
+						{ aiParams },
+						'openai-responses-with-web-search job missing brandPromptId/country/language in systemParams; skipping ingest',
+					);
+				} else {
+					const normalised = normaliseOpenAiResponse(fetchResult as OpenAiResponsePayload);
+					await this.deps.recordLlmAnswerUseCase.execute({
+						brandPromptId: aiParams.brandPromptId,
+						country: aiParams.country,
+						language: aiParams.language,
+						rawPayloadId,
+						response: normalised,
 					});
 				}
 			}

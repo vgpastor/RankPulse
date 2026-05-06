@@ -78,6 +78,13 @@
 			"when": 1778054148079,
 			"tag": "0010_oval_sunset_bain",
 			"breakpoints": true
+		},
+		{
+			"idx": 11,
+			"version": "7",
+			"when": 1778204400000,
+			"tag": "0011_ai_search_insights",
+			"breakpoints": true
 		}
 	]
 }

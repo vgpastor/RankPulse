@@ -1,3 +1,4 @@
+export * as AiSearchInsights from './ai-search-insights/index.js';
 export * as BingWebmasterInsights from './bing-webmaster-insights/index.js';
 export * as EntityAwareness from './entity-awareness/index.js';
 export * as ExperienceAnalytics from './experience-analytics/index.js';

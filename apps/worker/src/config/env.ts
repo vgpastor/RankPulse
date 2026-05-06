@@ -15,6 +15,13 @@ const EnvSchema = z.object({
 	 */
 	HEALTH_PORT: z.coerce.number().int().min(0).max(65535).default(3300),
 	HEALTH_HOST: z.string().default('0.0.0.0'),
+	/**
+	 * API key for the LLM-as-judge that extracts brand mentions from the
+	 * captured LLM-search responses (sub-issue #61 / parent #27). Optional —
+	 * when absent the worker persists raw responses with empty mentions and
+	 * the operator gets a warning at startup.
+	 */
+	ANTHROPIC_API_KEY: z.string().min(20).optional(),
 });
 
 export type WorkerEnv = z.infer<typeof EnvSchema>;

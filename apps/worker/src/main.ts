@@ -1,4 +1,5 @@
 import {
+	AiSearchInsights as AiSearchInsightsUseCases,
 	BingWebmasterInsights as BingWebmasterInsightsUseCases,
 	EntityAwareness as EntityAwarenessUseCases,
 	ExperienceAnalytics as ExperienceAnalyticsUseCases,
@@ -10,7 +11,14 @@ import {
 	TrafficAnalytics as TrafficAnalyticsUseCases,
 	WebPerformance as WebPerformanceUseCases,
 } from '@rankpulse/application';
-import { Crypto, DrizzlePersistence, Events, Queue as QueueAdapters } from '@rankpulse/infrastructure';
+import { AiSearchInsights as AiSearchInsightsDomain } from '@rankpulse/domain';
+import {
+	AiSearchInsights as AiSearchInsightsInfra,
+	Crypto,
+	DrizzlePersistence,
+	Events,
+	Queue as QueueAdapters,
+} from '@rankpulse/infrastructure';
 import { SystemClock, SystemIdGenerator } from '@rankpulse/shared';
 import { Worker } from 'bullmq';
 import IORedis from 'ioredis';
@@ -52,6 +60,24 @@ async function bootstrap(): Promise<void> {
 	const radarRankSnapshotRepo = new DrizzlePersistence.DrizzleRadarRankSnapshotRepository(drizzle.db);
 	const clarityProjectRepo = new DrizzlePersistence.DrizzleClarityProjectRepository(drizzle.db);
 	const experienceSnapshotRepo = new DrizzlePersistence.DrizzleExperienceSnapshotRepository(drizzle.db);
+	const brandPromptRepo = new DrizzlePersistence.DrizzleBrandPromptRepository(drizzle.db);
+	const llmAnswerRepo = new DrizzlePersistence.DrizzleLlmAnswerRepository(drizzle.db);
+	const brandWatchlistResolver = new DrizzlePersistence.ProjectBrandWatchlistResolver(drizzle.db);
+
+	const mentionExtractor = env.ANTHROPIC_API_KEY
+		? new AiSearchInsightsInfra.AnthropicMentionExtractor({ apiKey: env.ANTHROPIC_API_KEY })
+		: ({
+				async extract() {
+					logger.warn(
+						'[ai-search-insights] ANTHROPIC_API_KEY not set — captured LLM responses will be persisted with empty mentions',
+					);
+					return {
+						mentions: [],
+						judgeTokenUsage: AiSearchInsightsDomain.TokenUsage.zero(),
+						judgeCostCents: 0,
+					};
+				},
+			} satisfies AiSearchInsightsDomain.MentionExtractor);
 
 	const vault = new Crypto.LibsodiumCredentialVault(env.RANKPULSE_MASTER_KEY);
 	const eventPublisher = new Events.InMemoryEventPublisher();
@@ -126,6 +152,15 @@ async function bootstrap(): Promise<void> {
 		eventPublisher,
 		SystemClock,
 	);
+	const recordLlmAnswerUseCase = new AiSearchInsightsUseCases.RecordLlmAnswerUseCase(
+		brandPromptRepo,
+		llmAnswerRepo,
+		brandWatchlistResolver,
+		mentionExtractor,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
 
 	const processor = new ProviderFetchProcessor({
 		registry,
@@ -155,6 +190,7 @@ async function bootstrap(): Promise<void> {
 		ingestBingTrafficUseCase,
 		recordRadarRankUseCase,
 		recordExperienceSnapshotUseCase,
+		recordLlmAnswerUseCase,
 		clock: SystemClock,
 		ids: SystemIdGenerator,
 		logger,

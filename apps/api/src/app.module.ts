@@ -7,6 +7,7 @@ import { JwtAuthGuard } from './common/auth/jwt-auth.guard.js';
 import { DomainExceptionFilter } from './common/domain-exception.filter.js';
 import { Tokens } from './composition/tokens.js';
 import type { AppEnv } from './config/env.js';
+import { AiSearchInsightsModule } from './modules/ai-search-insights/ai-search-insights.module.js';
 import { BingWebmasterInsightsModule } from './modules/bing-webmaster-insights/bing-webmaster-insights.module.js';
 import { EntityAwarenessModule } from './modules/entity-awareness/entity-awareness.module.js';
 import { ExperienceAnalyticsModule } from './modules/experience-analytics/experience-analytics.module.js';
@@ -54,6 +55,7 @@ export class AppModule {
 			BingWebmasterInsightsModule,
 			MacroContextModule,
 			ExperienceAnalyticsModule,
+			AiSearchInsightsModule,
 		];
 		if (env.OPENAPI_ENABLED) imports.push(OpenApiModule);
 

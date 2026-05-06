@@ -11,6 +11,11 @@
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"
 		},
+		"./ai-search-insights": {
+			"development": "./src/ai-search-insights/index.ts",
+			"types": "./dist/ai-search-insights/index.d.ts",
+			"default": "./dist/ai-search-insights/index.js"
+		},
 		"./bing-webmaster-insights": {
 			"development": "./src/bing-webmaster-insights/index.ts",
 			"types": "./dist/bing-webmaster-insights/index.d.ts",

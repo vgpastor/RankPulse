@@ -1,3 +1,4 @@
+export * as AiSearchInsights from './ai-search-insights/index.js';
 export * as Crypto from './crypto/index.js';
 export * as Events from './events/index.js';
 export * as DrizzlePersistence from './persistence/drizzle/index.js';
