@@ -3,6 +3,7 @@ export * as EntityAwareness from './entity-awareness/index.js';
 export * as ExperienceAnalytics from './experience-analytics/index.js';
 export * as IdentityAccess from './identity-access/index.js';
 export * as MacroContext from './macro-context/index.js';
+export * as MetaAdsAttribution from './meta-ads-attribution/index.js';
 export * as ProjectManagement from './project-management/index.js';
 export * as ProviderConnectivity from './provider-connectivity/index.js';
 export * as RankTracking from './rank-tracking/index.js';

@@ -13,6 +13,7 @@ import { ExperienceAnalyticsModule } from './modules/experience-analytics/experi
 import { HealthModule } from './modules/health/health.module.js';
 import { IdentityAccessModule } from './modules/identity-access/identity-access.module.js';
 import { MacroContextModule } from './modules/macro-context/macro-context.module.js';
+import { MetaAdsAttributionModule } from './modules/meta-ads-attribution/meta-ads-attribution.module.js';
 import { ProjectManagementModule } from './modules/project-management/project-management.module.js';
 import { ProviderConnectivityModule } from './modules/provider-connectivity/provider-connectivity.module.js';
 import { RankTrackingModule } from './modules/rank-tracking/rank-tracking.module.js';
@@ -53,6 +54,7 @@ export class AppModule {
 			TrafficAnalyticsModule,
 			BingWebmasterInsightsModule,
 			MacroContextModule,
+			MetaAdsAttributionModule,
 			ExperienceAnalyticsModule,
 		];
 		if (env.OPENAPI_ENABLED) imports.push(OpenApiModule);
