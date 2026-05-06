@@ -122,6 +122,15 @@ export const Tokens = {
 	UnlinkBingProperty: Symbol('UnlinkBingPropertyUseCase'),
 	QueryBingTraffic: Symbol('QueryBingTrafficUseCase'),
 
+	// Macro-Context (Cloudflare Radar) ports
+	MonitoredDomainRepository: Symbol('MonitoredDomainRepository'),
+	RadarRankSnapshotRepository: Symbol('RadarRankSnapshotRepository'),
+
+	// Macro-Context use cases
+	AddMonitoredDomain: Symbol('AddMonitoredDomainUseCase'),
+	RemoveMonitoredDomain: Symbol('RemoveMonitoredDomainUseCase'),
+	QueryRadarHistory: Symbol('QueryRadarHistoryUseCase'),
+
 	// Infrastructure handles
 	DrizzleClient: Symbol('DrizzleClient'),
 	JwtService: Symbol('JwtService'),

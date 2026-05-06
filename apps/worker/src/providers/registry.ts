@@ -1,4 +1,5 @@
 import { BingProvider } from '@rankpulse/provider-bing';
+import { CloudflareRadarProvider } from '@rankpulse/provider-cloudflare-radar';
 import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
 import { Ga4Provider } from '@rankpulse/provider-ga4';
@@ -18,5 +19,6 @@ export function buildProviderRegistry(options: { dataforseoBaseUrl: string }): P
 	registry.register(new WikipediaProvider());
 	registry.register(new PageSpeedProvider());
 	registry.register(new BingProvider());
+	registry.register(new CloudflareRadarProvider());
 	return registry;
 }

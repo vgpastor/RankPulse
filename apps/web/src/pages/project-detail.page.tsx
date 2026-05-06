@@ -11,6 +11,7 @@ import {
 	LineChart,
 	MapPin,
 	Plus,
+	Radar,
 	Search,
 	Sparkles,
 	X,
@@ -19,6 +20,7 @@ import { useState } from 'react';
 import { AddCompetitorDrawer } from '../components/add-competitor-drawer.js';
 import { AddDomainDrawer } from '../components/add-domain-drawer.js';
 import { AddLocationDrawer } from '../components/add-location-drawer.js';
+import { AddRadarDomainDrawer } from '../components/add-radar-domain-drawer.js';
 import { AppShell } from '../components/app-shell.js';
 import { ImportKeywordsDrawer } from '../components/import-keywords-drawer.js';
 import { LinkBingDrawer } from '../components/link-bing-drawer.js';
@@ -30,7 +32,16 @@ import { api } from '../lib/api.js';
 export const ProjectDetailPage = () => {
 	const { id } = useParams({ from: '/projects/$id' });
 	const [openDrawer, setOpenDrawer] = useState<
-		'competitor' | 'keywords' | 'domain' | 'location' | 'wikipedia' | 'page-speed' | 'ga4' | 'bing' | null
+		| 'competitor'
+		| 'keywords'
+		| 'domain'
+		| 'location'
+		| 'wikipedia'
+		| 'page-speed'
+		| 'ga4'
+		| 'bing'
+		| 'radar'
+		| null
 	>(null);
 
 	const projectQuery = useQuery({
@@ -77,6 +88,12 @@ export const ProjectDetailPage = () => {
 	const bingQuery = useQuery({
 		queryKey: ['project', id, 'bing'],
 		queryFn: () => api.bing.listForProject(id),
+		enabled: Boolean(projectQuery.data),
+	});
+
+	const radarQuery = useQuery({
+		queryKey: ['project', id, 'radar'],
+		queryFn: () => api.radar.listForProject(id),
 		enabled: Boolean(projectQuery.data),
 	});
 
@@ -335,6 +352,46 @@ export const ProjectDetailPage = () => {
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between gap-2">
 							<CardTitle className="flex items-center gap-2 text-base">
+								<Radar size={14} className="text-primary" />
+								Radar domains ({radarQuery.data?.length ?? '…'})
+							</CardTitle>
+							<Button variant="ghost" size="sm" onClick={() => setOpenDrawer('radar')}>
+								<Plus size={14} />
+								Monitor
+							</Button>
+						</CardHeader>
+						<CardContent>
+							{radarQuery.isLoading ? (
+								<Spinner />
+							) : radarQuery.data && radarQuery.data.length > 0 ? (
+								<ul className="space-y-1 text-sm">
+									{radarQuery.data.map((d) => (
+										<li key={d.id} className="break-words">
+											<Badge variant={d.isActive ? 'default' : 'secondary'}>
+												{d.isActive ? 'active' : 'removed'}
+											</Badge>{' '}
+											<span className="text-muted-foreground">{d.domain}</span>
+										</li>
+									))}
+								</ul>
+							) : (
+								<EmptyState
+									title="No domain monitored"
+									description="Track a domain's global popularity ranking from Cloudflare Radar — useful as a macro-trend signal beside organic search performance."
+									action={
+										<Button size="sm" onClick={() => setOpenDrawer('radar')}>
+											<Plus size={14} />
+											Monitor domain
+										</Button>
+									}
+								/>
+							)}
+						</CardContent>
+					</Card>
+
+					<Card>
+						<CardHeader className="flex flex-row items-center justify-between gap-2">
+							<CardTitle className="flex items-center gap-2 text-base">
 								<Globe2 size={14} className="text-primary" />
 								Bing properties ({bingQuery.data?.length ?? '…'})
 							</CardTitle>
@@ -519,6 +576,11 @@ export const ProjectDetailPage = () => {
 			/>
 			<LinkGa4Drawer projectId={id} open={openDrawer === 'ga4'} onClose={() => setOpenDrawer(null)} />
 			<LinkBingDrawer projectId={id} open={openDrawer === 'bing'} onClose={() => setOpenDrawer(null)} />
+			<AddRadarDomainDrawer
+				projectId={id}
+				open={openDrawer === 'radar'}
+				onClose={() => setOpenDrawer(null)}
+			/>
 		</AppShell>
 	);
 };

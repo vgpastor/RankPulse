@@ -6,6 +6,7 @@ import { GscResource } from './resources/gsc.js';
 import { PageSpeedResource } from './resources/page-speed.js';
 import { ProjectsResource } from './resources/projects.js';
 import { ProvidersResource } from './resources/providers.js';
+import { RadarResource } from './resources/radar.js';
 import { RankTrackingResource } from './resources/rank-tracking.js';
 import { WikipediaResource } from './resources/wikipedia.js';
 
@@ -25,6 +26,7 @@ export class RankPulseClient {
 	readonly pageSpeed: PageSpeedResource;
 	readonly ga4: Ga4Resource;
 	readonly bing: BingResource;
+	readonly radar: RadarResource;
 
 	constructor(options: RankPulseClientOptions) {
 		const prefix = options.apiPrefix ?? DEFAULT_PREFIX;
@@ -39,5 +41,6 @@ export class RankPulseClient {
 		this.pageSpeed = new PageSpeedResource(http);
 		this.ga4 = new Ga4Resource(http);
 		this.bing = new BingResource(http);
+		this.radar = new RadarResource(http);
 	}
 }

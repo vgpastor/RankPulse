@@ -1,6 +1,7 @@
 import type {
 	BingWebmasterInsights as BingWebmasterInsightsUseCases,
 	EntityAwareness as EntityAwarenessUseCases,
+	MacroContext as MacroContextUseCases,
 	ProjectManagement as ProjectManagementUseCases,
 	ProviderConnectivity as ProviderConnectivityUseCases,
 	RankTracking as RankTrackingUseCases,
@@ -11,6 +12,7 @@ import type {
 import {
 	type BingWebmasterInsights as BingWebmasterInsightsDomain,
 	type EntityAwareness as EntityAwarenessDomain,
+	type MacroContext as MacroContextDomain,
 	type ProjectManagement,
 	ProviderConnectivity,
 	type RankTracking as RankTrackingDomain,
@@ -24,6 +26,11 @@ import {
 	extractDailyRows as extractBingDailyRows,
 	type RankAndTrafficStatsResponse,
 } from '@rankpulse/provider-bing';
+import {
+	CloudflareRadarApiError,
+	type DomainRankResponse,
+	extractSnapshot as extractRadarSnapshot,
+} from '@rankpulse/provider-cloudflare-radar';
 import type { ProviderRegistry } from '@rankpulse/provider-core';
 import {
 	DataForSeoApiError,
@@ -87,6 +94,9 @@ const isQuotaExhaustedError = (err: unknown): boolean => {
 	// signal. Treat it as quota-exhausted so the cron auto-pauses rather than
 	// retrying through the budget for the rest of the day.
 	if (err instanceof BingApiError && err.status === 429) return true;
+	// Cloudflare Radar enforces per-account rate limits at the platform edge;
+	// 429 is the throttle signal. Auto-pause until the operator topples up.
+	if (err instanceof CloudflareRadarApiError && (err.status === 402 || err.status === 429)) return true;
 	return false;
 };
 
@@ -110,6 +120,7 @@ export interface ProviderFetchProcessorDeps {
 	trackedPageRepo: WebPerformanceDomain.TrackedPageRepository;
 	ga4PropertyRepo: TrafficAnalyticsDomain.Ga4PropertyRepository;
 	bingPropertyRepo: BingWebmasterInsightsDomain.BingPropertyRepository;
+	monitoredDomainRepo: MacroContextDomain.MonitoredDomainRepository;
 	vault: ProviderConnectivity.CredentialVault;
 	resolveCredentialUseCase: ProviderConnectivityUseCases.ResolveProviderCredentialUseCase;
 	recordApiUsageUseCase: ProviderConnectivityUseCases.RecordApiUsageUseCase;
@@ -120,6 +131,7 @@ export interface ProviderFetchProcessorDeps {
 	recordPageSpeedSnapshotUseCase: WebPerformanceUseCases.RecordPageSpeedSnapshotUseCase;
 	ingestGa4RowsUseCase: TrafficAnalyticsUseCases.IngestGa4RowsUseCase;
 	ingestBingTrafficUseCase: BingWebmasterInsightsUseCases.IngestBingTrafficUseCase;
+	recordRadarRankUseCase: MacroContextUseCases.RecordRadarRankUseCase;
 	clock: Clock;
 	ids: IdGenerator;
 	logger: Logger;
@@ -400,6 +412,30 @@ export class ProviderFetchProcessor {
 						gscPropertyId: gscParams.gscPropertyId,
 						rawPayloadId,
 						rows,
+					});
+				}
+			}
+
+			if (
+				definition.providerId.value === 'cloudflare-radar' &&
+				definition.endpointId.value === 'radar-domain-rank'
+			) {
+				// Issue #25 — macro-context (Cloudflare Radar) ingest. The job's
+				// systemParams must carry `monitoredDomainId` (set by AddMonitored
+				// Domain via auto-schedule on add). Missing-id case logs warn +
+				// skips, mirroring the other providers.
+				const cfParams = resolvedParams as { monitoredDomainId?: string };
+				if (!cfParams.monitoredDomainId) {
+					runLog.warn({}, 'radar-domain-rank job missing monitoredDomainId in systemParams; skipping ingest');
+				} else {
+					const snap = extractRadarSnapshot(fetchResult as DomainRankResponse, this.deps.clock.now());
+					await this.deps.recordRadarRankUseCase.execute({
+						monitoredDomainId: cfParams.monitoredDomainId,
+						observedDate: snap.observedDate,
+						rank: snap.rank,
+						bucket: snap.bucket,
+						categories: snap.categories,
+						rawPayloadId,
 					});
 				}
 			}

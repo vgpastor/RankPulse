@@ -7,6 +7,8 @@ export { DrizzleApiTokenRepository } from './repositories/identity-access/api-to
 export { DrizzleMembershipRepository } from './repositories/identity-access/membership.repository.js';
 export { DrizzleOrganizationRepository } from './repositories/identity-access/organization.repository.js';
 export { DrizzleUserRepository } from './repositories/identity-access/user.repository.js';
+export { DrizzleMonitoredDomainRepository } from './repositories/macro-context/monitored-domain.repository.js';
+export { DrizzleRadarRankSnapshotRepository } from './repositories/macro-context/radar-rank-snapshot.repository.js';
 export { DrizzleCompetitorRepository } from './repositories/project-management/competitor.repository.js';
 export { DrizzleCompetitorSuggestionRepository } from './repositories/project-management/competitor-suggestion.repository.js';
 export { DrizzleKeywordListRepository } from './repositories/project-management/keyword-list.repository.js';

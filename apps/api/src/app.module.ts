@@ -11,6 +11,7 @@ import { BingWebmasterInsightsModule } from './modules/bing-webmaster-insights/b
 import { EntityAwarenessModule } from './modules/entity-awareness/entity-awareness.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { IdentityAccessModule } from './modules/identity-access/identity-access.module.js';
+import { MacroContextModule } from './modules/macro-context/macro-context.module.js';
 import { ProjectManagementModule } from './modules/project-management/project-management.module.js';
 import { ProviderConnectivityModule } from './modules/provider-connectivity/provider-connectivity.module.js';
 import { RankTrackingModule } from './modules/rank-tracking/rank-tracking.module.js';
@@ -50,6 +51,7 @@ export class AppModule {
 			WebPerformanceModule,
 			TrafficAnalyticsModule,
 			BingWebmasterInsightsModule,
+			MacroContextModule,
 		];
 		if (env.OPENAPI_ENABLED) imports.push(OpenApiModule);
 
