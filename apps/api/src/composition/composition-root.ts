@@ -264,6 +264,10 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const deleteJobDefinition = new PCUseCases.DeleteJobDefinitionUseCase(jobDefRepo, jobScheduler);
 	const listJobRuns = new PCUseCases.ListJobRunsUseCase(jobRunRepo);
 
+	// ADR 0001 — entity-bound endpoints are auto-scheduled by their bounded
+	// context's link/add handler (see the AutoScheduleOn... blocks below).
+	// `ScheduleEndpointFetchUseCase` no longer carries cross-context resolvers
+	// to back-fill systemParams from user-facing identifiers.
 	const scheduleEndpointFetch = new PCUseCases.ScheduleEndpointFetchUseCase(
 		jobDefRepo,
 		jobScheduler,
@@ -282,23 +286,14 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		SystemClock,
 		SystemIdGenerator,
 		eventPublisher,
+		// ADR 0001 — original 5 resolvers (gsc/ga4/trackedPage/wikipedia/bing)
+		// + MonitoredDomain (#57) + BrandPrompt (AI Brand Radar) replaced by
+		// per-context Auto-Schedule handlers (see `eventPublisher.on(...)`
+		// blocks below). Meta lacks a handler today; its 2 resolvers stay
+		// here pending migration in a follow-up issue.
 		[
-			// BACKLOG bug #50 (and family) — these resolvers map a user-
-			// facing identifier in `params` (siteUrl, propertyId, url,
-			// article slug...) to the internal entity id the worker's
-			// processor needs in `systemParams` for ingest. Without this,
-			// every scheduled fetch was logging "missing <X>Id; skipping
-			// ingest" and discarding the response. Each bounded context
-			// owns its resolver; this module just wires them up.
-			new SCIUseCases.GscPropertySystemParamResolver(gscPropertyRepo),
-			new TAUseCases.Ga4PropertySystemParamResolver(ga4PropertyRepo),
-			new WPUseCases.TrackedPageSystemParamResolver(trackedPageRepo),
-			new EAUseCases.WikipediaArticleSystemParamResolver(wikipediaArticleRepo),
-			new BWIUseCases.BingPropertySystemParamResolver(bingPropertyRepo),
-			new MCUseCases.MonitoredDomainSystemParamResolver(monitoredDomainRepo),
 			new MAAUseCases.MetaPixelSystemParamResolver(metaPixelRepo),
 			new MAAUseCases.MetaAdAccountSystemParamResolver(metaAdAccountRepo),
-			new AISIUseCases.BrandPromptSystemParamResolver(brandPromptRepo),
 		],
 	);
 	const recordApiUsage = new PCUseCases.RecordApiUsageUseCase(
@@ -523,6 +518,105 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	);
 	eventPublisher.on('GscPropertyLinked', (event) => {
 		void autoScheduleOnGscLink.handle(event);
+	});
+
+	const autoScheduleOnGa4Link = new TAUseCases.AutoScheduleOnGa4PropertyLinkedHandler(scheduleEndpointFetch, {
+		info: (meta, msg) => {
+			// eslint-disable-next-line no-console
+			console.log(`[auto-schedule-on-ga4-link] ${msg}`, meta);
+		},
+		error: (meta, msg) => {
+			// eslint-disable-next-line no-console
+			console.error(`[auto-schedule-on-ga4-link] ${msg}`, meta);
+		},
+	});
+	eventPublisher.on('Ga4PropertyLinked', (event) => {
+		void autoScheduleOnGa4Link.handle(event);
+	});
+
+	const autoScheduleOnWikipediaLink = new EAUseCases.AutoScheduleOnWikipediaArticleLinkedHandler(
+		scheduleEndpointFetch,
+		{
+			info: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.log(`[auto-schedule-on-wikipedia-link] ${msg}`, meta);
+			},
+			error: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.error(`[auto-schedule-on-wikipedia-link] ${msg}`, meta);
+			},
+		},
+	);
+	eventPublisher.on('WikipediaArticleLinked', (event) => {
+		void autoScheduleOnWikipediaLink.handle(event);
+	});
+
+	const autoScheduleOnBingLink = new BWIUseCases.AutoScheduleOnBingPropertyLinkedHandler(
+		scheduleEndpointFetch,
+		{
+			info: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.log(`[auto-schedule-on-bing-link] ${msg}`, meta);
+			},
+			error: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.error(`[auto-schedule-on-bing-link] ${msg}`, meta);
+			},
+		},
+	);
+	eventPublisher.on('BingPropertyLinked', (event) => {
+		void autoScheduleOnBingLink.handle(event);
+	});
+
+	const autoScheduleOnClarityLink = new EXAUseCases.AutoScheduleOnClarityProjectLinkedHandler(
+		scheduleEndpointFetch,
+		{
+			info: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.log(`[auto-schedule-on-clarity-link] ${msg}`, meta);
+			},
+			error: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.error(`[auto-schedule-on-clarity-link] ${msg}`, meta);
+			},
+		},
+	);
+	eventPublisher.on('ClarityProjectLinked', (event) => {
+		void autoScheduleOnClarityLink.handle(event);
+	});
+
+	const autoScheduleOnTrackedPageAdded = new WPUseCases.AutoScheduleOnTrackedPageAddedHandler(
+		scheduleEndpointFetch,
+		{
+			info: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.log(`[auto-schedule-on-tracked-page-added] ${msg}`, meta);
+			},
+			error: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.error(`[auto-schedule-on-tracked-page-added] ${msg}`, meta);
+			},
+		},
+	);
+	eventPublisher.on('TrackedPageAdded', (event) => {
+		void autoScheduleOnTrackedPageAdded.handle(event);
+	});
+
+	const autoScheduleOnMonitoredDomainAdded = new MCUseCases.AutoScheduleOnMonitoredDomainAddedHandler(
+		scheduleEndpointFetch,
+		{
+			info: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.log(`[auto-schedule-on-monitored-domain-added] ${msg}`, meta);
+			},
+			error: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.error(`[auto-schedule-on-monitored-domain-added] ${msg}`, meta);
+			},
+		},
+	);
+	eventPublisher.on('MonitoredDomainAdded', (event) => {
+		void autoScheduleOnMonitoredDomainAdded.handle(event);
 	});
 
 	const providers: Provider[] = [

@@ -1,4 +1,4 @@
-import type { ProjectManagement, ProviderConnectivity } from '@rankpulse/domain';
+import { type ProjectManagement, ProviderConnectivity } from '@rankpulse/domain';
 import { FakeClock, FixedIdGenerator, InvalidInputError, type Uuid } from '@rankpulse/shared';
 import { RecordingEventPublisher } from '@rankpulse/testing';
 import { describe, expect, it } from 'vitest';
@@ -13,6 +13,8 @@ const TRACKED_KW_ID = '33333333-3333-3333-3333-333333333333';
 
 class StubDefinitionRepo implements ProviderConnectivity.JobDefinitionRepository {
 	readonly saved: ProviderConnectivity.ProviderJobDefinition[] = [];
+	/** Optional pre-seeded definition returned by `findByProjectEndpointAndSystemParam`. */
+	idempotencyHit: ProviderConnectivity.ProviderJobDefinition | null = null;
 	async save(d: ProviderConnectivity.ProviderJobDefinition): Promise<void> {
 		this.saved.push(d);
 	}
@@ -21,6 +23,9 @@ class StubDefinitionRepo implements ProviderConnectivity.JobDefinitionRepository
 	}
 	async findFor() {
 		return null;
+	}
+	async findByProjectEndpointAndSystemParam(): Promise<ProviderConnectivity.ProviderJobDefinition | null> {
+		return this.idempotencyHit;
 	}
 	async listForProject(): Promise<readonly ProviderConnectivity.ProviderJobDefinition[]> {
 		return this.saved;
@@ -134,5 +139,37 @@ describe('ScheduleEndpointFetchUseCase', () => {
 		await useCase.execute({ ...baseCmd, credentialOverrideId: overrideId });
 
 		expect(repo.saved[0]?.credentialOverrideId).toBe(overrideId);
+	});
+
+	it('returns the existing definitionId when idempotencyKey resolves an existing JobDefinition', async () => {
+		const existingDefinitionId = 'existing-def-id' as ProviderConnectivity.ProviderJobDefinitionId;
+		const existing = ProviderConnectivity.ProviderJobDefinition.schedule({
+			id: existingDefinitionId,
+			projectId: PROJECT_ID,
+			providerId: ProviderConnectivity.ProviderId.create('google-search-console'),
+			endpointId: ProviderConnectivity.EndpointId.create('gsc-search-analytics'),
+			params: { siteUrl: 'sc-domain:example.com', gscPropertyId: 'prop-1' },
+			cron: ProviderConnectivity.CronExpression.create('0 5 * * *'),
+			credentialOverrideId: null,
+			now: new Date('2026-05-04T00:00:00Z'),
+		});
+		const { useCase, repo, scheduler, events } = buildUseCase();
+		repo.idempotencyHit = existing;
+
+		const result = await useCase.execute({
+			projectId: PROJECT_ID,
+			providerId: 'google-search-console',
+			endpointId: 'gsc-search-analytics',
+			params: { siteUrl: 'sc-domain:example.com' },
+			systemParams: { organizationId: ORG_ID, gscPropertyId: 'prop-1' },
+			cron: '0 5 * * *',
+			idempotencyKey: { systemParamKey: 'gscPropertyId', systemParamValue: 'prop-1' },
+		});
+
+		expect(result.definitionId).toBe(existingDefinitionId);
+		// existing definition — no re-register, no save, no event
+		expect(scheduler.registered).toHaveLength(0);
+		expect(repo.saved).toHaveLength(0);
+		expect(events.publishedTypes()).toHaveLength(0);
 	});
 });

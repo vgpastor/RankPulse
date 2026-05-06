@@ -54,14 +54,42 @@ export interface UpdateJobDefinitionCommand {
 }
 
 /**
- * Keys the controllers inject as systemParams when creating or
- * auto-scheduling a JobDefinition. Listed here (instead of inferred from
- * the existing def's params) so that adding one elsewhere fails the type
- * check until this list is updated — keeping the contract explicit.
+ * Keys the controllers and Auto-Schedule handlers inject as systemParams
+ * when creating a JobDefinition. Listed here (instead of inferred from
+ * the existing def's params) so that adding a new entity-bound endpoint
+ * elsewhere requires extending this list — making the contract explicit.
  *
- * BACKLOG bug #51.
+ * Defence in depth: under ADR 0001 entity-bound endpoints can no longer
+ * be created via the manual schedule route (the controller gate at
+ * providers.controller.ts blocks that), so the practical risk of a user
+ * PATCH overwriting these keys is low. But if a future code path slips
+ * past the gate, this whitelist is the second line of defence.
+ *
+ * Sources of these keys (verify before adding new ones):
+ *   - organizationId, projectId — universal scoping (any endpoint)
+ *   - trackedKeywordId          — rank-tracking SERP fan-out
+ *   - gscPropertyId             — search-console-insights
+ *   - ga4PropertyId             — traffic-analytics
+ *   - trackedPageId             — web-performance
+ *   - wikipediaArticleId        — entity-awareness
+ *   - bingPropertyId            — bing-webmaster-insights
+ *   - clarityProjectId          — experience-analytics
+ *   - monitoredDomainId         — macro-context
+ *
+ * BACKLOG bug #51 (original 4-key whitelist), extended for ADR 0001.
  */
-const SYSTEM_PARAM_KEYS = ['organizationId', 'projectId', 'gscPropertyId', 'trackedKeywordId'] as const;
+const SYSTEM_PARAM_KEYS = [
+	'organizationId',
+	'projectId',
+	'trackedKeywordId',
+	'gscPropertyId',
+	'ga4PropertyId',
+	'trackedPageId',
+	'wikipediaArticleId',
+	'bingPropertyId',
+	'clarityProjectId',
+	'monitoredDomainId',
+] as const;
 
 function mergeUserParamsPreservingSystem(
 	existing: Record<string, unknown>,

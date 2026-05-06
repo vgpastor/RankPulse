@@ -112,4 +112,14 @@ describe('AutoScheduleOnGscPropertyLinkedHandler', () => {
 			endDateToken: '{{today-2}}',
 		});
 	});
+
+	it('passes idempotencyKey {gscPropertyId} so re-emission does not duplicate the schedule', async () => {
+		const { handler, execute } = buildHandler();
+		await handler.handle(buildEvent());
+		const cmd = execute.mock.calls[0]?.[0] as Parameters<ScheduleEndpointFetchUseCase['execute']>[0];
+		expect(cmd.idempotencyKey).toEqual({
+			systemParamKey: 'gscPropertyId',
+			systemParamValue: PROPERTY_ID,
+		});
+	});
 });
