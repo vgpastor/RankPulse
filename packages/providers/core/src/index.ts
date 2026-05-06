@@ -1,4 +1,5 @@
 export * from './error.js';
+export * from './http-base.js';
 export * from './manifest.js';
 export * from './registry.js';
 // AuthStrategy is intentionally re-exported from `./manifest.js` (the new
