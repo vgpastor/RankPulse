@@ -9,6 +9,7 @@ import { Tokens } from './composition/tokens.js';
 import type { AppEnv } from './config/env.js';
 import { BingWebmasterInsightsModule } from './modules/bing-webmaster-insights/bing-webmaster-insights.module.js';
 import { EntityAwarenessModule } from './modules/entity-awareness/entity-awareness.module.js';
+import { ExperienceAnalyticsModule } from './modules/experience-analytics/experience-analytics.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { IdentityAccessModule } from './modules/identity-access/identity-access.module.js';
 import { MacroContextModule } from './modules/macro-context/macro-context.module.js';
@@ -54,6 +55,7 @@ export class AppModule {
 			BingWebmasterInsightsModule,
 			MacroContextModule,
 			MetaAdsAttributionModule,
+			ExperienceAnalyticsModule,
 		];
 		if (env.OPENAPI_ENABLED) imports.push(OpenApiModule);
 

@@ -1,5 +1,5 @@
 {
-	"id": "f4d3c290-4b57-44a8-95cc-e9a8b71c5b21",
+	"id": "4280a15c-f3de-4f14-ba2a-d5cab12c9843",
 	"prevId": "2179c398-b677-4c12-8882-6af39dead0a0",
 	"version": "7",
 	"dialect": "postgresql",
@@ -496,6 +496,249 @@
 					"columns": ["bing_property_id", "observed_date"]
 				}
 			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.clarity_daily_metrics": {
+			"name": "clarity_daily_metrics",
+			"schema": "",
+			"columns": {
+				"clarity_project_id": {
+					"name": "clarity_project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"observed_date": {
+					"name": "observed_date",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"sessions_count": {
+					"name": "sessions_count",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"bot_sessions_count": {
+					"name": "bot_sessions_count",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"distinct_user_count": {
+					"name": "distinct_user_count",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"pages_per_session": {
+					"name": "pages_per_session",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"rage_clicks": {
+					"name": "rage_clicks",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"dead_clicks": {
+					"name": "dead_clicks",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"avg_engagement_seconds": {
+					"name": "avg_engagement_seconds",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"avg_scroll_depth": {
+					"name": "avg_scroll_depth",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"raw_payload_id": {
+					"name": "raw_payload_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"clarity_daily_metrics_project_idx": {
+					"name": "clarity_daily_metrics_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "observed_date",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"clarity_daily_metrics_clarity_project_id_clarity_projects_id_fk": {
+					"name": "clarity_daily_metrics_clarity_project_id_clarity_projects_id_fk",
+					"tableFrom": "clarity_daily_metrics",
+					"tableTo": "clarity_projects",
+					"columnsFrom": ["clarity_project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {
+				"clarity_daily_metrics_clarity_project_id_observed_date_pk": {
+					"name": "clarity_daily_metrics_clarity_project_id_observed_date_pk",
+					"columns": ["clarity_project_id", "observed_date"]
+				}
+			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.clarity_projects": {
+			"name": "clarity_projects",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"organization_id": {
+					"name": "organization_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"clarity_handle": {
+					"name": "clarity_handle",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"credential_id": {
+					"name": "credential_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"linked_at": {
+					"name": "linked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"unlinked_at": {
+					"name": "unlinked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"clarity_projects_project_handle_unique": {
+					"name": "clarity_projects_project_handle_unique",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "clarity_handle",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"clarity_projects_project_idx": {
+					"name": "clarity_projects_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"clarity_projects_organization_id_organizations_id_fk": {
+					"name": "clarity_projects_organization_id_organizations_id_fk",
+					"tableFrom": "clarity_projects",
+					"tableTo": "organizations",
+					"columnsFrom": ["organization_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"clarity_projects_project_id_projects_id_fk": {
+					"name": "clarity_projects_project_id_projects_id_fk",
+					"tableFrom": "clarity_projects",
+					"tableTo": "projects",
+					"columnsFrom": ["project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"clarity_projects_credential_id_provider_credentials_id_fk": {
+					"name": "clarity_projects_credential_id_provider_credentials_id_fk",
+					"tableFrom": "clarity_projects",
+					"tableTo": "provider_credentials",
+					"columnsFrom": ["credential_id"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
 			"uniqueConstraints": {},
 			"policies": {},
 			"checkConstraints": {},
@@ -3308,457 +3551,6 @@
 				"wikipedia_pageviews_article_id_observed_at_pk": {
 					"name": "wikipedia_pageviews_article_id_observed_at_pk",
 					"columns": ["article_id", "observed_at"]
-				}
-			},
-			"uniqueConstraints": {},
-			"policies": {},
-			"checkConstraints": {},
-			"isRLSEnabled": false
-		},
-		"public.meta_pixels": {
-			"name": "meta_pixels",
-			"schema": "",
-			"columns": {
-				"id": {
-					"name": "id",
-					"type": "uuid",
-					"primaryKey": true,
-					"notNull": true
-				},
-				"organization_id": {
-					"name": "organization_id",
-					"type": "uuid",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"project_id": {
-					"name": "project_id",
-					"type": "uuid",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"pixel_handle": {
-					"name": "pixel_handle",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"credential_id": {
-					"name": "credential_id",
-					"type": "uuid",
-					"primaryKey": false,
-					"notNull": false
-				},
-				"linked_at": {
-					"name": "linked_at",
-					"type": "timestamp with time zone",
-					"primaryKey": false,
-					"notNull": true,
-					"default": "now()"
-				},
-				"unlinked_at": {
-					"name": "unlinked_at",
-					"type": "timestamp with time zone",
-					"primaryKey": false,
-					"notNull": false
-				}
-			},
-			"indexes": {
-				"meta_pixels_project_handle_unique": {
-					"name": "meta_pixels_project_handle_unique",
-					"columns": [
-						{
-							"expression": "project_id",
-							"isExpression": false,
-							"asc": true,
-							"nulls": "last"
-						},
-						{
-							"expression": "pixel_handle",
-							"isExpression": false,
-							"asc": true,
-							"nulls": "last"
-						}
-					],
-					"isUnique": true,
-					"concurrently": false,
-					"method": "btree",
-					"with": {}
-				},
-				"meta_pixels_project_idx": {
-					"name": "meta_pixels_project_idx",
-					"columns": [
-						{
-							"expression": "project_id",
-							"isExpression": false,
-							"asc": true,
-							"nulls": "last"
-						}
-					],
-					"isUnique": false,
-					"concurrently": false,
-					"method": "btree",
-					"with": {}
-				}
-			},
-			"foreignKeys": {
-				"meta_pixels_organization_id_organizations_id_fk": {
-					"name": "meta_pixels_organization_id_organizations_id_fk",
-					"tableFrom": "meta_pixels",
-					"tableTo": "organizations",
-					"columnsFrom": ["organization_id"],
-					"columnsTo": ["id"],
-					"onDelete": "cascade",
-					"onUpdate": "no action"
-				},
-				"meta_pixels_project_id_projects_id_fk": {
-					"name": "meta_pixels_project_id_projects_id_fk",
-					"tableFrom": "meta_pixels",
-					"tableTo": "projects",
-					"columnsFrom": ["project_id"],
-					"columnsTo": ["id"],
-					"onDelete": "cascade",
-					"onUpdate": "no action"
-				},
-				"meta_pixels_credential_id_provider_credentials_id_fk": {
-					"name": "meta_pixels_credential_id_provider_credentials_id_fk",
-					"tableFrom": "meta_pixels",
-					"tableTo": "provider_credentials",
-					"columnsFrom": ["credential_id"],
-					"columnsTo": ["id"],
-					"onDelete": "set null",
-					"onUpdate": "no action"
-				}
-			},
-			"compositePrimaryKeys": {},
-			"uniqueConstraints": {},
-			"policies": {},
-			"checkConstraints": {},
-			"isRLSEnabled": false
-		},
-		"public.meta_ad_accounts": {
-			"name": "meta_ad_accounts",
-			"schema": "",
-			"columns": {
-				"id": {
-					"name": "id",
-					"type": "uuid",
-					"primaryKey": true,
-					"notNull": true
-				},
-				"organization_id": {
-					"name": "organization_id",
-					"type": "uuid",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"project_id": {
-					"name": "project_id",
-					"type": "uuid",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"ad_account_handle": {
-					"name": "ad_account_handle",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"credential_id": {
-					"name": "credential_id",
-					"type": "uuid",
-					"primaryKey": false,
-					"notNull": false
-				},
-				"linked_at": {
-					"name": "linked_at",
-					"type": "timestamp with time zone",
-					"primaryKey": false,
-					"notNull": true,
-					"default": "now()"
-				},
-				"unlinked_at": {
-					"name": "unlinked_at",
-					"type": "timestamp with time zone",
-					"primaryKey": false,
-					"notNull": false
-				}
-			},
-			"indexes": {
-				"meta_ad_accounts_project_handle_unique": {
-					"name": "meta_ad_accounts_project_handle_unique",
-					"columns": [
-						{
-							"expression": "project_id",
-							"isExpression": false,
-							"asc": true,
-							"nulls": "last"
-						},
-						{
-							"expression": "ad_account_handle",
-							"isExpression": false,
-							"asc": true,
-							"nulls": "last"
-						}
-					],
-					"isUnique": true,
-					"concurrently": false,
-					"method": "btree",
-					"with": {}
-				},
-				"meta_ad_accounts_project_idx": {
-					"name": "meta_ad_accounts_project_idx",
-					"columns": [
-						{
-							"expression": "project_id",
-							"isExpression": false,
-							"asc": true,
-							"nulls": "last"
-						}
-					],
-					"isUnique": false,
-					"concurrently": false,
-					"method": "btree",
-					"with": {}
-				}
-			},
-			"foreignKeys": {
-				"meta_ad_accounts_organization_id_organizations_id_fk": {
-					"name": "meta_ad_accounts_organization_id_organizations_id_fk",
-					"tableFrom": "meta_ad_accounts",
-					"tableTo": "organizations",
-					"columnsFrom": ["organization_id"],
-					"columnsTo": ["id"],
-					"onDelete": "cascade",
-					"onUpdate": "no action"
-				},
-				"meta_ad_accounts_project_id_projects_id_fk": {
-					"name": "meta_ad_accounts_project_id_projects_id_fk",
-					"tableFrom": "meta_ad_accounts",
-					"tableTo": "projects",
-					"columnsFrom": ["project_id"],
-					"columnsTo": ["id"],
-					"onDelete": "cascade",
-					"onUpdate": "no action"
-				},
-				"meta_ad_accounts_credential_id_provider_credentials_id_fk": {
-					"name": "meta_ad_accounts_credential_id_provider_credentials_id_fk",
-					"tableFrom": "meta_ad_accounts",
-					"tableTo": "provider_credentials",
-					"columnsFrom": ["credential_id"],
-					"columnsTo": ["id"],
-					"onDelete": "set null",
-					"onUpdate": "no action"
-				}
-			},
-			"compositePrimaryKeys": {},
-			"uniqueConstraints": {},
-			"policies": {},
-			"checkConstraints": {},
-			"isRLSEnabled": false
-		},
-		"public.meta_pixel_events_daily": {
-			"name": "meta_pixel_events_daily",
-			"schema": "",
-			"columns": {
-				"meta_pixel_id": {
-					"name": "meta_pixel_id",
-					"type": "uuid",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"project_id": {
-					"name": "project_id",
-					"type": "uuid",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"observed_date": {
-					"name": "observed_date",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"event_name": {
-					"name": "event_name",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"event_count": {
-					"name": "event_count",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"value_sum": {
-					"name": "value_sum",
-					"type": "double precision",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"raw_payload_id": {
-					"name": "raw_payload_id",
-					"type": "uuid",
-					"primaryKey": false,
-					"notNull": false
-				}
-			},
-			"indexes": {
-				"meta_pixel_events_daily_project_idx": {
-					"name": "meta_pixel_events_daily_project_idx",
-					"columns": [
-						{
-							"expression": "project_id",
-							"isExpression": false,
-							"asc": true,
-							"nulls": "last"
-						},
-						{
-							"expression": "observed_date",
-							"isExpression": false,
-							"asc": true,
-							"nulls": "last"
-						}
-					],
-					"isUnique": false,
-					"concurrently": false,
-					"method": "btree",
-					"with": {}
-				}
-			},
-			"foreignKeys": {
-				"meta_pixel_events_daily_meta_pixel_id_meta_pixels_id_fk": {
-					"name": "meta_pixel_events_daily_meta_pixel_id_meta_pixels_id_fk",
-					"tableFrom": "meta_pixel_events_daily",
-					"tableTo": "meta_pixels",
-					"columnsFrom": ["meta_pixel_id"],
-					"columnsTo": ["id"],
-					"onDelete": "cascade",
-					"onUpdate": "no action"
-				}
-			},
-			"compositePrimaryKeys": {
-				"meta_pixel_events_daily_meta_pixel_id_observed_date_event_name_pk": {
-					"name": "meta_pixel_events_daily_meta_pixel_id_observed_date_event_name_pk",
-					"columns": ["meta_pixel_id", "observed_date", "event_name"]
-				}
-			},
-			"uniqueConstraints": {},
-			"policies": {},
-			"checkConstraints": {},
-			"isRLSEnabled": false
-		},
-		"public.meta_ads_insights_daily": {
-			"name": "meta_ads_insights_daily",
-			"schema": "",
-			"columns": {
-				"meta_ad_account_id": {
-					"name": "meta_ad_account_id",
-					"type": "uuid",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"project_id": {
-					"name": "project_id",
-					"type": "uuid",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"observed_date": {
-					"name": "observed_date",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"level": {
-					"name": "level",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"entity_id": {
-					"name": "entity_id",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"entity_name": {
-					"name": "entity_name",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"default": "''"
-				},
-				"impressions": {
-					"name": "impressions",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"clicks": {
-					"name": "clicks",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"spend": {
-					"name": "spend",
-					"type": "double precision",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"conversions": {
-					"name": "conversions",
-					"type": "integer",
-					"primaryKey": false,
-					"notNull": true
-				},
-				"raw_payload_id": {
-					"name": "raw_payload_id",
-					"type": "uuid",
-					"primaryKey": false,
-					"notNull": false
-				}
-			},
-			"indexes": {
-				"meta_ads_insights_daily_project_idx": {
-					"name": "meta_ads_insights_daily_project_idx",
-					"columns": [
-						{
-							"expression": "project_id",
-							"isExpression": false,
-							"asc": true,
-							"nulls": "last"
-						},
-						{
-							"expression": "observed_date",
-							"isExpression": false,
-							"asc": true,
-							"nulls": "last"
-						}
-					],
-					"isUnique": false,
-					"concurrently": false,
-					"method": "btree",
-					"with": {}
-				}
-			},
-			"foreignKeys": {
-				"meta_ads_insights_daily_meta_ad_account_id_meta_ad_accounts_id_fk": {
-					"name": "meta_ads_insights_daily_meta_ad_account_id_meta_ad_accounts_id_fk",
-					"tableFrom": "meta_ads_insights_daily",
-					"tableTo": "meta_ad_accounts",
-					"columnsFrom": ["meta_ad_account_id"],
-					"columnsTo": ["id"],
-					"onDelete": "cascade",
-					"onUpdate": "no action"
-				}
-			},
-			"compositePrimaryKeys": {
-				"meta_ads_insights_daily_meta_ad_account_id_observed_date_level_entity_id_pk": {
-					"name": "meta_ads_insights_daily_meta_ad_account_id_observed_date_level_entity_id_pk",
-					"columns": ["meta_ad_account_id", "observed_date", "level", "entity_id"]
 				}
 			},
 			"uniqueConstraints": {},

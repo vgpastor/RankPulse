@@ -26,6 +26,7 @@
 		"@rankpulse/provider-ga4": "workspace:*",
 		"@rankpulse/provider-gsc": "workspace:*",
 		"@rankpulse/provider-meta": "workspace:*",
+		"@rankpulse/provider-microsoft-clarity": "workspace:*",
 		"@rankpulse/provider-pagespeed": "workspace:*",
 		"@rankpulse/provider-wikipedia": "workspace:*",
 		"@rankpulse/shared": "workspace:*",

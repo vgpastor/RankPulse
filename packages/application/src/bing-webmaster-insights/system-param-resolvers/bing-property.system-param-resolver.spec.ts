@@ -18,7 +18,7 @@ describe('BingPropertySystemParamResolver', () => {
 		const r = new BingPropertySystemParamResolver(repo);
 		const out = await r.resolve({
 			projectId,
-			providerId: 'bing-webmaster-tools',
+			providerId: 'bing-webmaster',
 			endpointId: 'bing-rank-and-traffic-stats',
 			params: { siteUrl },
 		});
@@ -39,7 +39,7 @@ describe('BingPropertySystemParamResolver', () => {
 		await expect(
 			r.resolve({
 				projectId,
-				providerId: 'bing-webmaster-tools',
+				providerId: 'bing-webmaster',
 				endpointId: 'bing-rank-and-traffic-stats',
 				params: {},
 			}),
@@ -54,7 +54,7 @@ describe('BingPropertySystemParamResolver', () => {
 		await expect(
 			r.resolve({
 				projectId,
-				providerId: 'bing-webmaster-tools',
+				providerId: 'bing-webmaster',
 				endpointId: 'bing-rank-and-traffic-stats',
 				params: { siteUrl },
 			}),

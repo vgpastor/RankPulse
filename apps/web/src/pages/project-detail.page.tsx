@@ -10,6 +10,7 @@ import {
 	Globe2,
 	LineChart,
 	MapPin,
+	MousePointerClick,
 	Plus,
 	Radar,
 	Search,
@@ -24,6 +25,7 @@ import { AddRadarDomainDrawer } from '../components/add-radar-domain-drawer.js';
 import { AppShell } from '../components/app-shell.js';
 import { ImportKeywordsDrawer } from '../components/import-keywords-drawer.js';
 import { LinkBingDrawer } from '../components/link-bing-drawer.js';
+import { LinkClarityDrawer } from '../components/link-clarity-drawer.js';
 import { LinkGa4Drawer } from '../components/link-ga4-drawer.js';
 import { LinkWikipediaDrawer } from '../components/link-wikipedia-drawer.js';
 import { TrackPageDrawer } from '../components/track-page-drawer.js';
@@ -41,6 +43,7 @@ export const ProjectDetailPage = () => {
 		| 'ga4'
 		| 'bing'
 		| 'radar'
+		| 'clarity'
 		| null
 	>(null);
 
@@ -94,6 +97,12 @@ export const ProjectDetailPage = () => {
 	const radarQuery = useQuery({
 		queryKey: ['project', id, 'radar'],
 		queryFn: () => api.radar.listForProject(id),
+		enabled: Boolean(projectQuery.data),
+	});
+
+	const clarityQuery = useQuery({
+		queryKey: ['project', id, 'clarity'],
+		queryFn: () => api.clarity.listForProject(id),
 		enabled: Boolean(projectQuery.data),
 	});
 
@@ -392,6 +401,46 @@ export const ProjectDetailPage = () => {
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between gap-2">
 							<CardTitle className="flex items-center gap-2 text-base">
+								<MousePointerClick size={14} className="text-primary" />
+								Clarity ({clarityQuery.data?.length ?? '…'})
+							</CardTitle>
+							<Button variant="ghost" size="sm" onClick={() => setOpenDrawer('clarity')}>
+								<Plus size={14} />
+								Link
+							</Button>
+						</CardHeader>
+						<CardContent>
+							{clarityQuery.isLoading ? (
+								<Spinner />
+							) : clarityQuery.data && clarityQuery.data.length > 0 ? (
+								<ul className="space-y-1 text-sm">
+									{clarityQuery.data.map((c) => (
+										<li key={c.id} className="break-words">
+											<Badge variant={c.isActive ? 'default' : 'secondary'}>
+												{c.isActive ? 'active' : 'unlinked'}
+											</Badge>{' '}
+											<span className="text-muted-foreground">{c.clarityHandle}</span>
+										</li>
+									))}
+								</ul>
+							) : (
+								<EmptyState
+									title="No Clarity project linked"
+									description="Link a Microsoft Clarity project to track sessions, rage clicks, dead clicks, scroll depth, and engagement time as UX behavioural signals."
+									action={
+										<Button size="sm" onClick={() => setOpenDrawer('clarity')}>
+											<Plus size={14} />
+											Link project
+										</Button>
+									}
+								/>
+							)}
+						</CardContent>
+					</Card>
+
+					<Card>
+						<CardHeader className="flex flex-row items-center justify-between gap-2">
+							<CardTitle className="flex items-center gap-2 text-base">
 								<Globe2 size={14} className="text-primary" />
 								Bing properties ({bingQuery.data?.length ?? '…'})
 							</CardTitle>
@@ -581,6 +630,7 @@ export const ProjectDetailPage = () => {
 				open={openDrawer === 'radar'}
 				onClose={() => setOpenDrawer(null)}
 			/>
+			<LinkClarityDrawer projectId={id} open={openDrawer === 'clarity'} onClose={() => setOpenDrawer(null)} />
 		</AppShell>
 	);
 };

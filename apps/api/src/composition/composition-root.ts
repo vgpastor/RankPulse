@@ -2,6 +2,7 @@ import type { Provider, ValueProvider } from '@nestjs/common';
 import {
 	BingWebmasterInsights as BWIUseCases,
 	EntityAwareness as EAUseCases,
+	ExperienceAnalytics as EXAUseCases,
 	IdentityAccess as IAUseCases,
 	MetaAdsAttribution as MAAUseCases,
 	MacroContext as MCUseCases,
@@ -21,6 +22,7 @@ import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
 import { Ga4Provider } from '@rankpulse/provider-ga4';
 import { GscProvider } from '@rankpulse/provider-gsc';
 import { MetaProvider } from '@rankpulse/provider-meta';
+import { ClarityProvider } from '@rankpulse/provider-microsoft-clarity';
 import { InvalidInputError, SystemClock, SystemIdGenerator } from '@rankpulse/shared';
 import { JwtService } from '../common/auth/jwt.service.js';
 import type { AppEnv } from '../config/env.js';
@@ -86,6 +88,8 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const metaAdAccountRepo = new DrizzlePersistence.DrizzleMetaAdAccountRepository(drizzle.db);
 	const metaPixelEventDailyRepo = new DrizzlePersistence.DrizzleMetaPixelEventDailyRepository(drizzle.db);
 	const metaAdsInsightDailyRepo = new DrizzlePersistence.DrizzleMetaAdsInsightDailyRepository(drizzle.db);
+	const clarityProjectRepo = new DrizzlePersistence.DrizzleClarityProjectRepository(drizzle.db);
+	const experienceSnapshotRepo = new DrizzlePersistence.DrizzleExperienceSnapshotRepository(drizzle.db);
 
 	const jobScheduler = new QueueAdapters.BullMqJobScheduler({
 		connection: { url: env.REDIS_URL },
@@ -98,6 +102,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	providerRegistry.register(new BingProvider());
 	providerRegistry.register(new CloudflareRadarProvider());
 	providerRegistry.register(new MetaProvider());
+	providerRegistry.register(new ClarityProvider());
 
 	const registerOrganization = new IAUseCases.RegisterOrganizationUseCase(
 		orgRepo,
@@ -236,6 +241,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 			new WPUseCases.TrackedPageSystemParamResolver(trackedPageRepo),
 			new EAUseCases.WikipediaArticleSystemParamResolver(wikipediaArticleRepo),
 			new BWIUseCases.BingPropertySystemParamResolver(bingPropertyRepo),
+			new MCUseCases.MonitoredDomainSystemParamResolver(monitoredDomainRepo),
 			new MAAUseCases.MetaPixelSystemParamResolver(metaPixelRepo),
 			new MAAUseCases.MetaAdAccountSystemParamResolver(metaAdAccountRepo),
 		],
@@ -367,6 +373,19 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		metaAdsInsightDailyRepo,
 	);
 
+	// Issue #43 — experience-analytics use cases
+	const linkClarityProject = new EXAUseCases.LinkClarityProjectUseCase(
+		clarityProjectRepo,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const unlinkClarityProject = new EXAUseCases.UnlinkClarityProjectUseCase(clarityProjectRepo, SystemClock);
+	const queryExperienceHistory = new EXAUseCases.QueryExperienceHistoryUseCase(
+		clarityProjectRepo,
+		experienceSnapshotRepo,
+	);
+
 	// BACKLOG #23 / #21 — auto-schedule daily GSC fetch on property link.
 	// Subscribes to the in-memory event bus; the handler is fire-and-forget,
 	// errors are swallowed and logged so a scheduler outage doesn't 500 the
@@ -494,6 +513,12 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.UnlinkMetaAdAccount, unlinkMetaAdAccount),
 		value(Tokens.QueryMetaPixelEvents, queryMetaPixelEvents),
 		value(Tokens.QueryMetaAdsInsights, queryMetaAdsInsights),
+
+		value(Tokens.ClarityProjectRepository, clarityProjectRepo),
+		value(Tokens.ExperienceSnapshotRepository, experienceSnapshotRepo),
+		value(Tokens.LinkClarityProject, linkClarityProject),
+		value(Tokens.UnlinkClarityProject, unlinkClarityProject),
+		value(Tokens.QueryExperienceHistory, queryExperienceHistory),
 	];
 
 	return {

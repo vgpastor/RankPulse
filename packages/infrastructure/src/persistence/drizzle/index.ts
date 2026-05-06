@@ -3,6 +3,8 @@ export { DrizzleBingPropertyRepository } from './repositories/bing-webmaster-ins
 export { DrizzleBingTrafficObservationRepository } from './repositories/bing-webmaster-insights/bing-traffic-observation.repository.js';
 export { DrizzleWikipediaArticleRepository } from './repositories/entity-awareness/wikipedia-article.repository.js';
 export { DrizzleWikipediaPageviewObservationRepository } from './repositories/entity-awareness/wikipedia-pageview-observation.repository.js';
+export { DrizzleClarityProjectRepository } from './repositories/experience-analytics/clarity-project.repository.js';
+export { DrizzleExperienceSnapshotRepository } from './repositories/experience-analytics/experience-snapshot.repository.js';
 export { DrizzleApiTokenRepository } from './repositories/identity-access/api-token.repository.js';
 export { DrizzleMembershipRepository } from './repositories/identity-access/membership.repository.js';
 export { DrizzleOrganizationRepository } from './repositories/identity-access/organization.repository.js';

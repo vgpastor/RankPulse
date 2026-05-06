@@ -21,6 +21,11 @@
 			"types": "./dist/entity-awareness/index.d.ts",
 			"default": "./dist/entity-awareness/index.js"
 		},
+		"./experience-analytics": {
+			"development": "./src/experience-analytics/index.ts",
+			"types": "./dist/experience-analytics/index.d.ts",
+			"default": "./dist/experience-analytics/index.js"
+		},
 		"./identity-access": {
 			"development": "./src/identity-access/index.ts",
 			"types": "./dist/identity-access/index.d.ts",

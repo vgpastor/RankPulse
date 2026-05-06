@@ -1,6 +1,7 @@
 import {
 	BingWebmasterInsights as BingWebmasterInsightsUseCases,
 	EntityAwareness as EntityAwarenessUseCases,
+	ExperienceAnalytics as ExperienceAnalyticsUseCases,
 	MacroContext as MacroContextUseCases,
 	MetaAdsAttribution as MetaAdsAttributionUseCases,
 	ProjectManagement as ProjectManagementUseCases,
@@ -54,6 +55,8 @@ async function bootstrap(): Promise<void> {
 	const metaAdAccountRepo = new DrizzlePersistence.DrizzleMetaAdAccountRepository(drizzle.db);
 	const metaPixelEventDailyRepo = new DrizzlePersistence.DrizzleMetaPixelEventDailyRepository(drizzle.db);
 	const metaAdsInsightDailyRepo = new DrizzlePersistence.DrizzleMetaAdsInsightDailyRepository(drizzle.db);
+	const clarityProjectRepo = new DrizzlePersistence.DrizzleClarityProjectRepository(drizzle.db);
+	const experienceSnapshotRepo = new DrizzlePersistence.DrizzleExperienceSnapshotRepository(drizzle.db);
 
 	const vault = new Crypto.LibsodiumCredentialVault(env.RANKPULSE_MASTER_KEY);
 	const eventPublisher = new Events.InMemoryEventPublisher();
@@ -134,6 +137,12 @@ async function bootstrap(): Promise<void> {
 		eventPublisher,
 		SystemClock,
 	);
+	const recordExperienceSnapshotUseCase = new ExperienceAnalyticsUseCases.RecordExperienceSnapshotUseCase(
+		clarityProjectRepo,
+		experienceSnapshotRepo,
+		eventPublisher,
+		SystemClock,
+	);
 
 	const processor = new ProviderFetchProcessor({
 		registry,
@@ -152,6 +161,7 @@ async function bootstrap(): Promise<void> {
 		monitoredDomainRepo,
 		metaPixelRepo,
 		metaAdAccountRepo,
+		clarityProjectRepo,
 		vault,
 		resolveCredentialUseCase,
 		recordApiUsageUseCase,
@@ -165,6 +175,7 @@ async function bootstrap(): Promise<void> {
 		recordRadarRankUseCase,
 		ingestMetaPixelEventsUseCase,
 		ingestMetaAdsInsightsUseCase,
+		recordExperienceSnapshotUseCase,
 		clock: SystemClock,
 		ids: SystemIdGenerator,
 		logger,
