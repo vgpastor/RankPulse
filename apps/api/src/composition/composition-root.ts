@@ -458,6 +458,23 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		void autoScheduleOnTrackedPageAdded.handle(event);
 	});
 
+	const autoScheduleOnMonitoredDomainAdded = new MCUseCases.AutoScheduleOnMonitoredDomainAddedHandler(
+		scheduleEndpointFetch,
+		{
+			info: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.log(`[auto-schedule-on-monitored-domain-added] ${msg}`, meta);
+			},
+			error: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.error(`[auto-schedule-on-monitored-domain-added] ${msg}`, meta);
+			},
+		},
+	);
+	eventPublisher.on('MonitoredDomainAdded', (event) => {
+		void autoScheduleOnMonitoredDomainAdded.handle(event);
+	});
+
 	const providers: Provider[] = [
 		value(Tokens.AppEnv, env),
 		value(Tokens.DrizzleClient, drizzle),
