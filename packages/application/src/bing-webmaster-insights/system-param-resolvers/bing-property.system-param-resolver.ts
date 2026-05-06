@@ -19,7 +19,7 @@ export class BingPropertySystemParamResolver implements SystemParamResolver {
 		endpointId: string;
 		params: Record<string, unknown>;
 	}): Promise<Record<string, unknown>> {
-		if (input.providerId !== 'bing-webmaster-tools') return {};
+		if (input.providerId !== 'bing-webmaster') return {};
 		if (input.endpointId !== 'bing-rank-and-traffic-stats') return {};
 
 		const siteUrl = input.params.siteUrl;
