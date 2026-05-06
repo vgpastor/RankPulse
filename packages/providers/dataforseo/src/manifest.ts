@@ -31,7 +31,7 @@ import {
 	type SerpLiveResponse,
 	serpGoogleOrganicLiveDescriptor,
 } from './endpoints/serp-google-organic-live.js';
-import { buildLegacyShim, type DataForSeoHttpClient } from './http.js';
+import { buildLegacyShim, DataForSeoHttpClient } from './http.js';
 
 const auth: AuthStrategy = { kind: 'basic' };
 
@@ -174,4 +174,5 @@ export const dataforseoProviderManifest: ProviderManifest = {
 		}
 	},
 	endpoints,
+	buildHttpClient: (http) => new DataForSeoHttpClient(http),
 };

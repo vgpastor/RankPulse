@@ -31,21 +31,21 @@ import {
 	Events,
 	Queue as QueueAdapters,
 } from '@rankpulse/infrastructure';
-import { AnthropicProvider } from '@rankpulse/provider-anthropic';
-import { BingProvider } from '@rankpulse/provider-bing';
-import { BrevoProvider } from '@rankpulse/provider-brevo';
-import { CloudflareRadarProvider } from '@rankpulse/provider-cloudflare-radar';
-import { ProviderRegistry } from '@rankpulse/provider-core';
-import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
-import { Ga4Provider } from '@rankpulse/provider-ga4';
-import { GoogleAiStudioProvider } from '@rankpulse/provider-google-ai-studio';
-import { GscProvider } from '@rankpulse/provider-gsc';
-import { MetaProvider } from '@rankpulse/provider-meta';
-import { ClarityProvider } from '@rankpulse/provider-microsoft-clarity';
-import { OpenAiProvider } from '@rankpulse/provider-openai';
-import { PageSpeedProvider } from '@rankpulse/provider-pagespeed';
-import { PerplexityProvider } from '@rankpulse/provider-perplexity';
-import { WikipediaProvider } from '@rankpulse/provider-wikipedia';
+import { anthropicProviderManifest } from '@rankpulse/provider-anthropic';
+import { bingProviderManifest } from '@rankpulse/provider-bing';
+import { brevoProviderManifest } from '@rankpulse/provider-brevo';
+import { cloudflareRadarProviderManifest } from '@rankpulse/provider-cloudflare-radar';
+import { buildManifestProviderRegistry } from '@rankpulse/provider-core';
+import { dataforseoProviderManifest } from '@rankpulse/provider-dataforseo';
+import { ga4ProviderManifest } from '@rankpulse/provider-ga4';
+import { googleAiStudioProviderManifest } from '@rankpulse/provider-google-ai-studio';
+import { googleSearchConsoleProviderManifest } from '@rankpulse/provider-gsc';
+import { metaProviderManifest } from '@rankpulse/provider-meta';
+import { microsoftClarityProviderManifest } from '@rankpulse/provider-microsoft-clarity';
+import { openaiProviderManifest } from '@rankpulse/provider-openai';
+import { pagespeedProviderManifest } from '@rankpulse/provider-pagespeed';
+import { perplexityProviderManifest } from '@rankpulse/provider-perplexity';
+import { wikipediaProviderManifest } from '@rankpulse/provider-wikipedia';
 import { InvalidInputError, SystemClock, SystemIdGenerator } from '@rankpulse/shared';
 import { JwtService } from '../common/auth/jwt.service.js';
 import type { AppEnv } from '../config/env.js';
@@ -147,21 +147,26 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		connection: { url: env.REDIS_URL },
 	});
 
-	const providerRegistry = new ProviderRegistry();
-	providerRegistry.register(new DataForSeoProvider());
-	providerRegistry.register(new GscProvider());
-	providerRegistry.register(new Ga4Provider());
-	providerRegistry.register(new PageSpeedProvider());
-	providerRegistry.register(new WikipediaProvider());
-	providerRegistry.register(new BingProvider());
-	providerRegistry.register(new CloudflareRadarProvider());
-	providerRegistry.register(new MetaProvider());
-	providerRegistry.register(new ClarityProvider());
-	providerRegistry.register(new BrevoProvider());
-	providerRegistry.register(new OpenAiProvider());
-	providerRegistry.register(new AnthropicProvider());
-	providerRegistry.register(new PerplexityProvider());
-	providerRegistry.register(new GoogleAiStudioProvider());
+	// ADR 0002 Phase 6 — manifest-driven registry. The 14 imperative
+	// `new XProvider()` registrations collapsed to one array; each
+	// manifest's `buildHttpClient(http)` instantiates the matching
+	// `XHttpClient` (BaseHttpClient subclass) once at boot.
+	const providerRegistry = buildManifestProviderRegistry([
+		dataforseoProviderManifest,
+		googleSearchConsoleProviderManifest,
+		ga4ProviderManifest,
+		pagespeedProviderManifest,
+		wikipediaProviderManifest,
+		bingProviderManifest,
+		cloudflareRadarProviderManifest,
+		metaProviderManifest,
+		microsoftClarityProviderManifest,
+		brevoProviderManifest,
+		openaiProviderManifest,
+		anthropicProviderManifest,
+		perplexityProviderManifest,
+		googleAiStudioProviderManifest,
+	]);
 
 	const registerOrganization = new IAUseCases.RegisterOrganizationUseCase(
 		orgRepo,

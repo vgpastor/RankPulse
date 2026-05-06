@@ -3,4 +3,3 @@ export * from './endpoints/pageviews-per-article.js';
 export * from './endpoints/top-articles.js';
 export * from './http.js';
 export * from './manifest.js';
-export * from './provider.js';

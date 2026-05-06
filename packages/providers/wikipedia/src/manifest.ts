@@ -12,7 +12,7 @@ import {
 	pageviewsPerArticleDescriptor,
 } from './endpoints/pageviews-per-article.js';
 import { fetchTopArticles, topArticlesDescriptor } from './endpoints/top-articles.js';
-import { buildLegacyShim, type WikipediaHttp, type WikipediaHttpClient } from './http.js';
+import { buildLegacyShim, type WikipediaHttp, WikipediaHttpClient } from './http.js';
 
 /**
  * Wikimedia REST API manifest.
@@ -133,4 +133,5 @@ export const wikipediaProviderManifest: ProviderManifest = {
 		// uniform across providers — no format check needed.
 	},
 	endpoints,
+	buildHttpClient: (http) => new WikipediaHttpClient(http),
 };

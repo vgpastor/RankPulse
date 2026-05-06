@@ -15,7 +15,7 @@ import {
 	type RunPagespeedResponse,
 	runPagespeedDescriptor,
 } from './endpoints/runpagespeed.js';
-import { buildLegacyShim, type PageSpeedAuth, type PageSpeedHttp, type PageSpeedHttpClient } from './http.js';
+import { buildLegacyShim, type PageSpeedAuth, type PageSpeedHttp, PageSpeedHttpClient } from './http.js';
 
 /**
  * Google PageSpeed Insights manifest.
@@ -173,4 +173,5 @@ export const pagespeedProviderManifest: ProviderManifest = {
 	isQuotaExhausted(error: unknown): boolean {
 		return error instanceof ProviderApiError && (error.status === 402 || error.status === 429);
 	},
+	buildHttpClient: (http) => new PageSpeedHttpClient(http),
 };

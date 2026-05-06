@@ -1,7 +1,9 @@
-import type { ProviderConnectivity } from '@rankpulse/domain';
 import type { ZodTypeAny } from 'zod';
 
-export type AuthStrategy = 'apiKey' | 'basic' | 'oauth2' | 'serviceAccount';
+// The legacy string-union `AuthStrategy` ('apiKey' | 'basic' | 'oauth2' |
+// 'serviceAccount') and the `Provider` class interface have been deleted in
+// Phase 7b of ADR 0002. The replacement — `AuthStrategy` discriminated union
+// + `ProviderManifest` — lives in `./manifest.ts`.
 
 export type EndpointCategory =
 	| 'rankings'
@@ -65,37 +67,8 @@ export interface FetchContext {
 	now(): Date;
 }
 
-/**
- * Generic provider port. Adapters live in `packages/providers/<name>` and are
- * registered via {@link ProviderRegistry}. Provider-specific normalization
- * (ACL → domain observations) is NOT here; each functional bounded context
- * (rank-tracking, search-console-insights, ...) owns its own ACL that turns
- * a raw payload into its own aggregates.
- */
-export interface Provider {
-	readonly id: ProviderConnectivity.ProviderId;
-	readonly displayName: string;
-	readonly authStrategy: AuthStrategy;
-
-	/** Static catalogue of endpoints this provider supports. */
-	discover(): readonly EndpointDescriptor[];
-
-	/**
-	 * Validates that a plaintext secret is in the format this provider expects
-	 * (e.g. DataForSEO `email|api_password`, GSC service account JSON). Called
-	 * by RegisterProviderCredentialUseCase before encrypting + persisting, so
-	 * misconfigured credentials surface as a 400 at registration time instead
-	 * of as a worker job failure on the first run.
-	 *
-	 * Implementations throw `InvalidInputError` (or any `Error` subclass) on
-	 * mismatch. Returning normally means the format is acceptable; it does NOT
-	 * imply the credential is authorised by the upstream API.
-	 */
-	validateCredentialPlaintext(plaintextSecret: string): void;
-
-	/**
-	 * Performs the HTTP call and returns the raw response, exactly as the
-	 * provider returned it. Persistence + dedup is the worker's responsibility.
-	 */
-	fetch(endpointId: string, params: unknown, ctx: FetchContext): Promise<unknown>;
-}
+// Legacy `Provider` class interface removed (ADR 0002 Phase 7b). All 14
+// `XProvider` classes — DataForSeoProvider, GscProvider, … — have been
+// deleted; manifest-driven `ProviderManifest` + `ManifestProviderRegistry`
+// (see `./manifest.ts` + `./manifest-registry.ts`) replace the runtime
+// surface.

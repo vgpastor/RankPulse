@@ -99,6 +99,12 @@ describe('buildIngestRouter', () => {
 		const aclB = vi.fn();
 		const ingestA: IngestUseCase = { execute: vi.fn().mockResolvedValue(undefined) };
 		const ingestB: IngestUseCase = { execute: vi.fn().mockResolvedValue(undefined) };
+		const stubHttpClient = {
+			get: async () => ({}) as never,
+			post: async () => ({}) as never,
+			put: async () => ({}) as never,
+			delete: async () => ({}) as never,
+		};
 		const manifests: ProviderManifest[] = [
 			{
 				id: 'p1',
@@ -122,6 +128,7 @@ describe('buildIngestRouter', () => {
 						ingest: null, // raw-only
 					},
 				],
+				buildHttpClient: () => stubHttpClient,
 			},
 		];
 		const router = buildIngestRouter(manifests, { 'p1:a': ingestA, 'p1:b': ingestB });
@@ -129,6 +136,12 @@ describe('buildIngestRouter', () => {
 	});
 
 	it('throws when an IngestBinding references a useCaseKey not in the registrations', () => {
+		const stubHttpClient = {
+			get: async () => ({}) as never,
+			post: async () => ({}) as never,
+			put: async () => ({}) as never,
+			delete: async () => ({}) as never,
+		};
 		const manifests: ProviderManifest[] = [
 			{
 				id: 'p1',
@@ -146,6 +159,7 @@ describe('buildIngestRouter', () => {
 						} satisfies IngestBinding,
 					},
 				],
+				buildHttpClient: () => stubHttpClient,
 			},
 		];
 		expect(() => buildIngestRouter(manifests, {})).toThrow(

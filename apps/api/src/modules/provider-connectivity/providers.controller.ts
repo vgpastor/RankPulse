@@ -14,7 +14,7 @@ import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import type { ProviderConnectivity as PCUseCases } from '@rankpulse/application';
 import { ProviderConnectivityContracts } from '@rankpulse/contracts';
 import type { IdentityAccess, ProjectManagement, ProviderConnectivity } from '@rankpulse/domain';
-import type { ProviderRegistry } from '@rankpulse/provider-core';
+import type { AuthStrategy, ManifestProviderRegistry } from '@rankpulse/provider-core';
 import { NotFoundError } from '@rankpulse/shared';
 import type { AuthPrincipal } from '../../common/auth/jwt.service.js';
 import { OrgMembership } from '../../common/auth/org-membership.guard.js';
@@ -41,6 +41,29 @@ type JobRunDto = ProviderConnectivityContracts.JobRunDto;
  *  2. Wire it in composition-root.
  *  3. Add the endpoint here.
  */
+/**
+ * Maps the manifest's `AuthStrategy.kind` (Phase 6 of ADR 0002) to the
+ * legacy single-string `authStrategy` field exposed in the public API
+ * (`apiKey | basic | oauth2 | serviceAccount`). Kept as a translation
+ * shim so existing frontend consumers don't need to migrate.
+ */
+const legacyAuthStrategyFor = (
+	kind: AuthStrategy['kind'],
+): 'apiKey' | 'basic' | 'oauth2' | 'serviceAccount' => {
+	switch (kind) {
+		case 'basic':
+			return 'basic';
+		case 'service-account-jwt':
+			return 'serviceAccount';
+		case 'oauth-token':
+			return 'oauth2';
+		case 'api-key-or-service-account-jwt':
+			return 'serviceAccount';
+		default:
+			return 'apiKey';
+	}
+};
+
 const ENTITY_BOUND_ENDPOINTS: Record<string, { provider: string; preferredRoute: string }> = {
 	'gsc-search-analytics': {
 		provider: 'google-search-console',
@@ -110,7 +133,7 @@ export class ProvidersController {
 	private readonly orgMembership: OrgMembership;
 
 	constructor(
-		@Inject(Tokens.ProviderRegistry) private readonly registry: ProviderRegistry,
+		@Inject(Tokens.ProviderRegistry) private readonly registry: ManifestProviderRegistry,
 		@Inject(Tokens.RegisterProviderCredential)
 		private readonly registerCred: PCUseCases.RegisterProviderCredentialUseCase,
 		@Inject(Tokens.ScheduleEndpointFetch) private readonly schedule: PCUseCases.ScheduleEndpointFetchUseCase,
@@ -158,33 +181,38 @@ export class ProvidersController {
 
 	@Get()
 	listProviders(): ProviderDto[] {
-		return this.registry.list().map((p) => ({
-			id: p.id.value,
-			displayName: p.displayName,
-			authStrategy: p.authStrategy,
-			endpoints: p.discover().map((e) => ({
-				id: e.id,
-				category: e.category,
-				displayName: e.displayName,
-				description: e.description,
-				defaultCron: e.defaultCron,
-				cost: e.cost,
-				rateLimit: e.rateLimit,
+		return this.registry.list().map((m) => ({
+			id: m.id,
+			displayName: m.displayName,
+			// Legacy `authStrategy: 'apiKey' | 'basic' | 'oauth2' | 'serviceAccount'`
+			// inferred from the manifest's discriminated `auth.kind` (Phase 6 of
+			// ADR 0002 — manifests carry the structured `AuthStrategy` union; the
+			// API surface keeps the old string for back-compat with existing
+			// frontend consumers).
+			authStrategy: legacyAuthStrategyFor(m.http.auth.kind),
+			endpoints: m.endpoints.map((ep) => ({
+				id: ep.descriptor.id,
+				category: ep.descriptor.category,
+				displayName: ep.descriptor.displayName,
+				description: ep.descriptor.description,
+				defaultCron: ep.descriptor.defaultCron,
+				cost: ep.descriptor.cost,
+				rateLimit: ep.descriptor.rateLimit,
 			})),
 		}));
 	}
 
 	@Get(':providerId/endpoints')
 	listEndpoints(@Param('providerId') providerId: string): ProviderDto['endpoints'] {
-		const provider = this.registry.get(providerId);
-		return provider.discover().map((e) => ({
-			id: e.id,
-			category: e.category,
-			displayName: e.displayName,
-			description: e.description,
-			defaultCron: e.defaultCron,
-			cost: e.cost,
-			rateLimit: e.rateLimit,
+		const manifest = this.registry.get(providerId);
+		return manifest.endpoints.map((ep) => ({
+			id: ep.descriptor.id,
+			category: ep.descriptor.category,
+			displayName: ep.descriptor.displayName,
+			description: ep.descriptor.description,
+			defaultCron: ep.descriptor.defaultCron,
+			cost: ep.descriptor.cost,
+			rateLimit: ep.descriptor.rateLimit,
 		}));
 	}
 

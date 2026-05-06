@@ -28,7 +28,7 @@ import type { ProviderFetchJobData } from '@rankpulse/infrastructure/queue';
 import { AnthropicApiError } from '@rankpulse/provider-anthropic';
 import { BingApiError } from '@rankpulse/provider-bing';
 import { CloudflareRadarApiError } from '@rankpulse/provider-cloudflare-radar';
-import type { ProviderRegistry } from '@rankpulse/provider-core';
+import type { ManifestProviderRegistry } from '@rankpulse/provider-core';
 import {
 	DataForSeoApiError,
 	extractTop10Domains,
@@ -120,7 +120,7 @@ const normalize = (raw: string): string =>
 		.replace(/^www\./, '');
 
 export interface ProviderFetchProcessorDeps {
-	registry: ProviderRegistry;
+	registry: ManifestProviderRegistry;
 	ingestRouter: IngestRouter;
 	credentialRepo: ProviderConnectivity.CredentialRepository;
 	jobDefRepo: ProviderConnectivity.JobDefinitionRepository;
@@ -189,7 +189,10 @@ export class ProviderFetchProcessor {
 			return;
 		}
 
-		const provider = this.deps.registry.get(definition.providerId.value);
+		// ADR 0002 Phase 6 — manifest registry (no longer instantiates legacy
+		// `XProvider` classes). The descriptor lookup is the same shape; the
+		// fetch path below now goes through `registry.fetch(...)` which
+		// dispatches to the manifest's `endpoint.fetch(httpClient, params, ctx)`.
 		const endpointDescriptor = this.deps.registry.endpoint(
 			definition.providerId.value,
 			definition.endpointId.value,
@@ -250,15 +253,20 @@ export class ProviderFetchProcessor {
 		// the fast ones (SERP).
 		const timeoutSignal = AbortSignal.timeout(60_000);
 		try {
-			const fetchResult = await provider.fetch(definition.endpointId.value, resolvedParams, {
-				credential: { plaintextSecret: resolved.plaintextSecret },
-				logger: {
-					debug: (msg, meta) => runLog.debug(meta ?? {}, msg),
-					warn: (msg, meta) => runLog.warn(meta ?? {}, msg),
+			const fetchResult = await this.deps.registry.fetch(
+				definition.providerId.value,
+				definition.endpointId.value,
+				resolvedParams,
+				{
+					credential: { plaintextSecret: resolved.plaintextSecret },
+					logger: {
+						debug: (msg, meta) => runLog.debug(meta ?? {}, msg),
+						warn: (msg, meta) => runLog.warn(meta ?? {}, msg),
+					},
+					signal: timeoutSignal,
+					now: () => this.deps.clock.now(),
 				},
-				signal: timeoutSignal,
-				now: () => this.deps.clock.now(),
-			});
+			);
 
 			const rawPayloadId = this.deps.ids.generate() as ProviderConnectivity.RawPayloadId;
 			const rawPayload = ProviderConnectivity.RawPayload.store({

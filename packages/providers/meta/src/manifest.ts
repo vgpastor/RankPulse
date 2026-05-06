@@ -29,7 +29,7 @@ import {
 	type PixelEventsStatsResponse,
 	pixelEventsStatsDescriptor,
 } from './endpoints/pixel-events-stats.js';
-import { buildLegacyShim, type MetaHttp, type MetaHttpClient } from './http.js';
+import { buildLegacyShim, type MetaHttp, MetaHttpClient } from './http.js';
 
 /**
  * Meta (Facebook) Graph / Marketing API manifest.
@@ -212,4 +212,5 @@ export const metaProviderManifest: ProviderManifest = {
 	isQuotaExhausted(error: unknown): boolean {
 		return error instanceof ProviderApiError && (error.status === 402 || error.status === 429);
 	},
+	buildHttpClient: (http) => new MetaHttpClient(http),
 };

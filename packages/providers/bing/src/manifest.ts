@@ -13,7 +13,7 @@ import {
 	type RankAndTrafficStatsResponse,
 	rankAndTrafficStatsDescriptor,
 } from './endpoints/rank-and-traffic-stats.js';
-import { type BingHttp, type BingHttpClient, buildLegacyShim } from './http.js';
+import { type BingHttp, BingHttpClient, buildLegacyShim } from './http.js';
 
 /**
  * Bing Webmaster Tools manifest.
@@ -127,4 +127,5 @@ export const bingProviderManifest: ProviderManifest = {
 		validateBingApiKey(plaintextSecret);
 	},
 	endpoints,
+	buildHttpClient: (http) => new BingHttpClient(http),
 };

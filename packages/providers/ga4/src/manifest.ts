@@ -13,7 +13,7 @@ import {
 	type RunReportResponse,
 	runReportDescriptor,
 } from './endpoints/run-report.js';
-import { buildLegacyShim, type Ga4HttpClient } from './http.js';
+import { buildLegacyShim, Ga4HttpClient } from './http.js';
 
 /**
  * Google Analytics 4 manifest. Uses the `service-account-jwt` AuthStrategy
@@ -114,4 +114,5 @@ export const ga4ProviderManifest: ProviderManifest = {
 		parseServiceAccount(plaintextSecret);
 	},
 	endpoints,
+	buildHttpClient: (http) => new Ga4HttpClient(http),
 };

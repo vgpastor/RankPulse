@@ -21,6 +21,7 @@ import {
 	Events,
 	Queue as QueueAdapters,
 } from '@rankpulse/infrastructure';
+import { buildManifestProviderRegistry } from '@rankpulse/provider-core';
 import { SystemClock, SystemIdGenerator } from '@rankpulse/shared';
 import { Worker } from 'bullmq';
 import IORedis from 'ioredis';
@@ -30,7 +31,6 @@ import { createHealthServer } from './health-server.js';
 import { buildIngestRouter } from './processors/ingest-router.js';
 import { ProviderFetchProcessor } from './processors/provider-fetch.processor.js';
 import { ALL_PROVIDER_MANIFESTS } from './providers/manifests.js';
-import { buildProviderRegistry } from './providers/registry.js';
 
 async function bootstrap(): Promise<void> {
 	const env = loadEnv();
@@ -90,7 +90,12 @@ async function bootstrap(): Promise<void> {
 	const vault = new Crypto.LibsodiumCredentialVault(env.RANKPULSE_MASTER_KEY);
 	const eventPublisher = new Events.InMemoryEventPublisher();
 
-	const registry = buildProviderRegistry({ dataforseoBaseUrl: env.DATAFORSEO_API_BASE_URL });
+	// ADR 0002 Phase 6 — manifest-driven provider registry replaces the
+	// imperative `new XProvider()` registrations. The DATAFORSEO_API_BASE_URL
+	// env var is no longer threaded here; manifests declare their baseUrl
+	// statically. (DataForSEO's manifest sets the production URL; tests
+	// override via `fetchImpl` mock.)
+	const manifestRegistry = buildManifestProviderRegistry(ALL_PROVIDER_MANIFESTS);
 
 	const resolveCredentialUseCase = new ProviderConnectivityUseCases.ResolveProviderCredentialUseCase(
 		credentialRepo,
@@ -352,7 +357,7 @@ async function bootstrap(): Promise<void> {
 	const ingestRouter = buildIngestRouter(ALL_PROVIDER_MANIFESTS, ingestUseCases);
 
 	const processor = new ProviderFetchProcessor({
-		registry,
+		registry: manifestRegistry,
 		ingestRouter,
 		credentialRepo,
 		jobDefRepo,
@@ -395,8 +400,8 @@ async function bootstrap(): Promise<void> {
 	});
 
 	const workers: Worker[] = [];
-	for (const provider of registry.list()) {
-		const queueName = QueueAdapters.providerQueueName(provider.id.value);
+	for (const manifest of manifestRegistry.list()) {
+		const queueName = QueueAdapters.providerQueueName(manifest.id);
 		const worker = new Worker(
 			queueName,
 			async (job) => {

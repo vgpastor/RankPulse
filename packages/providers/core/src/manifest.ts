@@ -29,6 +29,19 @@ export interface ProviderManifest {
 	 * auto-pause the JobDefinition.
 	 */
 	readonly isQuotaExhausted?: (error: unknown) => boolean;
+	/**
+	 * Factory that builds the provider's HttpClient from `manifest.http`.
+	 * The composition root calls this once per manifest at boot to seed
+	 * the `ManifestProviderRegistry`; the resulting client is reused
+	 * across every endpoint fetch for that provider.
+	 *
+	 * Each provider package exports its own `XHttpClient` subclass of
+	 * `BaseHttpClient` (with auth and body-cap overrides as needed); the
+	 * factory just wraps `new XHttpClient(http)`. Lives on the manifest
+	 * (not as a class) so the manifest stays a self-contained
+	 * declaration that can be consumed without importing the class.
+	 */
+	readonly buildHttpClient: (http: HttpConfig) => HttpClient;
 }
 
 export interface HttpConfig {

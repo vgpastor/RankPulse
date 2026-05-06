@@ -15,7 +15,7 @@ import {
 	type SonarSearchParams,
 	sonarSearchDescriptor,
 } from './endpoints/sonar-search.js';
-import { buildLegacyShim, type PerplexityHttp, type PerplexityHttpClient } from './http.js';
+import { buildLegacyShim, type PerplexityHttp, PerplexityHttpClient } from './http.js';
 
 /**
  * Perplexity Sonar manifest.
@@ -134,4 +134,5 @@ export const perplexityProviderManifest: ProviderManifest = {
 	isQuotaExhausted(error: unknown): boolean {
 		return error instanceof ProviderApiError && (error.status === 402 || error.status === 429);
 	},
+	buildHttpClient: (http) => new PerplexityHttpClient(http),
 };

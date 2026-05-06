@@ -15,7 +15,7 @@ import {
 	type GeminiPayload,
 	geminiGroundedDescriptor,
 } from './endpoints/gemini-grounded.js';
-import { buildLegacyShim, type GoogleAiStudioHttp, type GoogleAiStudioHttpClient } from './http.js';
+import { buildLegacyShim, type GoogleAiStudioHttp, GoogleAiStudioHttpClient } from './http.js';
 
 /**
  * Google AI Studio (`generativelanguage.googleapis.com`) manifest
@@ -96,4 +96,5 @@ export const googleAiStudioProviderManifest: ProviderManifest = {
 	isQuotaExhausted(error: unknown): boolean {
 		return error instanceof ProviderApiError && (error.status === 402 || error.status === 429);
 	},
+	buildHttpClient: (http) => new GoogleAiStudioHttpClient(http),
 };

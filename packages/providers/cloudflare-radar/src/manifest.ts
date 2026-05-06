@@ -15,7 +15,7 @@ import {
 	domainRankDescriptor,
 	fetchDomainRank,
 } from './endpoints/domain-rank.js';
-import { buildLegacyShim, type CloudflareRadarHttp, type CloudflareRadarHttpClient } from './http.js';
+import { buildLegacyShim, type CloudflareRadarHttp, CloudflareRadarHttpClient } from './http.js';
 
 /**
  * Cloudflare Radar manifest.
@@ -153,4 +153,5 @@ export const cloudflareRadarProviderManifest: ProviderManifest = {
 	isQuotaExhausted(error: unknown): boolean {
 		return error instanceof ProviderApiError && (error.status === 402 || error.status === 429);
 	},
+	buildHttpClient: (http) => new CloudflareRadarHttpClient(http),
 };

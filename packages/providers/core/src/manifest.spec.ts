@@ -38,6 +38,12 @@ describe('ProviderManifest types', () => {
 					ingest: null,
 				} satisfies EndpointManifest<SampleParams, SampleResponse>,
 			],
+			buildHttpClient: () => ({
+				get: async () => ({}) as never,
+				post: async () => ({}) as never,
+				put: async () => ({}) as never,
+				delete: async () => ({}) as never,
+			}),
 		};
 		expect(manifest.id).toBe('sample');
 	});

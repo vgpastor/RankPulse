@@ -16,13 +16,13 @@ import { wikipediaProviderManifest } from '@rankpulse/provider-wikipedia';
 
 /**
  * Aggregated `ProviderManifest` array for every vendor active in this
- * deployment. The IngestRouter is built once at composition time from
- * this list (see `apps/worker/src/main.ts`); adding a vendor is a single
- * line here — the rest of the worker stays untouched.
+ * deployment. The IngestRouter and the manifest-driven
+ * `ManifestProviderRegistry` are both built from this list at
+ * composition time (see `apps/worker/src/main.ts`); adding a vendor is
+ * a single line here — the rest of the worker stays untouched.
  *
- * Mirrors `apps/worker/src/providers/registry.ts` (legacy `Provider`
- * interface) one-to-one. Phase 7 of ADR 0002 deletes that file once
- * `ProviderRegistry` no longer has consumers.
+ * Replaces `apps/worker/src/providers/registry.ts` (legacy `Provider`
+ * interface, deleted in Phase 7b of ADR 0002).
  */
 export const ALL_PROVIDER_MANIFESTS: readonly ProviderManifest[] = [
 	dataforseoProviderManifest,

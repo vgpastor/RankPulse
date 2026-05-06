@@ -13,7 +13,7 @@ import {
 	type SearchAnalyticsResponse,
 	searchAnalyticsDescriptor,
 } from './endpoints/search-analytics.js';
-import { buildLegacyShim, type GoogleSearchConsoleHttpClient } from './http.js';
+import { buildLegacyShim, GoogleSearchConsoleHttpClient } from './http.js';
 
 /**
  * Google Search Console manifest. Uses the `service-account-jwt`
@@ -118,4 +118,5 @@ export const googleSearchConsoleProviderManifest: ProviderManifest = {
 		parseServiceAccount(plaintextSecret);
 	},
 	endpoints,
+	buildHttpClient: (http) => new GoogleSearchConsoleHttpClient(http),
 };

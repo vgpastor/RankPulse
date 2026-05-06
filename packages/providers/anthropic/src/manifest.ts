@@ -15,7 +15,7 @@ import {
 	type MessagesWithWebSearchParams,
 	messagesWithWebSearchDescriptor,
 } from './endpoints/messages-with-web-search.js';
-import { type AnthropicHttp, type AnthropicHttpClient, buildLegacyShim } from './http.js';
+import { type AnthropicHttp, AnthropicHttpClient, buildLegacyShim } from './http.js';
 
 /**
  * Anthropic Messages API manifest.
@@ -139,4 +139,5 @@ export const anthropicProviderManifest: ProviderManifest = {
 	isQuotaExhausted(error: unknown): boolean {
 		return error instanceof ProviderApiError && (error.status === 402 || error.status === 429);
 	},
+	buildHttpClient: (http) => new AnthropicHttpClient(http),
 };

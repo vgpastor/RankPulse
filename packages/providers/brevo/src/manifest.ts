@@ -29,7 +29,7 @@ import {
 	emailStatisticsDescriptor,
 	fetchEmailStatistics,
 } from './endpoints/email-statistics.js';
-import { type BrevoHttp, type BrevoHttpClient, buildLegacyShim } from './http.js';
+import { type BrevoHttp, BrevoHttpClient, buildLegacyShim } from './http.js';
 
 /**
  * Brevo (Sendinblue) provider manifest.
@@ -127,4 +127,5 @@ export const brevoProviderManifest: ProviderManifest = {
 		validateBrevoApiKey(plaintextSecret);
 	},
 	endpoints,
+	buildHttpClient: (http) => new BrevoHttpClient(http),
 };

@@ -15,7 +15,7 @@ import {
 	type ResponsesWithWebSearchParams,
 	responsesWithWebSearchDescriptor,
 } from './endpoints/responses-with-web-search.js';
-import { buildLegacyShim, type OpenAiHttp, type OpenAiHttpClient } from './http.js';
+import { buildLegacyShim, type OpenAiHttp, OpenAiHttpClient } from './http.js';
 
 /**
  * OpenAI Responses API manifest (sub-issue #61 / parent #27).
@@ -136,4 +136,5 @@ export const openaiProviderManifest: ProviderManifest = {
 	isQuotaExhausted(error: unknown): boolean {
 		return error instanceof ProviderApiError && (error.status === 402 || error.status === 429);
 	},
+	buildHttpClient: (http) => new OpenAiHttpClient(http),
 };

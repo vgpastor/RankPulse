@@ -6,4 +6,3 @@ export * from './endpoints/custom-audiences.js';
 export * from './endpoints/pixel-events-stats.js';
 export * from './http.js';
 export * from './manifest.js';
-export * from './provider.js';

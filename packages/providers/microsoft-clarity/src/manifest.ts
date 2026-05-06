@@ -15,7 +15,7 @@ import {
 	dataExportDescriptor,
 	fetchDataExport,
 } from './endpoints/data-export.js';
-import { buildLegacyShim, type ClarityHttp, type ClarityHttpClient } from './http.js';
+import { buildLegacyShim, type ClarityHttp, ClarityHttpClient } from './http.js';
 
 /**
  * Microsoft Clarity Data Export manifest.
@@ -140,4 +140,5 @@ export const microsoftClarityProviderManifest: ProviderManifest = {
 	isQuotaExhausted(error: unknown): boolean {
 		return error instanceof ProviderApiError && (error.status === 402 || error.status === 429);
 	},
+	buildHttpClient: (http) => new ClarityHttpClient(http),
 };

@@ -1,6 +1,6 @@
 import type { ProviderConnectivity as PCUseCases } from '@rankpulse/application';
 import type { IdentityAccess, ProjectManagement, ProviderConnectivity } from '@rankpulse/domain';
-import type { ProviderRegistry } from '@rankpulse/provider-core';
+import type { ManifestProviderRegistry } from '@rankpulse/provider-core';
 import { describe, expect, it, vi } from 'vitest';
 import type { AuthPrincipal } from '../../common/auth/jwt.service.js';
 import { ProvidersController } from './providers.controller.js';
@@ -34,7 +34,7 @@ const buildController = () => {
 
 	const noop = {} as unknown;
 	const controller = new ProvidersController(
-		noop as ProviderRegistry,
+		noop as ManifestProviderRegistry,
 		noop as PCUseCases.RegisterProviderCredentialUseCase,
 		schedule,
 		noop as PCUseCases.TriggerJobDefinitionRunUseCase,
