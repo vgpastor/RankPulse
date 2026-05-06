@@ -16,6 +16,7 @@ import {
 import type { ProjectManagement } from '@rankpulse/domain';
 import { Crypto, DrizzlePersistence, Events, Queue as QueueAdapters } from '@rankpulse/infrastructure';
 import { BingProvider } from '@rankpulse/provider-bing';
+import { BrevoProvider } from '@rankpulse/provider-brevo';
 import { CloudflareRadarProvider } from '@rankpulse/provider-cloudflare-radar';
 import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
@@ -103,6 +104,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	providerRegistry.register(new CloudflareRadarProvider());
 	providerRegistry.register(new MetaProvider());
 	providerRegistry.register(new ClarityProvider());
+	providerRegistry.register(new BrevoProvider());
 
 	const registerOrganization = new IAUseCases.RegisterOrganizationUseCase(
 		orgRepo,
