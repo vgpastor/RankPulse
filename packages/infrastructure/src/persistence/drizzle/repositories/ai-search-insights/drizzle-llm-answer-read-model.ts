@@ -28,6 +28,14 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			own_avg_position: number | null;
 			competitor_mention_count: number;
 		}>`
+			WITH base AS (
+				SELECT
+					CASE WHEN jsonb_typeof(mentions) = 'array' THEN mentions ELSE '[]'::jsonb END AS mentions,
+					CASE WHEN jsonb_typeof(citations) = 'array' THEN citations ELSE '[]'::jsonb END AS citations
+				FROM llm_answers
+				WHERE project_id = ${projectId}
+				  AND captured_at BETWEEN ${filter.from} AND ${filter.to}
+			)
 			SELECT
 				COUNT(*)::int AS total_answers,
 				COUNT(*) FILTER (
@@ -45,9 +53,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					(SELECT COUNT(*) FROM jsonb_array_elements(mentions) m
 					 WHERE NOT COALESCE((m->>'isOwnBrand')::bool, false))
 				), 0)::int AS competitor_mention_count
-			FROM llm_answers
-			WHERE project_id = ${projectId}
-			  AND captured_at BETWEEN ${filter.from} AND ${filter.to}
+			FROM base
 		`);
 		const row = (rows as unknown as { rows?: unknown[] }).rows?.[0] ?? rows[0];
 		const r = row as {
@@ -236,15 +242,21 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			total_answers: number;
 			answers_with_own_mention: number;
 		}>`
+			WITH base AS (
+				SELECT
+					captured_at,
+					CASE WHEN jsonb_typeof(mentions) = 'array' THEN mentions ELSE '[]'::jsonb END AS mentions
+				FROM llm_answers
+				WHERE brand_prompt_id = ${brandPromptId}
+				  AND captured_at BETWEEN ${filter.from} AND ${filter.to}
+			)
 			SELECT
 				to_char(captured_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day,
 				COUNT(*)::int AS total_answers,
 				COUNT(*) FILTER (
 					WHERE jsonb_path_exists(mentions, '$[*] ? (@.isOwnBrand == true)')
 				)::int AS answers_with_own_mention
-			FROM llm_answers
-			WHERE brand_prompt_id = ${brandPromptId}
-			  AND captured_at BETWEEN ${filter.from} AND ${filter.to}
+			FROM base
 			GROUP BY day
 			ORDER BY day
 		`);
@@ -298,6 +310,14 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			last_week_total: number;
 			last_week_own_mentions: number;
 		}>`
+			WITH base AS (
+				SELECT ai_provider, country, language, captured_at,
+					CASE WHEN jsonb_typeof(mentions) = 'array' THEN mentions ELSE '[]'::jsonb END AS mentions
+				FROM llm_answers
+				WHERE project_id = ${projectId}
+				  AND captured_at >= ${lastWeekStart}
+				  AND captured_at <= ${asOf}
+			)
 			SELECT
 				ai_provider,
 				country,
@@ -315,10 +335,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					  AND captured_at < ${thisWeekStart}
 					  AND jsonb_path_exists(mentions, '$[*] ? (@.isOwnBrand == true)')
 				)::int AS last_week_own_mentions
-			FROM llm_answers
-			WHERE project_id = ${projectId}
-			  AND captured_at >= ${lastWeekStart}
-			  AND captured_at <= ${asOf}
+			FROM base
 			GROUP BY ai_provider, country, language
 		`);
 		const list = ((rows as unknown as { rows?: unknown[] }).rows ?? rows) as Array<{
