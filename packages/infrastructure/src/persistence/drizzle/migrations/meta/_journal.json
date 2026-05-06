@@ -82,8 +82,15 @@
 		{
 			"idx": 11,
 			"version": "7",
+			"when": 1778055409428,
+			"tag": "0011_brevo_engagement",
+			"breakpoints": true
+		},
+		{
+			"idx": 12,
+			"version": "7",
 			"when": 1778204400000,
-			"tag": "0011_ai_search_insights",
+			"tag": "0012_ai_search_insights",
 			"breakpoints": true
 		}
 	]

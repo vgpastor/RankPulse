@@ -1,4 +1,5 @@
 import { BingProvider } from '@rankpulse/provider-bing';
+import { BrevoProvider } from '@rankpulse/provider-brevo';
 import { CloudflareRadarProvider } from '@rankpulse/provider-cloudflare-radar';
 import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
@@ -23,6 +24,7 @@ export function buildProviderRegistry(options: { dataforseoBaseUrl: string }): P
 	registry.register(new BingProvider());
 	registry.register(new CloudflareRadarProvider());
 	registry.register(new ClarityProvider());
+	registry.register(new BrevoProvider());
 	registry.register(new OpenAiProvider());
 	return registry;
 }

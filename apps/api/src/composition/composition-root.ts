@@ -26,6 +26,7 @@ import {
 	Queue as QueueAdapters,
 } from '@rankpulse/infrastructure';
 import { BingProvider } from '@rankpulse/provider-bing';
+import { BrevoProvider } from '@rankpulse/provider-brevo';
 import { CloudflareRadarProvider } from '@rankpulse/provider-cloudflare-radar';
 import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
@@ -136,6 +137,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	providerRegistry.register(new BingProvider());
 	providerRegistry.register(new CloudflareRadarProvider());
 	providerRegistry.register(new ClarityProvider());
+	providerRegistry.register(new BrevoProvider());
 	providerRegistry.register(new OpenAiProvider());
 
 	const registerOrganization = new IAUseCases.RegisterOrganizationUseCase(
@@ -275,6 +277,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 			new WPUseCases.TrackedPageSystemParamResolver(trackedPageRepo),
 			new EAUseCases.WikipediaArticleSystemParamResolver(wikipediaArticleRepo),
 			new BWIUseCases.BingPropertySystemParamResolver(bingPropertyRepo),
+			new MCUseCases.MonitoredDomainSystemParamResolver(monitoredDomainRepo),
 			new AISIUseCases.BrandPromptSystemParamResolver(brandPromptRepo),
 		],
 	);
