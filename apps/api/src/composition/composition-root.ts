@@ -424,6 +424,23 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		void autoScheduleOnBingLink.handle(event);
 	});
 
+	const autoScheduleOnClarityLink = new EXAUseCases.AutoScheduleOnClarityProjectLinkedHandler(
+		scheduleEndpointFetch,
+		{
+			info: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.log(`[auto-schedule-on-clarity-link] ${msg}`, meta);
+			},
+			error: (meta, msg) => {
+				// eslint-disable-next-line no-console
+				console.error(`[auto-schedule-on-clarity-link] ${msg}`, meta);
+			},
+		},
+	);
+	eventPublisher.on('ClarityProjectLinked', (event) => {
+		void autoScheduleOnClarityLink.handle(event);
+	});
+
 	const providers: Provider[] = [
 		value(Tokens.AppEnv, env),
 		value(Tokens.DrizzleClient, drizzle),
