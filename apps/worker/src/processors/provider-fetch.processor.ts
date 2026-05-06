@@ -2,6 +2,7 @@ import type {
 	BingWebmasterInsights as BingWebmasterInsightsUseCases,
 	EntityAwareness as EntityAwarenessUseCases,
 	MacroContext as MacroContextUseCases,
+	MetaAdsAttribution as MetaAdsAttributionUseCases,
 	ProjectManagement as ProjectManagementUseCases,
 	ProviderConnectivity as ProviderConnectivityUseCases,
 	RankTracking as RankTrackingUseCases,
@@ -13,6 +14,7 @@ import {
 	type BingWebmasterInsights as BingWebmasterInsightsDomain,
 	type EntityAwareness as EntityAwarenessDomain,
 	type MacroContext as MacroContextDomain,
+	type MetaAdsAttribution as MetaAdsAttributionDomain,
 	type ProjectManagement,
 	ProviderConnectivity,
 	type RankTracking as RankTrackingDomain,
@@ -49,6 +51,15 @@ import {
 	type SearchAnalyticsParams,
 	type SearchAnalyticsResponse,
 } from '@rankpulse/provider-gsc';
+import {
+	type AdsInsightsParams,
+	type AdsInsightsResponse,
+	extractAdsInsightRows,
+	extractPixelEventRows,
+	MetaApiError,
+	type PixelEventsStatsParams,
+	type PixelEventsStatsResponse,
+} from '@rankpulse/provider-meta';
 import { extractSnapshot, PageSpeedApiError, type RunPagespeedResponse } from '@rankpulse/provider-pagespeed';
 import {
 	extractPageviews,
@@ -97,6 +108,11 @@ const isQuotaExhaustedError = (err: unknown): boolean => {
 	// Cloudflare Radar enforces per-account rate limits at the platform edge;
 	// 429 is the throttle signal. Auto-pause until the operator topples up.
 	if (err instanceof CloudflareRadarApiError && (err.status === 402 || err.status === 429)) return true;
+	// Meta Marketing API: 80004 / 17 / 4 = "rate limit reached" surfaced as
+	// HTTP 400 with a specific subcode (not normalised yet); the platform
+	// also returns a hard 429 once the Business Use Case bucket spills.
+	// We auto-pause on 402/429 so the cron stops drilling through quota.
+	if (err instanceof MetaApiError && (err.status === 402 || err.status === 429)) return true;
 	return false;
 };
 
@@ -121,6 +137,8 @@ export interface ProviderFetchProcessorDeps {
 	ga4PropertyRepo: TrafficAnalyticsDomain.Ga4PropertyRepository;
 	bingPropertyRepo: BingWebmasterInsightsDomain.BingPropertyRepository;
 	monitoredDomainRepo: MacroContextDomain.MonitoredDomainRepository;
+	metaPixelRepo: MetaAdsAttributionDomain.MetaPixelRepository;
+	metaAdAccountRepo: MetaAdsAttributionDomain.MetaAdAccountRepository;
 	vault: ProviderConnectivity.CredentialVault;
 	resolveCredentialUseCase: ProviderConnectivityUseCases.ResolveProviderCredentialUseCase;
 	recordApiUsageUseCase: ProviderConnectivityUseCases.RecordApiUsageUseCase;
@@ -132,6 +150,8 @@ export interface ProviderFetchProcessorDeps {
 	ingestGa4RowsUseCase: TrafficAnalyticsUseCases.IngestGa4RowsUseCase;
 	ingestBingTrafficUseCase: BingWebmasterInsightsUseCases.IngestBingTrafficUseCase;
 	recordRadarRankUseCase: MacroContextUseCases.RecordRadarRankUseCase;
+	ingestMetaPixelEventsUseCase: MetaAdsAttributionUseCases.IngestMetaPixelEventsUseCase;
+	ingestMetaAdsInsightsUseCase: MetaAdsAttributionUseCases.IngestMetaAdsInsightsUseCase;
 	clock: Clock;
 	ids: IdGenerator;
 	logger: Logger;
@@ -492,6 +512,68 @@ export class ProviderFetchProcessor {
 					});
 				}
 			}
+
+			if (
+				definition.providerId.value === 'meta' &&
+				definition.endpointId.value === 'meta-pixel-events-stats'
+			) {
+				// Issue #45 — Meta Pixel daily-events ingest. The job's
+				// systemParams must carry `metaPixelId` (set by the
+				// MetaPixelSystemParamResolver when the operator schedules
+				// against a linked pixel). Missing-id case logs warn + skips,
+				// mirroring the GA4/GSC ingests.
+				const metaParams = resolvedParams as unknown as PixelEventsStatsParams & {
+					metaPixelId?: string;
+				};
+				if (!metaParams.metaPixelId) {
+					runLog.warn({}, 'meta-pixel-events-stats job missing metaPixelId in systemParams; skipping ingest');
+				} else {
+					const fallbackDate =
+						typeof metaParams.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(metaParams.endDate)
+							? metaParams.endDate
+							: dateBucket;
+					const rows = extractPixelEventRows(fetchResult as PixelEventsStatsResponse, fallbackDate);
+					await this.deps.ingestMetaPixelEventsUseCase.execute({
+						metaPixelId: metaParams.metaPixelId,
+						rawPayloadId,
+						rows,
+					});
+				}
+			}
+
+			if (definition.providerId.value === 'meta' && definition.endpointId.value === 'meta-ads-insights') {
+				// Issue #45 — Meta Ads Insights ingest. The job's systemParams
+				// must carry `metaAdAccountId`, set by the
+				// MetaAdAccountSystemParamResolver. The `level` param drives
+				// the row granularity (campaign by default).
+				const metaParams = resolvedParams as unknown as AdsInsightsParams & {
+					metaAdAccountId?: string;
+				};
+				if (!metaParams.metaAdAccountId) {
+					runLog.warn({}, 'meta-ads-insights job missing metaAdAccountId in systemParams; skipping ingest');
+				} else {
+					const fallbackDate =
+						typeof metaParams.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(metaParams.endDate)
+							? metaParams.endDate
+							: dateBucket;
+					const rows = extractAdsInsightRows(
+						fetchResult as AdsInsightsResponse,
+						metaParams.level ?? 'campaign',
+						fallbackDate,
+					);
+					await this.deps.ingestMetaAdsInsightsUseCase.execute({
+						metaAdAccountId: metaParams.metaAdAccountId,
+						rawPayloadId,
+						rows,
+					});
+				}
+			}
+
+			// `meta-custom-audiences` is intentionally a raw-payload-only
+			// endpoint: we don't time-series the audience inventory because
+			// Meta's `approximate_count_*` bands are too noisy. The raw
+			// payload is persisted above; downstream consumers can read it
+			// from raw_payloads until a dedicated read model lands.
 
 			run.complete(rawPayloadId, this.deps.clock.now());
 			definition.markRan(this.deps.clock.now());

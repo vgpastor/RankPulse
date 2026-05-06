@@ -3,6 +3,7 @@ import {
 	BingWebmasterInsights as BWIUseCases,
 	EntityAwareness as EAUseCases,
 	IdentityAccess as IAUseCases,
+	MetaAdsAttribution as MAAUseCases,
 	MacroContext as MCUseCases,
 	ProviderConnectivity as PCUseCases,
 	ProjectManagement as PMUseCases,
@@ -19,6 +20,7 @@ import { ProviderRegistry } from '@rankpulse/provider-core';
 import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
 import { Ga4Provider } from '@rankpulse/provider-ga4';
 import { GscProvider } from '@rankpulse/provider-gsc';
+import { MetaProvider } from '@rankpulse/provider-meta';
 import { InvalidInputError, SystemClock, SystemIdGenerator } from '@rankpulse/shared';
 import { JwtService } from '../common/auth/jwt.service.js';
 import type { AppEnv } from '../config/env.js';
@@ -80,6 +82,10 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	);
 	const monitoredDomainRepo = new DrizzlePersistence.DrizzleMonitoredDomainRepository(drizzle.db);
 	const radarRankSnapshotRepo = new DrizzlePersistence.DrizzleRadarRankSnapshotRepository(drizzle.db);
+	const metaPixelRepo = new DrizzlePersistence.DrizzleMetaPixelRepository(drizzle.db);
+	const metaAdAccountRepo = new DrizzlePersistence.DrizzleMetaAdAccountRepository(drizzle.db);
+	const metaPixelEventDailyRepo = new DrizzlePersistence.DrizzleMetaPixelEventDailyRepository(drizzle.db);
+	const metaAdsInsightDailyRepo = new DrizzlePersistence.DrizzleMetaAdsInsightDailyRepository(drizzle.db);
 
 	const jobScheduler = new QueueAdapters.BullMqJobScheduler({
 		connection: { url: env.REDIS_URL },
@@ -91,6 +97,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	providerRegistry.register(new Ga4Provider());
 	providerRegistry.register(new BingProvider());
 	providerRegistry.register(new CloudflareRadarProvider());
+	providerRegistry.register(new MetaProvider());
 
 	const registerOrganization = new IAUseCases.RegisterOrganizationUseCase(
 		orgRepo,
@@ -229,6 +236,8 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 			new WPUseCases.TrackedPageSystemParamResolver(trackedPageRepo),
 			new EAUseCases.WikipediaArticleSystemParamResolver(wikipediaArticleRepo),
 			new BWIUseCases.BingPropertySystemParamResolver(bingPropertyRepo),
+			new MAAUseCases.MetaPixelSystemParamResolver(metaPixelRepo),
+			new MAAUseCases.MetaAdAccountSystemParamResolver(metaAdAccountRepo),
 		],
 	);
 	const recordApiUsage = new PCUseCases.RecordApiUsageUseCase(
@@ -332,6 +341,30 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const queryRadarHistory = new MCUseCases.QueryRadarHistoryUseCase(
 		monitoredDomainRepo,
 		radarRankSnapshotRepo,
+	);
+
+	// Issue #45 — meta-ads-attribution use cases
+	const linkMetaPixel = new MAAUseCases.LinkMetaPixelUseCase(
+		metaPixelRepo,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const unlinkMetaPixel = new MAAUseCases.UnlinkMetaPixelUseCase(metaPixelRepo, SystemClock);
+	const linkMetaAdAccount = new MAAUseCases.LinkMetaAdAccountUseCase(
+		metaAdAccountRepo,
+		SystemClock,
+		SystemIdGenerator,
+		eventPublisher,
+	);
+	const unlinkMetaAdAccount = new MAAUseCases.UnlinkMetaAdAccountUseCase(metaAdAccountRepo, SystemClock);
+	const queryMetaPixelEvents = new MAAUseCases.QueryMetaPixelEventsUseCase(
+		metaPixelRepo,
+		metaPixelEventDailyRepo,
+	);
+	const queryMetaAdsInsights = new MAAUseCases.QueryMetaAdsInsightsUseCase(
+		metaAdAccountRepo,
+		metaAdsInsightDailyRepo,
 	);
 
 	// BACKLOG #23 / #21 — auto-schedule daily GSC fetch on property link.
@@ -450,6 +483,17 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.AddMonitoredDomain, addMonitoredDomain),
 		value(Tokens.RemoveMonitoredDomain, removeMonitoredDomain),
 		value(Tokens.QueryRadarHistory, queryRadarHistory),
+
+		value(Tokens.MetaPixelRepository, metaPixelRepo),
+		value(Tokens.MetaAdAccountRepository, metaAdAccountRepo),
+		value(Tokens.MetaPixelEventDailyRepository, metaPixelEventDailyRepo),
+		value(Tokens.MetaAdsInsightDailyRepository, metaAdsInsightDailyRepo),
+		value(Tokens.LinkMetaPixel, linkMetaPixel),
+		value(Tokens.UnlinkMetaPixel, unlinkMetaPixel),
+		value(Tokens.LinkMetaAdAccount, linkMetaAdAccount),
+		value(Tokens.UnlinkMetaAdAccount, unlinkMetaAdAccount),
+		value(Tokens.QueryMetaPixelEvents, queryMetaPixelEvents),
+		value(Tokens.QueryMetaAdsInsights, queryMetaAdsInsights),
 	];
 
 	return {

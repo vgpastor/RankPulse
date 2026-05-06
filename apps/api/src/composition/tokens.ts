@@ -131,6 +131,20 @@ export const Tokens = {
 	RemoveMonitoredDomain: Symbol('RemoveMonitoredDomainUseCase'),
 	QueryRadarHistory: Symbol('QueryRadarHistoryUseCase'),
 
+	// Meta-Ads-Attribution ports
+	MetaPixelRepository: Symbol('MetaPixelRepository'),
+	MetaAdAccountRepository: Symbol('MetaAdAccountRepository'),
+	MetaPixelEventDailyRepository: Symbol('MetaPixelEventDailyRepository'),
+	MetaAdsInsightDailyRepository: Symbol('MetaAdsInsightDailyRepository'),
+
+	// Meta-Ads-Attribution use cases
+	LinkMetaPixel: Symbol('LinkMetaPixelUseCase'),
+	UnlinkMetaPixel: Symbol('UnlinkMetaPixelUseCase'),
+	LinkMetaAdAccount: Symbol('LinkMetaAdAccountUseCase'),
+	UnlinkMetaAdAccount: Symbol('UnlinkMetaAdAccountUseCase'),
+	QueryMetaPixelEvents: Symbol('QueryMetaPixelEventsUseCase'),
+	QueryMetaAdsInsights: Symbol('QueryMetaAdsInsightsUseCase'),
+
 	// Infrastructure handles
 	DrizzleClient: Symbol('DrizzleClient'),
 	JwtService: Symbol('JwtService'),

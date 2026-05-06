@@ -2,6 +2,7 @@ import {
 	BingWebmasterInsights as BingWebmasterInsightsUseCases,
 	EntityAwareness as EntityAwarenessUseCases,
 	MacroContext as MacroContextUseCases,
+	MetaAdsAttribution as MetaAdsAttributionUseCases,
 	ProjectManagement as ProjectManagementUseCases,
 	ProviderConnectivity as ProviderConnectivityUseCases,
 	RankTracking as RankTrackingUseCases,
@@ -49,6 +50,10 @@ async function bootstrap(): Promise<void> {
 	);
 	const monitoredDomainRepo = new DrizzlePersistence.DrizzleMonitoredDomainRepository(drizzle.db);
 	const radarRankSnapshotRepo = new DrizzlePersistence.DrizzleRadarRankSnapshotRepository(drizzle.db);
+	const metaPixelRepo = new DrizzlePersistence.DrizzleMetaPixelRepository(drizzle.db);
+	const metaAdAccountRepo = new DrizzlePersistence.DrizzleMetaAdAccountRepository(drizzle.db);
+	const metaPixelEventDailyRepo = new DrizzlePersistence.DrizzleMetaPixelEventDailyRepository(drizzle.db);
+	const metaAdsInsightDailyRepo = new DrizzlePersistence.DrizzleMetaAdsInsightDailyRepository(drizzle.db);
 
 	const vault = new Crypto.LibsodiumCredentialVault(env.RANKPULSE_MASTER_KEY);
 	const eventPublisher = new Events.InMemoryEventPublisher();
@@ -117,6 +122,18 @@ async function bootstrap(): Promise<void> {
 		eventPublisher,
 		SystemClock,
 	);
+	const ingestMetaPixelEventsUseCase = new MetaAdsAttributionUseCases.IngestMetaPixelEventsUseCase(
+		metaPixelRepo,
+		metaPixelEventDailyRepo,
+		eventPublisher,
+		SystemClock,
+	);
+	const ingestMetaAdsInsightsUseCase = new MetaAdsAttributionUseCases.IngestMetaAdsInsightsUseCase(
+		metaAdAccountRepo,
+		metaAdsInsightDailyRepo,
+		eventPublisher,
+		SystemClock,
+	);
 
 	const processor = new ProviderFetchProcessor({
 		registry,
@@ -133,6 +150,8 @@ async function bootstrap(): Promise<void> {
 		ga4PropertyRepo,
 		bingPropertyRepo,
 		monitoredDomainRepo,
+		metaPixelRepo,
+		metaAdAccountRepo,
 		vault,
 		resolveCredentialUseCase,
 		recordApiUsageUseCase,
@@ -144,6 +163,8 @@ async function bootstrap(): Promise<void> {
 		ingestGa4RowsUseCase,
 		ingestBingTrafficUseCase,
 		recordRadarRankUseCase,
+		ingestMetaPixelEventsUseCase,
+		ingestMetaAdsInsightsUseCase,
 		clock: SystemClock,
 		ids: SystemIdGenerator,
 		logger,

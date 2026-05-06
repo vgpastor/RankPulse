@@ -9,6 +9,10 @@ export { DrizzleOrganizationRepository } from './repositories/identity-access/or
 export { DrizzleUserRepository } from './repositories/identity-access/user.repository.js';
 export { DrizzleMonitoredDomainRepository } from './repositories/macro-context/monitored-domain.repository.js';
 export { DrizzleRadarRankSnapshotRepository } from './repositories/macro-context/radar-rank-snapshot.repository.js';
+export { DrizzleMetaAdAccountRepository } from './repositories/meta-ads-attribution/meta-ad-account.repository.js';
+export { DrizzleMetaAdsInsightDailyRepository } from './repositories/meta-ads-attribution/meta-ads-insight-daily.repository.js';
+export { DrizzleMetaPixelRepository } from './repositories/meta-ads-attribution/meta-pixel.repository.js';
+export { DrizzleMetaPixelEventDailyRepository } from './repositories/meta-ads-attribution/meta-pixel-event-daily.repository.js';
 export { DrizzleCompetitorRepository } from './repositories/project-management/competitor.repository.js';
 export { DrizzleCompetitorSuggestionRepository } from './repositories/project-management/competitor-suggestion.repository.js';
 export { DrizzleKeywordListRepository } from './repositories/project-management/keyword-list.repository.js';
