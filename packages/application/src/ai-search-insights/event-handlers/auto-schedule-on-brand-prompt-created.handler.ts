@@ -64,7 +64,11 @@ export const AI_SEARCH_PROVIDER_DEFINITIONS: readonly AiProviderScheduleDefiniti
  * to the first entry of `AI_SEARCH_PROVIDER_DEFINITIONS`. Kept exported until
  * downstream callers migrate.
  */
-export const OPENAI_AUTO_SCHEDULE_DEFAULTS = AI_SEARCH_PROVIDER_DEFINITIONS[0]!;
+const [OPENAI_DEFAULTS] = AI_SEARCH_PROVIDER_DEFINITIONS;
+if (!OPENAI_DEFAULTS) {
+	throw new Error('AI_SEARCH_PROVIDER_DEFINITIONS must contain at least one entry');
+}
+export const OPENAI_AUTO_SCHEDULE_DEFAULTS = OPENAI_DEFAULTS;
 
 /**
  * Sub-issues #61 + #62 — auto-schedule the LLM-search fetches when a

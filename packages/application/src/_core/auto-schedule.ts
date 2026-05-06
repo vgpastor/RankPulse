@@ -88,11 +88,18 @@ function buildOne(deps: AutoScheduleDeps, config: AutoScheduleConfig): EventHand
 		async handle(event: SharedKernel.DomainEvent): Promise<void> {
 			if (event.type !== config.event) return;
 
-			const specs: readonly AutoScheduleSpec[] = config.schedule
-				? [config.schedule]
-				: config.schedules
-					? config.schedules
-					: await config.dynamicSchedules!(event, deps);
+			let specs: readonly AutoScheduleSpec[];
+			if (config.schedule) {
+				specs = [config.schedule];
+			} else if (config.schedules) {
+				specs = config.schedules;
+			} else if (config.dynamicSchedules) {
+				specs = await config.dynamicSchedules(event, deps);
+			} else {
+				// Type-system guarantees one of the three is set (AutoScheduleConfig
+				// is a discriminated union); this branch is unreachable.
+				specs = [];
+			}
 
 			await Promise.all(
 				specs.map(async (spec) => {

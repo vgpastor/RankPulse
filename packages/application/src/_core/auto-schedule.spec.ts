@@ -55,7 +55,9 @@ describe('buildAutoScheduleHandlers', () => {
 		];
 		const handlers = buildAutoScheduleHandlers(deps, configs);
 		expect(handlers).toHaveLength(1);
-		expect(handlers[0]!.events).toEqual(['FakeEntityLinked']);
+		const [handler] = handlers;
+		if (!handler) throw new Error('expected one handler');
+		expect(handler.events).toEqual(['FakeEntityLinked']);
 	});
 
 	it('handler ignores events of other types', async () => {
@@ -73,7 +75,9 @@ describe('buildAutoScheduleHandlers', () => {
 				},
 			},
 		]);
-		await handlers[0]!.handle({
+		const [handler] = handlers;
+		if (!handler) throw new Error('expected one handler');
+		await handler.handle({
 			type: 'OtherEvent',
 			occurredAt: new Date(),
 		} as unknown as SharedKernel.DomainEvent);
@@ -98,7 +102,9 @@ describe('buildAutoScheduleHandlers', () => {
 				},
 			},
 		]);
-		await handlers[0]!.handle(fakeEvent());
+		const [handler] = handlers;
+		if (!handler) throw new Error('expected one handler');
+		await handler.handle(fakeEvent());
 		expect(execute).toHaveBeenCalledTimes(1);
 		expect(execute).toHaveBeenCalledWith({
 			projectId: 'project-1',
@@ -140,7 +146,9 @@ describe('buildAutoScheduleHandlers', () => {
 				],
 			},
 		]);
-		await handlers[0]!.handle(fakeEvent());
+		const [handler] = handlers;
+		if (!handler) throw new Error('expected one handler');
+		await handler.handle(fakeEvent());
 		expect(execute).toHaveBeenCalledTimes(2);
 		expect(logger.error).toHaveBeenCalledOnce();
 	});
@@ -162,7 +170,9 @@ describe('buildAutoScheduleHandlers', () => {
 				],
 			},
 		]);
-		await handlers[0]!.handle(fakeEvent());
+		const [handler] = handlers;
+		if (!handler) throw new Error('expected one handler');
+		await handler.handle(fakeEvent());
 		expect(execute).toHaveBeenCalledOnce();
 	});
 });

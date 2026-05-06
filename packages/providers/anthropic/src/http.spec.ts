@@ -103,14 +103,14 @@ describe('AnthropicHttpClient', () => {
 		const client = new AnthropicHttpClient(baseConfig, {
 			fetchImpl: fakeFetch as unknown as typeof fetch,
 		});
-		await expect(
-			client.post('/messages', {}, { model: 'claude' }, stubContext()),
-		).rejects.toMatchObject({ status: 400 });
+		await expect(client.post('/messages', {}, { model: 'claude' }, stubContext())).rejects.toMatchObject({
+			status: 400,
+		});
 		// Alias check: AnthropicApiError === ProviderApiError, so instanceof
 		// works for the worker's quota detector.
-		await expect(
-			client.post('/messages', {}, { model: 'claude' }, stubContext()),
-		).rejects.toBeInstanceOf(AnthropicApiError);
+		await expect(client.post('/messages', {}, { model: 'claude' }, stubContext())).rejects.toBeInstanceOf(
+			AnthropicApiError,
+		);
 	});
 
 	it('throws ProviderApiError with status 0 on network failure', async () => {
@@ -121,12 +121,12 @@ describe('AnthropicHttpClient', () => {
 		const client = new AnthropicHttpClient(baseConfig, {
 			fetchImpl: fakeFetch as unknown as typeof fetch,
 		});
-		await expect(
-			client.post('/messages', {}, { model: 'claude' }, stubContext()),
-		).rejects.toMatchObject({ status: 0 });
-		await expect(
-			client.post('/messages', {}, { model: 'claude' }, stubContext()),
-		).rejects.toBeInstanceOf(ProviderApiError);
+		await expect(client.post('/messages', {}, { model: 'claude' }, stubContext())).rejects.toMatchObject({
+			status: 0,
+		});
+		await expect(client.post('/messages', {}, { model: 'claude' }, stubContext())).rejects.toBeInstanceOf(
+			ProviderApiError,
+		);
 	});
 
 	it('throws ProviderApiError when Content-Length exceeds the 8MB cap', async () => {
@@ -144,12 +144,10 @@ describe('AnthropicHttpClient', () => {
 		const client = new AnthropicHttpClient(baseConfig, {
 			fetchImpl: fakeFetch as unknown as typeof fetch,
 		});
-		await expect(
-			client.post('/messages', {}, { model: 'claude' }, stubContext()),
-		).rejects.toBeInstanceOf(ProviderApiError);
-		await expect(
-			client.post('/messages', {}, { model: 'claude' }, stubContext()),
-		).rejects.toMatchObject({
+		await expect(client.post('/messages', {}, { model: 'claude' }, stubContext())).rejects.toBeInstanceOf(
+			ProviderApiError,
+		);
+		await expect(client.post('/messages', {}, { model: 'claude' }, stubContext())).rejects.toMatchObject({
 			message: expect.stringContaining('response too large'),
 		});
 	});

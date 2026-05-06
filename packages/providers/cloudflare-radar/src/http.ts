@@ -27,7 +27,8 @@ const PROVIDER_ID = 'cloudflare-radar';
  */
 function composeSignals(...signals: ReadonlyArray<AbortSignal | undefined>): AbortSignal {
 	const real = signals.filter((s): s is AbortSignal => Boolean(s));
-	if (real.length === 1) return real[0]!;
+	const [first, second] = real;
+	if (first && !second) return first;
 	const controller = new AbortController();
 	for (const s of real) {
 		if (s.aborted) {

@@ -75,9 +75,9 @@ describe('OpenAiHttpClient', () => {
 		const client = new OpenAiHttpClient(baseConfig, {
 			fetchImpl: fakeFetch as unknown as typeof fetch,
 		});
-		await expect(
-			client.post('/responses', {}, { model: 'gpt-5-mini' }, stubContext()),
-		).rejects.toMatchObject({ status: 401 });
+		await expect(client.post('/responses', {}, { model: 'gpt-5-mini' }, stubContext())).rejects.toMatchObject(
+			{ status: 401 },
+		);
 		// Alias check: OpenAiApiError === ProviderApiError, so instanceof works
 		// for the worker's quota detector at provider-fetch.processor.ts:149.
 		await expect(
@@ -93,9 +93,9 @@ describe('OpenAiHttpClient', () => {
 		const client = new OpenAiHttpClient(baseConfig, {
 			fetchImpl: fakeFetch as unknown as typeof fetch,
 		});
-		await expect(
-			client.post('/responses', {}, { model: 'gpt-5-mini' }, stubContext()),
-		).rejects.toMatchObject({ status: 0 });
+		await expect(client.post('/responses', {}, { model: 'gpt-5-mini' }, stubContext())).rejects.toMatchObject(
+			{ status: 0 },
+		);
 		await expect(
 			client.post('/responses', {}, { model: 'gpt-5-mini' }, stubContext()),
 		).rejects.toBeInstanceOf(ProviderApiError);
@@ -119,11 +119,11 @@ describe('OpenAiHttpClient', () => {
 		await expect(
 			client.post('/responses', {}, { model: 'gpt-5-mini' }, stubContext()),
 		).rejects.toBeInstanceOf(ProviderApiError);
-		await expect(
-			client.post('/responses', {}, { model: 'gpt-5-mini' }, stubContext()),
-		).rejects.toMatchObject({
-			message: expect.stringContaining('response too large'),
-		});
+		await expect(client.post('/responses', {}, { model: 'gpt-5-mini' }, stubContext())).rejects.toMatchObject(
+			{
+				message: expect.stringContaining('response too large'),
+			},
+		);
 	});
 
 	it('parseCredential rejects malformed API keys BEFORE any fetch (pre-flight)', async () => {

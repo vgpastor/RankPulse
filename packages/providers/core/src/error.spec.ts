@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ProviderApiError, isQuotaExhaustedError } from './error.js';
+import { isQuotaExhaustedError, ProviderApiError } from './error.js';
 
 describe('ProviderApiError', () => {
 	it('captures providerId, status, body, message', () => {

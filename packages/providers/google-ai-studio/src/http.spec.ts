@@ -4,7 +4,7 @@ import { InvalidInputError } from '@rankpulse/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GoogleAiStudioApiError, GoogleAiStudioHttpClient } from './http.js';
 
-const validApiKey = 'AIza' + 'x'.repeat(35);
+const validApiKey = `AIza${'x'.repeat(35)}`;
 
 const baseConfig: HttpConfig = {
 	baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
@@ -75,12 +75,12 @@ describe('GoogleAiStudioHttpClient', () => {
 		const client = new GoogleAiStudioHttpClient(baseConfig, {
 			fetchImpl: fakeFetch as unknown as typeof fetch,
 		});
-		await expect(
-			client.post('/models/x:generateContent', {}, {}, stubContext()),
-		).rejects.toMatchObject({ status: 401 });
-		await expect(
-			client.post('/models/x:generateContent', {}, {}, stubContext()),
-		).rejects.toBeInstanceOf(GoogleAiStudioApiError);
+		await expect(client.post('/models/x:generateContent', {}, {}, stubContext())).rejects.toMatchObject({
+			status: 401,
+		});
+		await expect(client.post('/models/x:generateContent', {}, {}, stubContext())).rejects.toBeInstanceOf(
+			GoogleAiStudioApiError,
+		);
 	});
 
 	it('throws ProviderApiError with status 0 on network failure', async () => {
@@ -91,12 +91,12 @@ describe('GoogleAiStudioHttpClient', () => {
 		const client = new GoogleAiStudioHttpClient(baseConfig, {
 			fetchImpl: fakeFetch as unknown as typeof fetch,
 		});
-		await expect(
-			client.post('/models/x:generateContent', {}, {}, stubContext()),
-		).rejects.toMatchObject({ status: 0 });
-		await expect(
-			client.post('/models/x:generateContent', {}, {}, stubContext()),
-		).rejects.toBeInstanceOf(ProviderApiError);
+		await expect(client.post('/models/x:generateContent', {}, {}, stubContext())).rejects.toMatchObject({
+			status: 0,
+		});
+		await expect(client.post('/models/x:generateContent', {}, {}, stubContext())).rejects.toBeInstanceOf(
+			ProviderApiError,
+		);
 	});
 
 	it('throws ProviderApiError when Content-Length exceeds the 8MB cap', async () => {
@@ -112,12 +112,10 @@ describe('GoogleAiStudioHttpClient', () => {
 		const client = new GoogleAiStudioHttpClient(baseConfig, {
 			fetchImpl: fakeFetch as unknown as typeof fetch,
 		});
-		await expect(
-			client.post('/models/x:generateContent', {}, {}, stubContext()),
-		).rejects.toBeInstanceOf(ProviderApiError);
-		await expect(
-			client.post('/models/x:generateContent', {}, {}, stubContext()),
-		).rejects.toMatchObject({
+		await expect(client.post('/models/x:generateContent', {}, {}, stubContext())).rejects.toBeInstanceOf(
+			ProviderApiError,
+		);
+		await expect(client.post('/models/x:generateContent', {}, {}, stubContext())).rejects.toMatchObject({
 			message: expect.stringContaining('response too large'),
 		});
 	});

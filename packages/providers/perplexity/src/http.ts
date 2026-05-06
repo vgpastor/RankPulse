@@ -29,7 +29,8 @@ const PROVIDER_ID = 'perplexity';
  */
 function composeSignalsArr(...signals: ReadonlyArray<AbortSignal | undefined>): AbortSignal {
 	const real = signals.filter((s): s is AbortSignal => Boolean(s));
-	if (real.length === 1) return real[0]!;
+	const [first, second] = real;
+	if (first && !second) return first;
 	const controller = new AbortController();
 	for (const s of real) {
 		if (s.aborted) {
@@ -252,12 +253,7 @@ export type PerplexityApiError = ProviderApiError;
  */
 export const buildLegacyShim = (client: PerplexityHttpClient, ctx: FetchContext): PerplexityHttp =>
 	({
-		post: async (
-			path: string,
-			body: unknown,
-			_apiKey: string,
-			_signal?: AbortSignal,
-		): Promise<unknown> => {
+		post: async (path: string, body: unknown, _apiKey: string, _signal?: AbortSignal): Promise<unknown> => {
 			const parsed = await client.post<unknown>(path, {}, body, ctx);
 			return parsed === undefined ? null : parsed;
 		},

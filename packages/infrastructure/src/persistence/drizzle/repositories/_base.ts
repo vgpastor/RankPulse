@@ -25,7 +25,11 @@ export abstract class DrizzleRepository<TAggregate, TRow extends { id: string }>
 
 	async findById(id: string): Promise<TAggregate | null> {
 		const idColumn = (this.table as unknown as { id: { name: string } }).id;
-		const rows = await this.db.select().from(this.table).where(eq(idColumn as never, id)).limit(1);
+		const rows = await this.db
+			.select()
+			.from(this.table)
+			.where(eq(idColumn as never, id))
+			.limit(1);
 		const row = rows[0] as TRow | undefined;
 		return row ? this.toAggregate(row) : null;
 	}

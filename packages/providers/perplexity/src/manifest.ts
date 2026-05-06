@@ -10,9 +10,9 @@ import { ProviderApiError } from '@rankpulse/provider-core';
 import { normalisePerplexityResponse } from './acl/sonar-to-llm-answer.acl.js';
 import { parseCredential } from './credential.js';
 import {
+	fetchSonarSearch,
 	type PerplexityChatPayload,
 	type SonarSearchParams,
-	fetchSonarSearch,
 	sonarSearchDescriptor,
 } from './endpoints/sonar-search.js';
 import { buildLegacyShim, type PerplexityHttp, type PerplexityHttpClient } from './http.js';

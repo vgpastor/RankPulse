@@ -35,7 +35,9 @@ describe('BaseHttpClient', () => {
 		const result = await client.get<{ ok: boolean }>('/endpoint', { q: '1' }, ctx());
 		expect(result).toEqual({ ok: true });
 		expect(fetchMock).toHaveBeenCalledOnce();
-		const [url, init] = fetchMock.mock.calls[0]!;
+		const firstCall = fetchMock.mock.calls[0];
+		if (!firstCall) throw new Error('fetch was not called');
+		const [url, init] = firstCall;
 		expect(url).toBe('https://api.example.com/endpoint?q=1');
 		expect((init as RequestInit).headers).toMatchObject({ Authorization: 'Bearer secret' });
 		fetchMock.mockRestore();

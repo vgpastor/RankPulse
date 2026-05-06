@@ -23,7 +23,7 @@ const toFinite = (raw: unknown): number => {
 
 const findMetric = (response: DataExportResponse, metricName: string): number => {
 	const entry = response.find((e) => e.metricName === metricName);
-	if (!entry || !entry.information || entry.information.length === 0) return 0;
+	if (!entry?.information || entry.information.length === 0) return 0;
 	const first = entry.information[0];
 	if (!first) return 0;
 	// Information items use the metric name as a key. We try several

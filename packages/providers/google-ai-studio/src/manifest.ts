@@ -10,9 +10,9 @@ import { ProviderApiError } from '@rankpulse/provider-core';
 import { normaliseGeminiResponse } from './acl/gemini-to-llm-answer.acl.js';
 import { parseCredential } from './credential.js';
 import {
+	fetchGeminiGrounded,
 	type GeminiGroundedParams,
 	type GeminiPayload,
-	fetchGeminiGrounded,
 	geminiGroundedDescriptor,
 } from './endpoints/gemini-grounded.js';
 import { buildLegacyShim, type GoogleAiStudioHttp, type GoogleAiStudioHttpClient } from './http.js';

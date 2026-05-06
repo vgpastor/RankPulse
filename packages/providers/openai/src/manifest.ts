@@ -10,9 +10,9 @@ import { ProviderApiError } from '@rankpulse/provider-core';
 import { normaliseOpenAiResponse } from './acl/responses-to-llm-answer.acl.js';
 import { parseCredential } from './credential.js';
 import {
+	fetchResponsesWithWebSearch,
 	type OpenAiResponsePayload,
 	type ResponsesWithWebSearchParams,
-	fetchResponsesWithWebSearch,
 	responsesWithWebSearchDescriptor,
 } from './endpoints/responses-with-web-search.js';
 import { buildLegacyShim, type OpenAiHttp, type OpenAiHttpClient } from './http.js';

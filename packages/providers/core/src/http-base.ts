@@ -10,7 +10,8 @@ const RESPONSE_BODY_MAX_BYTES = 4_096;
  */
 function composeSignals(...signals: ReadonlyArray<AbortSignal | undefined>): AbortSignal {
 	const real = signals.filter((s): s is AbortSignal => Boolean(s));
-	if (real.length === 1) return real[0]!;
+	const [first, second] = real;
+	if (first && !second) return first;
 	const controller = new AbortController();
 	for (const s of real) {
 		if (s.aborted) {
@@ -45,21 +46,11 @@ export abstract class BaseHttpClient implements HttpClient {
 		return this.request<T>('GET', path, query, undefined, ctx);
 	}
 
-	post<T>(
-		path: string,
-		query: Record<string, string>,
-		body: unknown,
-		ctx: FetchContext,
-	): Promise<T> {
+	post<T>(path: string, query: Record<string, string>, body: unknown, ctx: FetchContext): Promise<T> {
 		return this.request<T>('POST', path, query, body, ctx);
 	}
 
-	put<T>(
-		path: string,
-		query: Record<string, string>,
-		body: unknown,
-		ctx: FetchContext,
-	): Promise<T> {
+	put<T>(path: string, query: Record<string, string>, body: unknown, ctx: FetchContext): Promise<T> {
 		return this.request<T>('PUT', path, query, body, ctx);
 	}
 

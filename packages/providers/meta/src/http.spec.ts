@@ -4,7 +4,7 @@ import { InvalidInputError } from '@rankpulse/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MetaApiError, MetaHttpClient } from './http.js';
 
-const validToken = 'EAA' + 'x'.repeat(60);
+const validToken = `EAA${'x'.repeat(60)}`;
 
 const baseConfig: HttpConfig = {
 	baseUrl: 'https://graph.facebook.com/v21.0',
