@@ -53,6 +53,29 @@ export interface UpdateJobDefinitionCommand {
 	enabled?: boolean;
 }
 
+/**
+ * Keys the controllers inject as systemParams when creating or
+ * auto-scheduling a JobDefinition. Listed here (instead of inferred from
+ * the existing def's params) so that adding one elsewhere fails the type
+ * check until this list is updated — keeping the contract explicit.
+ *
+ * BACKLOG bug #51.
+ */
+const SYSTEM_PARAM_KEYS = ['organizationId', 'projectId', 'gscPropertyId', 'trackedKeywordId'] as const;
+
+function mergeUserParamsPreservingSystem(
+	existing: Record<string, unknown>,
+	userPatch: Record<string, unknown>,
+): Record<string, unknown> {
+	const preserved: Record<string, unknown> = {};
+	for (const key of SYSTEM_PARAM_KEYS) {
+		if (existing[key] !== undefined) preserved[key] = existing[key];
+	}
+	// User-provided keys take precedence for non-system keys; system keys
+	// from the existing def always win to prevent accidental tamper.
+	return { ...userPatch, ...preserved };
+}
+
 export class UpdateJobDefinitionUseCase {
 	constructor(
 		private readonly definitions: ProviderConnectivity.JobDefinitionRepository,
@@ -72,7 +95,20 @@ export class UpdateJobDefinitionUseCase {
 		const snapshotBeforeUpdate = def;
 
 		if (cmd.cron !== undefined) def.updateCron(ProviderConnectivity.CronExpression.create(cmd.cron));
-		if (cmd.params !== undefined) def.updateParams(cmd.params);
+		if (cmd.params !== undefined) {
+			// BACKLOG bug #51 — PATCH used to REPLACE `params` wholesale,
+			// silently dropping any system-injected key the controller put
+			// there at create time (`organizationId`, `gscPropertyId`,
+			// `trackedKeywordId`). The next worker run then failed with
+			// "missing organizationId in systemParams" or similar.
+			//
+			// Fix: preserve the known systemParam keys from the existing
+			// def and merge the user-provided patch ON TOP. The whitelist
+			// is intentionally explicit — adding a new systemParam in
+			// downstream code requires extending this list, which forces a
+			// review of every PATCH call site.
+			def.updateParams(mergeUserParamsPreservingSystem(def.params, cmd.params));
+		}
 		if (cmd.enabled === true) def.enable();
 		if (cmd.enabled === false) def.disable();
 

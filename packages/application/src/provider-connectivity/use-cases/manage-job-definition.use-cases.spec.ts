@@ -1,6 +1,6 @@
 import { type ProjectManagement, ProviderConnectivity } from '@rankpulse/domain';
 import { NotFoundError } from '@rankpulse/shared';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
 	DeleteJobDefinitionUseCase,
 	GetJobDefinitionUseCase,
@@ -167,5 +167,98 @@ describe('DeleteJobDefinitionUseCase', () => {
 	it('throws NotFoundError when the definition does not exist', async () => {
 		const useCase = new DeleteJobDefinitionUseCase(new StubDefinitionRepo(), new RecordingScheduler());
 		await expect(useCase.execute('missing')).rejects.toBeInstanceOf(NotFoundError);
+	});
+});
+
+// ===== BACKLOG bug #51: PATCH preserves systemParams =====
+import { ProviderConnectivity as PC2 } from '@rankpulse/domain';
+import { UpdateJobDefinitionUseCase as UpdateJobDefUC2 } from './manage-job-definition.use-cases.js';
+
+describe('UpdateJobDefinitionUseCase — preserves systemParams (bug #51)', () => {
+	const aDefinitionWithSystemParams = (): PC2.ProviderJobDefinition =>
+		PC2.ProviderJobDefinition.schedule({
+			id: 'def-aabbcc' as PC2.ProviderJobDefinitionId,
+			projectId: 'proj-1' as never,
+			providerId: PC2.ProviderId.create('google-search-console'),
+			endpointId: PC2.EndpointId.create('gsc-search-analytics'),
+			params: {
+				siteUrl: 'sc-domain:example.com',
+				startDate: '{{today-30}}',
+				endDate: '{{today-2}}',
+				dimensions: ['date', 'query', 'page'],
+				rowLimit: 25000,
+				// systemParams mixed in (current model)
+				organizationId: 'org-1',
+				gscPropertyId: 'prop-1',
+			},
+			cron: PC2.CronExpression.create('0 5 * * *'),
+			credentialOverrideId: null,
+			now: new Date('2026-05-05T00:00:00Z'),
+		});
+
+	it('preserves organizationId and gscPropertyId when caller PATCHes only user keys', async () => {
+		const def = aDefinitionWithSystemParams();
+		const repo = {
+			save: vi.fn(),
+			findById: vi.fn().mockResolvedValue(def),
+			deactivate: vi.fn(),
+			delete: vi.fn(),
+			listForProject: vi.fn(),
+		} as unknown as PC2.JobDefinitionRepository;
+		const scheduler = {
+			register: vi.fn(),
+			unregister: vi.fn(),
+			enqueueOnce: vi.fn(),
+		} satisfies PC2.JobScheduler;
+
+		const uc = new UpdateJobDefUC2(repo, scheduler);
+		const view = await uc.execute({
+			definitionId: 'def-aabbcc',
+			params: {
+				siteUrl: 'sc-domain:example.com',
+				startDate: '2025-05-06',
+				endDate: '{{today-2}}',
+				dimensions: ['date', 'query', 'page'],
+				rowLimit: 25000,
+			},
+		});
+
+		expect(view.params.organizationId).toBe('org-1');
+		expect(view.params.gscPropertyId).toBe('prop-1');
+		expect(view.params.startDate).toBe('2025-05-06');
+	});
+
+	it('user PATCH cannot overwrite systemParams (defensive)', async () => {
+		const def = aDefinitionWithSystemParams();
+		const repo = {
+			save: vi.fn(),
+			findById: vi.fn().mockResolvedValue(def),
+			deactivate: vi.fn(),
+			delete: vi.fn(),
+			listForProject: vi.fn(),
+		} as unknown as PC2.JobDefinitionRepository;
+		const scheduler = {
+			register: vi.fn(),
+			unregister: vi.fn(),
+			enqueueOnce: vi.fn(),
+		} satisfies PC2.JobScheduler;
+
+		const uc = new UpdateJobDefUC2(repo, scheduler);
+		const view = await uc.execute({
+			definitionId: 'def-aabbcc',
+			params: {
+				siteUrl: 'sc-domain:example.com',
+				organizationId: 'EVIL-ORG',
+				gscPropertyId: 'EVIL-PROP',
+				startDate: '2025-05-06',
+				endDate: '{{today-2}}',
+				dimensions: ['date'],
+				rowLimit: 100,
+			},
+		});
+
+		// systemParams from the DB always win
+		expect(view.params.organizationId).toBe('org-1');
+		expect(view.params.gscPropertyId).toBe('prop-1');
 	});
 });
