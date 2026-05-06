@@ -84,27 +84,76 @@ export interface AnthropicMessagesPayload {
 	usage?: AnthropicUsage;
 }
 
-const buildBody = (params: MessagesWithWebSearchParams): unknown => ({
-	model: params.model,
-	max_tokens: 4000,
-	temperature: 0,
-	tools: [
-		{
-			type: 'web_search_20250305',
-			name: 'web_search',
-			max_uses: WEB_SEARCH_MAX_USES,
-			user_location: {
-				type: 'approximate',
-				country: params.locationCountry,
+/**
+ * Anthropic's `user_location` accepts `city`, `region`, `country`, and
+ * `timezone`. Empirically, country-only configurations have been flaky for
+ * some country codes (the request 400s with no clear error from Anthropic),
+ * so we attach the country's IANA timezone whenever we know it. Falls back
+ * to country-only for codes we haven't mapped yet — strictly additive.
+ */
+const COUNTRY_TIMEZONE: Record<string, string> = {
+	US: 'America/New_York',
+	CA: 'America/Toronto',
+	MX: 'America/Mexico_City',
+	GB: 'Europe/London',
+	IE: 'Europe/Dublin',
+	FR: 'Europe/Paris',
+	DE: 'Europe/Berlin',
+	ES: 'Europe/Madrid',
+	PT: 'Europe/Lisbon',
+	IT: 'Europe/Rome',
+	NL: 'Europe/Amsterdam',
+	BE: 'Europe/Brussels',
+	CH: 'Europe/Zurich',
+	AT: 'Europe/Vienna',
+	SE: 'Europe/Stockholm',
+	NO: 'Europe/Oslo',
+	DK: 'Europe/Copenhagen',
+	FI: 'Europe/Helsinki',
+	PL: 'Europe/Warsaw',
+	BR: 'America/Sao_Paulo',
+	AR: 'America/Argentina/Buenos_Aires',
+	CL: 'America/Santiago',
+	CO: 'America/Bogota',
+	JP: 'Asia/Tokyo',
+	AU: 'Australia/Sydney',
+	NZ: 'Pacific/Auckland',
+	IN: 'Asia/Kolkata',
+};
+
+const buildBody = (params: MessagesWithWebSearchParams): unknown => {
+	const timezone = COUNTRY_TIMEZONE[params.locationCountry];
+	const userLocation: Record<string, string> = {
+		type: 'approximate',
+		country: params.locationCountry,
+	};
+	if (timezone) {
+		userLocation.timezone = timezone;
+	}
+	return {
+		model: params.model,
+		max_tokens: 4000,
+		temperature: 0,
+		tools: [
+			{
+				type: 'web_search_20250305',
+				name: 'web_search',
+				max_uses: WEB_SEARCH_MAX_USES,
+				user_location: userLocation,
 			},
+		],
+		// Force web_search instead of `{ type: 'auto' }`. With `auto`, Claude
+		// can decide to answer from training data and skip the tool entirely
+		// — that silently zeroes the citation rate metric AND, for some
+		// locale × prompt combinations, surfaces as 400s on the messages
+		// endpoint when no tool is chosen.
+		tool_choice: { type: 'tool', name: 'web_search' },
+		messages: [{ role: 'user', content: params.prompt }],
+		metadata: {
+			user_id: params.brandPromptId,
 		},
-	],
-	tool_choice: { type: 'auto' },
-	messages: [{ role: 'user', content: params.prompt }],
-	metadata: {
-		user_id: params.brandPromptId,
-	},
-});
+	};
+};
 
 export const fetchMessagesWithWebSearch = async (
 	http: AnthropicHttp,

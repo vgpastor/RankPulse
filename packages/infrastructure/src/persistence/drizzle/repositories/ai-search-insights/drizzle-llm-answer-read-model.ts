@@ -82,7 +82,9 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			citation_count: number;
 		}>`
 			WITH base AS (
-				SELECT id, ai_provider, country, language, mentions, citations
+				SELECT id, ai_provider, country, language,
+					CASE WHEN jsonb_typeof(mentions) = 'array' THEN mentions ELSE '[]'::jsonb END AS mentions,
+					CASE WHEN jsonb_typeof(citations) = 'array' THEN citations ELSE '[]'::jsonb END AS citations
 				FROM llm_answers
 				WHERE project_id = ${projectId}
 				  AND captured_at BETWEEN ${filter.from} AND ${filter.to}
@@ -104,7 +106,8 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					(SELECT COUNT(*) FROM jsonb_array_elements(b.citations) c
 					 WHERE COALESCE((c->>'isOwnDomain')::bool, false)
 					   AND c->>'url' = (m->>'citedUrl'))::int AS citation_count
-				FROM base b, jsonb_array_elements(b.mentions) m
+				FROM base b
+				CROSS JOIN LATERAL jsonb_array_elements(b.mentions) m
 				WHERE m ? 'brand'
 			)
 			SELECT
@@ -179,14 +182,17 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					c->>'url' AS url,
 					c->>'domain' AS domain,
 					COALESCE((c->>'isOwnDomain')::bool, false) AS is_own_domain
-				FROM llm_answers a, jsonb_array_elements(a.citations) c
+				FROM llm_answers a
+				CROSS JOIN LATERAL jsonb_array_elements(
+					CASE WHEN jsonb_typeof(a.citations) = 'array' THEN a.citations ELSE '[]'::jsonb END
+				) c
 				WHERE a.project_id = ${projectId}
 				  AND a.captured_at BETWEEN ${filter.from} AND ${filter.to}
 				  AND (${aiProvider}::text IS NULL OR a.ai_provider = ${aiProvider}::text)
 			)
 			SELECT
 				url,
-				domain,
+				COALESCE(domain, '') AS domain,
 				bool_or(is_own_domain) AS is_own_domain,
 				COUNT(*)::int AS total_citations,
 				array_agg(DISTINCT ai_provider) AS providers,
@@ -376,7 +382,10 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					c->>'domain' AS domain,
 					to_char(a.captured_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day,
 					BOOL_OR(COALESCE((c->>'isOwnDomain')::bool, false)) AS cited
-				FROM llm_answers a, jsonb_array_elements(a.citations) c
+				FROM llm_answers a
+				CROSS JOIN LATERAL jsonb_array_elements(
+					CASE WHEN jsonb_typeof(a.citations) = 'array' THEN a.citations ELSE '[]'::jsonb END
+				) c
 				WHERE a.project_id = ${projectId}
 				  AND a.captured_at BETWEEN ${filter.from} AND ${filter.to}
 				  AND COALESCE((c->>'isOwnDomain')::bool, false) = true
@@ -464,7 +473,10 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					m->>'brand' AS brand,
 					COALESCE((m->>'isOwnBrand')::bool, false) AS is_own_brand,
 					(m->>'position')::int AS position
-				FROM llm_answers a, jsonb_array_elements(a.mentions) m
+				FROM llm_answers a
+				CROSS JOIN LATERAL jsonb_array_elements(
+					CASE WHEN jsonb_typeof(a.mentions) = 'array' THEN a.mentions ELSE '[]'::jsonb END
+				) m
 				WHERE a.project_id = ${projectId}
 				  AND a.captured_at BETWEEN ${filter.from} AND ${filter.to}
 			),

@@ -94,7 +94,7 @@ export class AiSearchResource {
 		projectId: string,
 		query?: AiSearchInsightsContracts.CompetitiveMatrixQuery,
 	): Promise<AiSearchInsightsContracts.CompetitiveMatrixResponse> {
-		return this.http.get(`/projects/${encodeURIComponent(projectId)}/ai-search/competitive-matrix`, {
+		return this.http.get(`/projects/${encodeURIComponent(projectId)}/ai-search/matrix`, {
 			query: query ?? {},
 		});
 	}

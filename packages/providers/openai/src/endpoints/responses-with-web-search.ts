@@ -102,15 +102,16 @@ const buildBody = (params: ResponsesWithWebSearchParams): unknown => ({
 	model: params.model,
 	input: params.prompt,
 	tools: [{ type: 'web_search' }],
-	// `'required'` forces the model to call A tool — since `web_search` is
-	// the only one declared, this guarantees grounding. `'auto'` lets the
-	// model skip web_search when it thinks it has enough training-data
-	// knowledge, which silently breaks the citation rate metric.
-	tool_choice: 'required',
-	temperature: 0,
-	// 4000 tokens covers nearly every realistic LLM-search answer; longer
-	// answers either truncate (acceptable for our use case) or fail with
-	// 400 if the prompt+tools blow the model's context.
+	// For built-in tools (e.g. web_search) the Responses API requires the
+	// hosted-tool object form to force a specific tool — the bare string
+	// `'required'` returns 400 ("hosted tool 'web_search' must be referenced
+	// by object type"). With only one tool declared, this also guarantees
+	// the model can't skip grounding.
+	tool_choice: { type: 'web_search' },
+	// gpt-5-mini is a reasoning model and only supports the default
+	// temperature (1). Passing `temperature: 0` explicitly returns 400
+	// ("Unsupported value: temperature does not support 0"). Omitting the
+	// field altogether lets the API default kick in across model tiers.
 	max_output_tokens: 4000,
 	// Provide the locale as user metadata. The Responses API doesn't
 	// formally accept a locale param, but `metadata.location_*` is propagated
