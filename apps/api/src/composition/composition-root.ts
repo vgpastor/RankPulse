@@ -217,11 +217,18 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		SystemIdGenerator,
 		eventPublisher,
 		[
-			// BACKLOG bug #50 — auto-resolves gscPropertyId from
-			// (projectId, params.siteUrl) for gsc-search-analytics
-			// schedules. Other providers/endpoints: add their own
-			// resolvers here as needed.
+			// BACKLOG bug #50 (and family) — these resolvers map a user-
+			// facing identifier in `params` (siteUrl, propertyId, url,
+			// article slug...) to the internal entity id the worker's
+			// processor needs in `systemParams` for ingest. Without this,
+			// every scheduled fetch was logging "missing <X>Id; skipping
+			// ingest" and discarding the response. Each bounded context
+			// owns its resolver; this module just wires them up.
 			new SCIUseCases.GscPropertySystemParamResolver(gscPropertyRepo),
+			new TAUseCases.Ga4PropertySystemParamResolver(ga4PropertyRepo),
+			new WPUseCases.TrackedPageSystemParamResolver(trackedPageRepo),
+			new EAUseCases.WikipediaArticleSystemParamResolver(wikipediaArticleRepo),
+			new BWIUseCases.BingPropertySystemParamResolver(bingPropertyRepo),
 		],
 	);
 	const recordApiUsage = new PCUseCases.RecordApiUsageUseCase(
