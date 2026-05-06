@@ -19,7 +19,7 @@
 | `wikipedia-pageviews-per-article` | `wikipedia` | `wikipediaArticleId` | `EntityAwareness.WikipediaArticleLinked` | `LinkWikipediaArticleUseCase` | `0 6 * * *` |
 | `bing-rank-and-traffic-stats` | `bing-webmaster` | `bingPropertyId` | `BingWebmasterInsights.BingPropertyLinked` | `LinkBingPropertyUseCase` | `0 5 * * *` |
 | `clarity-data-export` | `microsoft-clarity` | `clarityProjectId` | `ExperienceAnalytics.ClarityProjectLinked` | `LinkClarityProjectUseCase` | `0 6 * * *` |
-| `psi-runpagespeed` | `pagespeed-insights` | `trackedPageId` | `WebPerformance.TrackedPageAdded` | `TrackPageUseCase` | `0 7 * * *` |
+| `psi-runpagespeed` | `pagespeed` | `trackedPageId` | `WebPerformance.TrackedPageAdded` | `TrackPageUseCase` | `0 7 * * *` |
 | `radar-domain-rank` | `cloudflare-radar` | `monitoredDomainId` | `MacroContext.MonitoredDomainAdded` | `AddMonitoredDomainUseCase` | `0 6 * * *` |
 
 Default crons are spread to avoid cold-start on the worker. Phase 0 verifies the event class names against the actual code; if any differ from this table, the plan substitutes the real name and proceeds.
@@ -1448,7 +1448,7 @@ describe('AutoScheduleOnTrackedPageAddedHandler', () => {
 		const cmd = execute.mock.calls[0]?.[0] as Parameters<ScheduleEndpointFetchUseCase['execute']>[0];
 		expect(cmd).toMatchObject({
 			projectId: PROJECT_ID,
-			providerId: 'pagespeed-insights',
+			providerId: 'pagespeed',
 			endpointId: 'psi-runpagespeed',
 			cron: '0 7 * * *',
 			idempotencyKey: { systemParamKey: 'trackedPageId', systemParamValue: TRACKED_PAGE_ID },
@@ -1468,7 +1468,7 @@ describe('AutoScheduleOnTrackedPageAddedHandler', () => {
 
 	it('exposes defaults', () => {
 		expect(PSI_AUTO_SCHEDULE_DEFAULTS).toMatchObject({
-			providerId: 'pagespeed-insights',
+			providerId: 'pagespeed',
 			endpointId: 'psi-runpagespeed',
 			cron: '0 7 * * *',
 		});
@@ -1498,7 +1498,7 @@ export interface EventHandlerLogger {
 const NOOP_LOGGER: EventHandlerLogger = { info: () => {}, error: () => {} };
 
 export const PSI_AUTO_SCHEDULE_DEFAULTS = {
-	providerId: 'pagespeed-insights',
+	providerId: 'pagespeed',
 	endpointId: 'psi-runpagespeed',
 	cron: '0 7 * * *',
 };
@@ -1799,7 +1799,7 @@ it.each([
 	['wikipedia', 'wikipedia-pageviews-per-article', 'wikipedia/articles'],
 	['bing-webmaster', 'bing-rank-and-traffic-stats', 'bing/properties'],
 	['microsoft-clarity', 'clarity-data-export', 'clarity/projects'],
-	['pagespeed-insights', 'psi-runpagespeed', 'web-performance/tracked-pages'],
+	['pagespeed', 'psi-runpagespeed', 'web-performance/tracked-pages'],
 	['cloudflare-radar', 'radar-domain-rank', 'macro-context/monitored-domains'],
 ])('rejects POST .../schedule for %s/%s with 400 pointing to %s', async (providerId, endpointId, hint) => {
 	const res = await request(app.getHttpServer())
@@ -1845,7 +1845,7 @@ const ENTITY_BOUND_ENDPOINTS: Record<string, { provider: string; preferredRoute:
 	'wikipedia-pageviews-per-article': { provider: 'wikipedia', preferredRoute: '/api/v1/projects/:projectId/wikipedia/articles' },
 	'bing-rank-and-traffic-stats': { provider: 'bing-webmaster', preferredRoute: '/api/v1/projects/:projectId/bing/properties' },
 	'clarity-data-export': { provider: 'microsoft-clarity', preferredRoute: '/api/v1/projects/:projectId/clarity/projects' },
-	'psi-runpagespeed': { provider: 'pagespeed-insights', preferredRoute: '/api/v1/projects/:projectId/web-performance/tracked-pages' },
+	'psi-runpagespeed': { provider: 'pagespeed', preferredRoute: '/api/v1/projects/:projectId/web-performance/tracked-pages' },
 	'radar-domain-rank': { provider: 'cloudflare-radar', preferredRoute: '/api/v1/projects/:projectId/macro-context/monitored-domains' },
 };
 ```
