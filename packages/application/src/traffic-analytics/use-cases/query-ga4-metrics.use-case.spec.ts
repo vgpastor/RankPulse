@@ -58,7 +58,7 @@ const buildMetric = (overrides: {
 		ga4PropertyId: overrides.ga4PropertyId ?? GA4_ID,
 		projectId: PROJECT_ID,
 		observedDate: overrides.observedDate,
-		dimensionsHash: 'hash-' + overrides.observedDate,
+		dimensionsHash: `hash-${overrides.observedDate}`,
 		body: TrafficAnalytics.Ga4DailyDimensionsMetrics.create({
 			dimensions: { country: 'US' },
 			metrics: { sessions: overrides.sessions ?? 100, conversions: 5 },

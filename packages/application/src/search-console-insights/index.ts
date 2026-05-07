@@ -1,4 +1,5 @@
 export * from './event-handlers/auto-schedule.config.js';
+export * from './module.js';
 export * from './use-cases/ingest-gsc-rows.use-case.js';
 export * from './use-cases/link-gsc-property.use-case.js';
 export * from './use-cases/query-gsc-performance.use-case.js';
