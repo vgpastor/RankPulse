@@ -1,6 +1,7 @@
 import type { Provider, ValueProvider } from '@nestjs/common';
 import {
 	AiSearchInsights as AISIUseCases,
+	Core as ApplicationCore,
 	BingWebmasterInsights as BWIUseCases,
 	EntityAwareness as EAUseCases,
 	ExperienceAnalytics as EXAUseCases,
@@ -14,6 +15,10 @@ import {
 	TrafficAnalytics as TAUseCases,
 	WebPerformance as WPUseCases,
 } from '@rankpulse/application';
+
+const { buildAutoScheduleHandlers } = ApplicationCore;
+type SharedDeps = ApplicationCore.SharedDeps;
+
 import {
 	type AiSearchInsights,
 	AiSearchInsights as AiSearchInsightsDomain,
@@ -26,21 +31,21 @@ import {
 	Events,
 	Queue as QueueAdapters,
 } from '@rankpulse/infrastructure';
-import { AnthropicProvider } from '@rankpulse/provider-anthropic';
-import { BingProvider } from '@rankpulse/provider-bing';
-import { BrevoProvider } from '@rankpulse/provider-brevo';
-import { CloudflareRadarProvider } from '@rankpulse/provider-cloudflare-radar';
-import { ProviderRegistry } from '@rankpulse/provider-core';
-import { DataForSeoProvider } from '@rankpulse/provider-dataforseo';
-import { Ga4Provider } from '@rankpulse/provider-ga4';
-import { GoogleAiStudioProvider } from '@rankpulse/provider-google-ai-studio';
-import { GscProvider } from '@rankpulse/provider-gsc';
-import { MetaProvider } from '@rankpulse/provider-meta';
-import { ClarityProvider } from '@rankpulse/provider-microsoft-clarity';
-import { OpenAiProvider } from '@rankpulse/provider-openai';
-import { PageSpeedProvider } from '@rankpulse/provider-pagespeed';
-import { PerplexityProvider } from '@rankpulse/provider-perplexity';
-import { WikipediaProvider } from '@rankpulse/provider-wikipedia';
+import { anthropicProviderManifest } from '@rankpulse/provider-anthropic';
+import { bingProviderManifest } from '@rankpulse/provider-bing';
+import { brevoProviderManifest } from '@rankpulse/provider-brevo';
+import { cloudflareRadarProviderManifest } from '@rankpulse/provider-cloudflare-radar';
+import { buildManifestProviderRegistry } from '@rankpulse/provider-core';
+import { dataforseoProviderManifest } from '@rankpulse/provider-dataforseo';
+import { ga4ProviderManifest } from '@rankpulse/provider-ga4';
+import { googleAiStudioProviderManifest } from '@rankpulse/provider-google-ai-studio';
+import { googleSearchConsoleProviderManifest } from '@rankpulse/provider-gsc';
+import { metaProviderManifest } from '@rankpulse/provider-meta';
+import { microsoftClarityProviderManifest } from '@rankpulse/provider-microsoft-clarity';
+import { openaiProviderManifest } from '@rankpulse/provider-openai';
+import { pagespeedProviderManifest } from '@rankpulse/provider-pagespeed';
+import { perplexityProviderManifest } from '@rankpulse/provider-perplexity';
+import { wikipediaProviderManifest } from '@rankpulse/provider-wikipedia';
 import { InvalidInputError, SystemClock, SystemIdGenerator } from '@rankpulse/shared';
 import { JwtService } from '../common/auth/jwt.service.js';
 import type { AppEnv } from '../config/env.js';
@@ -142,21 +147,26 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		connection: { url: env.REDIS_URL },
 	});
 
-	const providerRegistry = new ProviderRegistry();
-	providerRegistry.register(new DataForSeoProvider());
-	providerRegistry.register(new GscProvider());
-	providerRegistry.register(new Ga4Provider());
-	providerRegistry.register(new PageSpeedProvider());
-	providerRegistry.register(new WikipediaProvider());
-	providerRegistry.register(new BingProvider());
-	providerRegistry.register(new CloudflareRadarProvider());
-	providerRegistry.register(new MetaProvider());
-	providerRegistry.register(new ClarityProvider());
-	providerRegistry.register(new BrevoProvider());
-	providerRegistry.register(new OpenAiProvider());
-	providerRegistry.register(new AnthropicProvider());
-	providerRegistry.register(new PerplexityProvider());
-	providerRegistry.register(new GoogleAiStudioProvider());
+	// ADR 0002 Phase 6 — manifest-driven registry. The 14 imperative
+	// `new XProvider()` registrations collapsed to one array; each
+	// manifest's `buildHttpClient(http)` instantiates the matching
+	// `XHttpClient` (BaseHttpClient subclass) once at boot.
+	const providerRegistry = buildManifestProviderRegistry([
+		dataforseoProviderManifest,
+		googleSearchConsoleProviderManifest,
+		ga4ProviderManifest,
+		pagespeedProviderManifest,
+		wikipediaProviderManifest,
+		bingProviderManifest,
+		cloudflareRadarProviderManifest,
+		metaProviderManifest,
+		microsoftClarityProviderManifest,
+		brevoProviderManifest,
+		openaiProviderManifest,
+		anthropicProviderManifest,
+		perplexityProviderManifest,
+		googleAiStudioProviderManifest,
+	]);
 
 	const registerOrganization = new IAUseCases.RegisterOrganizationUseCase(
 		orgRepo,
@@ -475,180 +485,62 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const queryCompetitiveMatrix = new AISIUseCases.QueryCompetitiveMatrixUseCase(llmAnswerReadModel);
 	const queryAiSearchAlerts = new AISIUseCases.QueryAiSearchAlertsUseCase(llmAnswerReadModel);
 
-	const autoScheduleOnBrandPromptCreated = new AISIUseCases.AutoScheduleOnBrandPromptCreatedHandler(
+	// ADR 0002 Phase 4a — all auto-schedule handlers built from per-context
+	// configs via `buildAutoScheduleHandlers`. Each context owns its own
+	// `auto-schedule.config.ts` and contributes one or more
+	// `AutoScheduleConfig` entries; the factory turns them into
+	// EventHandlers wired to a shared logger + scheduleEndpointFetch.
+	//
+	// The deps cast carries `scheduleEndpointFetch`, `projects`, `credentials`
+	// and `logger` so the AI search dynamicSchedules callback can read project
+	// locations + connected credentials at handle-time. The opaque `_brand`
+	// field on SharedDeps preserves the contract type while letting concrete
+	// fields flow through (see `packages/application/src/_core/module.ts`).
+	const autoScheduleSharedDeps = {
+		_brand: 'SharedDeps' as const,
 		scheduleEndpointFetch,
-		projectRepo,
-		credentialRepo,
-		{
-			info: (meta, msg) => {
+		projects: projectRepo,
+		credentials: credentialRepo,
+		logger: {
+			info: (meta: object, msg: string) => {
 				// eslint-disable-next-line no-console
-				console.log(`[auto-schedule-on-brand-prompt-created] ${msg}`, meta);
+				console.log(`[auto-schedule] ${msg}`, meta);
 			},
-			error: (meta, msg) => {
+			error: (meta: object, msg: string) => {
 				// eslint-disable-next-line no-console
-				console.error(`[auto-schedule-on-brand-prompt-created] ${msg}`, meta);
+				console.error(`[auto-schedule] ${msg}`, meta);
 			},
+			child: (bindings: object) => ({
+				info: (meta: object, msg: string) => {
+					// eslint-disable-next-line no-console
+					console.log(`[auto-schedule] ${msg}`, { ...bindings, ...meta });
+				},
+				error: (meta: object, msg: string) => {
+					// eslint-disable-next-line no-console
+					console.error(`[auto-schedule] ${msg}`, { ...bindings, ...meta });
+				},
+			}),
 		},
-	);
-	eventPublisher.on('BrandPromptCreated', (event) => {
-		void autoScheduleOnBrandPromptCreated.handle(event);
-	});
+	} as unknown as SharedDeps;
 
-	// BACKLOG #23 / #21 — auto-schedule daily GSC fetch on property link.
-	// Subscribes to the in-memory event bus; the handler is fire-and-forget,
-	// errors are swallowed and logged so a scheduler outage doesn't 500 the
-	// link API.
-	const autoScheduleOnGscLink = new SCIUseCases.AutoScheduleOnGscPropertyLinkedHandler(
-		scheduleEndpointFetch,
-		{
-			info: (meta, msg) => {
-				// eslint-disable-next-line no-console
-				console.log(`[auto-schedule-on-gsc-link] ${msg}`, meta);
-			},
-			error: (meta, msg) => {
-				// eslint-disable-next-line no-console
-				console.error(`[auto-schedule-on-gsc-link] ${msg}`, meta);
-			},
-		},
-	);
-	eventPublisher.on('GscPropertyLinked', (event) => {
-		void autoScheduleOnGscLink.handle(event);
-	});
-
-	const autoScheduleOnGa4Link = new TAUseCases.AutoScheduleOnGa4PropertyLinkedHandler(scheduleEndpointFetch, {
-		info: (meta, msg) => {
-			// eslint-disable-next-line no-console
-			console.log(`[auto-schedule-on-ga4-link] ${msg}`, meta);
-		},
-		error: (meta, msg) => {
-			// eslint-disable-next-line no-console
-			console.error(`[auto-schedule-on-ga4-link] ${msg}`, meta);
-		},
-	});
-	eventPublisher.on('Ga4PropertyLinked', (event) => {
-		void autoScheduleOnGa4Link.handle(event);
-	});
-
-	const autoScheduleOnWikipediaLink = new EAUseCases.AutoScheduleOnWikipediaArticleLinkedHandler(
-		scheduleEndpointFetch,
-		{
-			info: (meta, msg) => {
-				// eslint-disable-next-line no-console
-				console.log(`[auto-schedule-on-wikipedia-link] ${msg}`, meta);
-			},
-			error: (meta, msg) => {
-				// eslint-disable-next-line no-console
-				console.error(`[auto-schedule-on-wikipedia-link] ${msg}`, meta);
-			},
-		},
-	);
-	eventPublisher.on('WikipediaArticleLinked', (event) => {
-		void autoScheduleOnWikipediaLink.handle(event);
-	});
-
-	const autoScheduleOnBingLink = new BWIUseCases.AutoScheduleOnBingPropertyLinkedHandler(
-		scheduleEndpointFetch,
-		{
-			info: (meta, msg) => {
-				// eslint-disable-next-line no-console
-				console.log(`[auto-schedule-on-bing-link] ${msg}`, meta);
-			},
-			error: (meta, msg) => {
-				// eslint-disable-next-line no-console
-				console.error(`[auto-schedule-on-bing-link] ${msg}`, meta);
-			},
-		},
-	);
-	eventPublisher.on('BingPropertyLinked', (event) => {
-		void autoScheduleOnBingLink.handle(event);
-	});
-
-	const autoScheduleOnClarityLink = new EXAUseCases.AutoScheduleOnClarityProjectLinkedHandler(
-		scheduleEndpointFetch,
-		{
-			info: (meta, msg) => {
-				// eslint-disable-next-line no-console
-				console.log(`[auto-schedule-on-clarity-link] ${msg}`, meta);
-			},
-			error: (meta, msg) => {
-				// eslint-disable-next-line no-console
-				console.error(`[auto-schedule-on-clarity-link] ${msg}`, meta);
-			},
-		},
-	);
-	eventPublisher.on('ClarityProjectLinked', (event) => {
-		void autoScheduleOnClarityLink.handle(event);
-	});
-
-	const autoScheduleOnTrackedPageAdded = new WPUseCases.AutoScheduleOnTrackedPageAddedHandler(
-		scheduleEndpointFetch,
-		{
-			info: (meta, msg) => {
-				// eslint-disable-next-line no-console
-				console.log(`[auto-schedule-on-tracked-page-added] ${msg}`, meta);
-			},
-			error: (meta, msg) => {
-				// eslint-disable-next-line no-console
-				console.error(`[auto-schedule-on-tracked-page-added] ${msg}`, meta);
-			},
-		},
-	);
-	eventPublisher.on('TrackedPageAdded', (event) => {
-		void autoScheduleOnTrackedPageAdded.handle(event);
-	});
-
-	const autoScheduleOnMonitoredDomainAdded = new MCUseCases.AutoScheduleOnMonitoredDomainAddedHandler(
-		scheduleEndpointFetch,
-		{
-			info: (meta, msg) => {
-				// eslint-disable-next-line no-console
-				console.log(`[auto-schedule-on-monitored-domain-added] ${msg}`, meta);
-			},
-			error: (meta, msg) => {
-				// eslint-disable-next-line no-console
-				console.error(`[auto-schedule-on-monitored-domain-added] ${msg}`, meta);
-			},
-		},
-	);
-	eventPublisher.on('MonitoredDomainAdded', (event) => {
-		void autoScheduleOnMonitoredDomainAdded.handle(event);
-	});
-
-	const autoScheduleOnMetaPixelLinked = new MAAUseCases.AutoScheduleOnMetaPixelLinkedHandler(
-		scheduleEndpointFetch,
-		{
-			info: (meta, msg) => {
-				// eslint-disable-next-line no-console
-				console.log(`[auto-schedule-on-meta-pixel-linked] ${msg}`, meta);
-			},
-			error: (meta, msg) => {
-				// eslint-disable-next-line no-console
-				console.error(`[auto-schedule-on-meta-pixel-linked] ${msg}`, meta);
-			},
-		},
-	);
-	eventPublisher.on('MetaPixelLinked', (event) => {
-		void autoScheduleOnMetaPixelLinked.handle(event);
-	});
-
-	// One ad-account link fans out into 2 schedules: ads-insights (daily)
-	// and custom-audiences (weekly). The handler issues both calls.
-	const autoScheduleOnMetaAdAccountLinked = new MAAUseCases.AutoScheduleOnMetaAdAccountLinkedHandler(
-		scheduleEndpointFetch,
-		{
-			info: (meta, msg) => {
-				// eslint-disable-next-line no-console
-				console.log(`[auto-schedule-on-meta-ad-account-linked] ${msg}`, meta);
-			},
-			error: (meta, msg) => {
-				// eslint-disable-next-line no-console
-				console.error(`[auto-schedule-on-meta-ad-account-linked] ${msg}`, meta);
-			},
-		},
-	);
-	eventPublisher.on('MetaAdAccountLinked', (event) => {
-		void autoScheduleOnMetaAdAccountLinked.handle(event);
-	});
+	const autoScheduleHandlers = buildAutoScheduleHandlers(autoScheduleSharedDeps, [
+		...AISIUseCases.aiSearchInsightsAutoScheduleConfigs,
+		...SCIUseCases.searchConsoleInsightsAutoScheduleConfigs,
+		...TAUseCases.trafficAnalyticsAutoScheduleConfigs,
+		...EAUseCases.entityAwarenessAutoScheduleConfigs,
+		...BWIUseCases.bingWebmasterInsightsAutoScheduleConfigs,
+		...EXAUseCases.experienceAnalyticsAutoScheduleConfigs,
+		...WPUseCases.webPerformanceAutoScheduleConfigs,
+		...MCUseCases.macroContextAutoScheduleConfigs,
+		...MAAUseCases.metaAdsAttributionAutoScheduleConfigs,
+	]);
+	for (const handler of autoScheduleHandlers) {
+		for (const eventType of handler.events) {
+			eventPublisher.on(eventType, (event) => {
+				void handler.handle(event);
+			});
+		}
+	}
 
 	const providers: Provider[] = [
 		value(Tokens.AppEnv, env),

@@ -1,5 +1,6 @@
 import {
 	AiSearchInsights as AiSearchInsightsUseCases,
+	type Core as ApplicationCore,
 	BingWebmasterInsights as BingWebmasterInsightsUseCases,
 	EntityAwareness as EntityAwarenessUseCases,
 	ExperienceAnalytics as ExperienceAnalyticsUseCases,
@@ -20,14 +21,16 @@ import {
 	Events,
 	Queue as QueueAdapters,
 } from '@rankpulse/infrastructure';
+import { buildManifestProviderRegistry } from '@rankpulse/provider-core';
 import { SystemClock, SystemIdGenerator } from '@rankpulse/shared';
 import { Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { pino } from 'pino';
 import { loadEnv } from './config/env.js';
 import { createHealthServer } from './health-server.js';
+import { buildIngestRouter } from './processors/ingest-router.js';
 import { ProviderFetchProcessor } from './processors/provider-fetch.processor.js';
-import { buildProviderRegistry } from './providers/registry.js';
+import { ALL_PROVIDER_MANIFESTS } from './providers/manifests.js';
 
 async function bootstrap(): Promise<void> {
 	const env = loadEnv();
@@ -87,7 +90,12 @@ async function bootstrap(): Promise<void> {
 	const vault = new Crypto.LibsodiumCredentialVault(env.RANKPULSE_MASTER_KEY);
 	const eventPublisher = new Events.InMemoryEventPublisher();
 
-	const registry = buildProviderRegistry({ dataforseoBaseUrl: env.DATAFORSEO_API_BASE_URL });
+	// ADR 0002 Phase 6 — manifest-driven provider registry replaces the
+	// imperative `new XProvider()` registrations. The DATAFORSEO_API_BASE_URL
+	// env var is no longer threaded here; manifests declare their baseUrl
+	// statically. (DataForSEO's manifest sets the production URL; tests
+	// override via `fetchImpl` mock.)
+	const manifestRegistry = buildManifestProviderRegistry(ALL_PROVIDER_MANIFESTS);
 
 	const resolveCredentialUseCase = new ProviderConnectivityUseCases.ResolveProviderCredentialUseCase(
 		credentialRepo,
@@ -179,8 +187,178 @@ async function bootstrap(): Promise<void> {
 		eventPublisher,
 	);
 
+	// ADR 0002 Phase 5 — IngestRouter activation.
+	//
+	// Each manifest's `IngestBinding.useCaseKey` maps to one entry in this
+	// adapter map. The adapter takes the router's generic
+	// `{rawPayloadId, rows, systemParams}` shape and translates it to the
+	// specific use case's command. Two patterns:
+	//
+	//  - Rows-array use cases (GSC, GA4, Bing, Meta ads-insights, Wikipedia):
+	//    pass `rows` through as-is — the manifest's ACL produces the same
+	//    row shape the use case expects.
+	//
+	//  - Single-snapshot use cases (PSI, Clarity, Cloudflare Radar, AI search):
+	//    the ACL wraps a single object in `[snapshot]`; the adapter
+	//    destructures `rows[0]` into the use case's command.
+	//
+	// DataForSEO ranking-observation fan-out (1 SERP → N project domains)
+	// stays in the legacy if-else dispatch (see ingest-router.ts header for
+	// rationale); the router returns false for it and the processor falls
+	// through.
+	const ingestUseCases: Record<string, ApplicationCore.IngestUseCase> = {
+		'search-console-insights:ingest-gsc-rows': {
+			async execute({ rawPayloadId, rows, systemParams }) {
+				await ingestGscRowsUseCase.execute({
+					gscPropertyId: systemParams.gscPropertyId as string,
+					rawPayloadId,
+					rows: rows as Parameters<typeof ingestGscRowsUseCase.execute>[0]['rows'],
+				});
+			},
+		},
+		'traffic-analytics:ingest-ga4-rows': {
+			async execute({ rawPayloadId, rows, systemParams }) {
+				await ingestGa4RowsUseCase.execute({
+					ga4PropertyId: systemParams.ga4PropertyId as string,
+					rawPayloadId,
+					rows: rows as Parameters<typeof ingestGa4RowsUseCase.execute>[0]['rows'],
+				});
+			},
+		},
+		'bing-webmaster-insights:ingest-bing-traffic': {
+			async execute({ rawPayloadId, rows, systemParams }) {
+				await ingestBingTrafficUseCase.execute({
+					bingPropertyId: systemParams.bingPropertyId as string,
+					rawPayloadId,
+					rows: rows as Parameters<typeof ingestBingTrafficUseCase.execute>[0]['rows'],
+				});
+			},
+		},
+		'entity-awareness:ingest-wikipedia-pageviews': {
+			async execute({ rows, systemParams }) {
+				await ingestWikipediaPageviewsUseCase.execute({
+					articleId: systemParams.wikipediaArticleId as string,
+					rows: rows as Parameters<typeof ingestWikipediaPageviewsUseCase.execute>[0]['rows'],
+				});
+			},
+		},
+		'meta-ads-attribution:ingest-meta-ads-insights': {
+			async execute({ rawPayloadId, rows, systemParams }) {
+				await ingestMetaAdsInsightsUseCase.execute({
+					metaAdAccountId: systemParams.metaAdAccountId as string,
+					rawPayloadId,
+					rows: rows as Parameters<typeof ingestMetaAdsInsightsUseCase.execute>[0]['rows'],
+				});
+			},
+		},
+		'web-performance:record-pagespeed-snapshot': {
+			async execute({ rows, systemParams }) {
+				const snap = rows[0] as {
+					observedAt: Date;
+					lcpMs: number | null;
+					inpMs: number | null;
+					cls: number | null;
+					fcpMs: number | null;
+					ttfbMs: number | null;
+					performanceScore: number | null;
+					seoScore: number | null;
+					accessibilityScore: number | null;
+					bestPracticesScore: number | null;
+				};
+				if (!snap) return;
+				await recordPageSpeedSnapshotUseCase.execute({
+					trackedPageId: systemParams.trackedPageId as string,
+					observedAt: snap.observedAt,
+					lcpMs: snap.lcpMs,
+					inpMs: snap.inpMs,
+					cls: snap.cls,
+					fcpMs: snap.fcpMs,
+					ttfbMs: snap.ttfbMs,
+					performanceScore: snap.performanceScore,
+					seoScore: snap.seoScore,
+					accessibilityScore: snap.accessibilityScore,
+					bestPracticesScore: snap.bestPracticesScore,
+				});
+			},
+		},
+		'macro-context:record-radar-rank': {
+			async execute({ rawPayloadId, rows, systemParams }) {
+				const snap = rows[0] as {
+					observedDate: string;
+					rank: number | null;
+					bucket: string | null;
+					categories: Record<string, number>;
+				};
+				if (!snap) return;
+				await recordRadarRankUseCase.execute({
+					monitoredDomainId: systemParams.monitoredDomainId as string,
+					observedDate: snap.observedDate,
+					rank: snap.rank,
+					bucket: snap.bucket,
+					categories: snap.categories,
+					rawPayloadId,
+				});
+			},
+		},
+		'experience-analytics:record-experience-snapshot': {
+			async execute({ rawPayloadId, rows, systemParams }) {
+				const snap = rows[0] as {
+					observedDate: string;
+					sessionsCount: number;
+					botSessionsCount: number;
+					distinctUserCount: number;
+					pagesPerSession: number;
+					rageClicks: number;
+					deadClicks: number;
+					avgEngagementSeconds: number;
+					avgScrollDepth: number;
+				};
+				if (!snap) return;
+				await recordExperienceSnapshotUseCase.execute({
+					clarityProjectId: systemParams.clarityProjectId as string,
+					observedDate: snap.observedDate,
+					sessionsCount: snap.sessionsCount,
+					botSessionsCount: snap.botSessionsCount,
+					distinctUserCount: snap.distinctUserCount,
+					pagesPerSession: snap.pagesPerSession,
+					rageClicks: snap.rageClicks,
+					deadClicks: snap.deadClicks,
+					avgEngagementSeconds: snap.avgEngagementSeconds,
+					avgScrollDepth: snap.avgScrollDepth,
+					rawPayloadId,
+				});
+			},
+		},
+		'ai-search-insights:record-llm-answer': {
+			async execute({ rawPayloadId, rows, systemParams }) {
+				const answer = rows[0] as Parameters<typeof recordLlmAnswerUseCase.execute>[0]['response'];
+				if (!answer) return;
+				const brandPromptId = systemParams.brandPromptId as string | undefined;
+				const country = systemParams.country as string | undefined;
+				const language = systemParams.language as string | undefined;
+				if (!brandPromptId || !country || !language) {
+					logger.warn(
+						{ systemParams },
+						'ai-search ingest skipped: missing brandPromptId / country / language in systemParams',
+					);
+					return;
+				}
+				await recordLlmAnswerUseCase.execute({
+					brandPromptId,
+					country,
+					language,
+					rawPayloadId,
+					response: answer,
+				});
+			},
+		},
+	};
+
+	const ingestRouter = buildIngestRouter(ALL_PROVIDER_MANIFESTS, ingestUseCases);
+
 	const processor = new ProviderFetchProcessor({
-		registry,
+		registry: manifestRegistry,
+		ingestRouter,
 		credentialRepo,
 		jobDefRepo,
 		jobRunRepo,
@@ -211,7 +389,6 @@ async function bootstrap(): Promise<void> {
 		ingestMetaPixelEventsUseCase,
 		ingestMetaAdsInsightsUseCase,
 		recordExperienceSnapshotUseCase,
-		recordLlmAnswerUseCase,
 		clock: SystemClock,
 		ids: SystemIdGenerator,
 		logger,
@@ -223,8 +400,8 @@ async function bootstrap(): Promise<void> {
 	});
 
 	const workers: Worker[] = [];
-	for (const provider of registry.list()) {
-		const queueName = QueueAdapters.providerQueueName(provider.id.value);
+	for (const manifest of manifestRegistry.list()) {
+		const queueName = QueueAdapters.providerQueueName(manifest.id);
 		const worker = new Worker(
 			queueName,
 			async (job) => {

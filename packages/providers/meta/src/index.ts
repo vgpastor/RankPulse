@@ -5,4 +5,4 @@ export * from './endpoints/ads-insights.js';
 export * from './endpoints/custom-audiences.js';
 export * from './endpoints/pixel-events-stats.js';
 export * from './http.js';
-export * from './provider.js';
+export * from './manifest.js';

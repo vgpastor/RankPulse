@@ -3,9 +3,17 @@ import { InvalidInputError } from '@rankpulse/shared';
 import { and, eq } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { gscProperties } from '../../schema/index.js';
+import { DrizzleRepository } from '../_base.js';
 
-export class DrizzleGscPropertyRepository implements SearchConsoleInsights.GscPropertyRepository {
-	constructor(private readonly db: DrizzleDatabase) {}
+type GscPropertyRow = typeof gscProperties.$inferSelect;
+
+export class DrizzleGscPropertyRepository
+	extends DrizzleRepository<SearchConsoleInsights.GscProperty, GscPropertyRow>
+	implements SearchConsoleInsights.GscPropertyRepository
+{
+	constructor(db: DrizzleDatabase) {
+		super(db, gscProperties);
+	}
 
 	async save(p: SearchConsoleInsights.GscProperty): Promise<void> {
 		await this.db
@@ -29,10 +37,7 @@ export class DrizzleGscPropertyRepository implements SearchConsoleInsights.GscPr
 			});
 	}
 
-	async findById(id: SearchConsoleInsights.GscPropertyId): Promise<SearchConsoleInsights.GscProperty | null> {
-		const [row] = await this.db.select().from(gscProperties).where(eq(gscProperties.id, id)).limit(1);
-		return row ? this.toAggregate(row) : null;
-	}
+	// findById inherited from DrizzleRepository<TAggregate, TRow>.
 
 	async findByProjectAndSite(
 		projectId: ProjectManagement.ProjectId,
@@ -60,7 +65,7 @@ export class DrizzleGscPropertyRepository implements SearchConsoleInsights.GscPr
 		return rows.map((r) => this.toAggregate(r));
 	}
 
-	private toAggregate(row: typeof gscProperties.$inferSelect): SearchConsoleInsights.GscProperty {
+	protected toAggregate(row: GscPropertyRow): SearchConsoleInsights.GscProperty {
 		if (!SearchConsoleInsights.isGscPropertyType(row.propertyType)) {
 			throw new InvalidInputError(`Stored GSC property has invalid propertyType "${row.propertyType}"`);
 		}

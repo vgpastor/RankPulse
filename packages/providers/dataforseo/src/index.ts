@@ -10,4 +10,4 @@ export * from './endpoints/related-keywords.js';
 export * from './endpoints/serp-google-organic-advanced.js';
 export * from './endpoints/serp-google-organic-live.js';
 export * from './http.js';
-export * from './provider.js';
+export { dataforseoProviderManifest } from './manifest.js';

@@ -1,3 +1,4 @@
+export * as Core from './_core/index.js';
 export * as AiSearchInsights from './ai-search-insights/index.js';
 export * as BingWebmasterInsights from './bing-webmaster-insights/index.js';
 export * as EntityAwareness from './entity-awareness/index.js';
