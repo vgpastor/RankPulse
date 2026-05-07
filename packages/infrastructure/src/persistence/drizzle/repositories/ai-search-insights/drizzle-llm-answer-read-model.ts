@@ -4,6 +4,15 @@ import { sql } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 
 /**
+ * Bridges the two postgres-js result shapes drizzle-orm can return —
+ * `pg-core`'s `Result` exposes the rows on a `.rows` property, while the
+ * `postgres` driver returns the array directly. Each read-model method
+ * needs the array shape; centralising the cast keeps the SQL focus on
+ * what's interesting (the query).
+ */
+const unwrap = <T>(rows: unknown): T[] => ((rows as { rows?: unknown[] }).rows ?? (rows as unknown[])) as T[];
+
+/**
  * On-the-fly aggregation queries against `llm_answers`. Each query relies on
  * the existing `(project_id, captured_at)` and
  * `(project_id, ai_provider, country, language, captured_at)` indexes; jsonb
@@ -55,14 +64,13 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 				), 0)::int AS competitor_mention_count
 			FROM base
 		`);
-		const row = (rows as unknown as { rows?: unknown[] }).rows?.[0] ?? rows[0];
-		const r = row as {
+		const r = unwrap<{
 			total_answers: number;
 			answers_with_own_mention: number;
 			own_citation_count: number;
 			own_avg_position: number | null;
 			competitor_mention_count: number;
-		};
+		}>(rows)[0];
 		return {
 			totalAnswers: Number(r?.total_answers ?? 0),
 			answersWithOwnMention: Number(r?.answers_with_own_mention ?? 0),
@@ -134,7 +142,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			GROUP BY e.ai_provider, e.country, e.language, e.brand, t.total_answers
 			ORDER BY t.total_answers DESC, e.brand
 		`);
-		const list = ((rows as unknown as { rows?: unknown[] }).rows ?? rows) as Array<{
+		const list = unwrap<{
 			ai_provider: string;
 			country: string;
 			language: string;
@@ -144,7 +152,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			answers_with_mention: number;
 			avg_position: number | null;
 			citation_count: number;
-		}>;
+		}>(rows);
 		return list.map((r) => {
 			if (!AiSearchInsights.isAiProviderName(r.ai_provider)) {
 				throw new InvalidInputError(`SoV query returned unknown ai_provider "${r.ai_provider}"`);
@@ -211,7 +219,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			ORDER BY total_citations DESC
 			LIMIT 200
 		`);
-		const list = ((rows as unknown as { rows?: unknown[] }).rows ?? rows) as Array<{
+		const list = unwrap<{
 			url: string;
 			domain: string;
 			is_own_domain: boolean;
@@ -219,7 +227,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			providers: string[];
 			first_seen_at: Date | string;
 			last_seen_at: Date | string;
-		}>;
+		}>(rows);
 		return list.map((r) => ({
 			url: r.url,
 			domain: r.domain,
@@ -260,11 +268,11 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			GROUP BY day
 			ORDER BY day
 		`);
-		const list = ((rows as unknown as { rows?: unknown[] }).rows ?? rows) as Array<{
+		const list = unwrap<{
 			day: string;
 			total_answers: number;
 			answers_with_own_mention: number;
-		}>;
+		}>(rows);
 		return list.map((r) => ({
 			day: r.day,
 			totalAnswers: Number(r.total_answers ?? 0),
@@ -338,7 +346,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			FROM base
 			GROUP BY ai_provider, country, language
 		`);
-		const list = ((rows as unknown as { rows?: unknown[] }).rows ?? rows) as Array<{
+		const list = unwrap<{
 			ai_provider: string;
 			country: string;
 			language: string;
@@ -346,7 +354,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			this_week_own_mentions: number;
 			last_week_total: number;
 			last_week_own_mentions: number;
-		}>;
+		}>(rows);
 		return list
 			.filter((r) => AiSearchInsights.isAiProviderName(r.ai_provider))
 			.map((r) => {
@@ -449,7 +457,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			FROM top_streak t
 			JOIN latest_per_locale l USING (ai_provider, country, language)
 		`);
-		const list = ((rows as unknown as { rows?: unknown[] }).rows ?? rows) as Array<{
+		const list = unwrap<{
 			url: string;
 			domain: string;
 			ai_provider: string;
@@ -458,7 +466,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			streak_days: number;
 			last_seen_at: Date | string;
 			currently_cited: boolean;
-		}>;
+		}>(rows);
 		return list
 			.filter((r) => AiSearchInsights.isAiProviderName(r.ai_provider))
 			.map((r) => ({
@@ -521,14 +529,14 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			LEFT JOIN own_pos o
 				ON o.ai_provider = c.ai_provider AND o.country = c.country AND o.language = c.language
 		`);
-		const list = ((rows as unknown as { rows?: unknown[] }).rows ?? rows) as Array<{
+		const list = unwrap<{
 			ai_provider: string;
 			country: string;
 			language: string;
 			own_avg_position: number | null;
 			competitor_brand: string;
 			competitor_avg_position: number | null;
-		}>;
+		}>(rows);
 		return list
 			.filter((r) => AiSearchInsights.isAiProviderName(r.ai_provider))
 			.map((r) => ({

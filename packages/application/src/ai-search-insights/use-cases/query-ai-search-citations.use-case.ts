@@ -1,4 +1,5 @@
 import type { AiSearchInsights, ProjectManagement } from '@rankpulse/domain';
+import { safeIso } from '@rankpulse/shared';
 import { normaliseDashboardWindow } from './window-guards.js';
 
 export interface QueryAiSearchCitationsQuery {
@@ -38,11 +39,11 @@ export class QueryAiSearchCitationsUseCase {
 			onlyOwnDomains: query.onlyOwnDomains,
 			aiProvider: query.aiProvider,
 		});
-		const safeIso = (d: Date): string =>
-			Number.isFinite(d.getTime()) ? d.toISOString() : new Date(0).toISOString();
 		return rows.map((r) => ({
 			url: r.url,
-			domain: r.domain ?? '',
+			// `domain` is `COALESCE(domain, '') AS domain` SQL-side, so it
+			// arrives non-null here — no further fallback needed.
+			domain: r.domain,
 			isOwnDomain: r.isOwnDomain,
 			totalCitations: r.totalCitations,
 			providers: r.providers,
