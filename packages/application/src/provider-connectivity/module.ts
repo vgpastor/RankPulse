@@ -39,6 +39,7 @@ export interface ProviderConnectivityDeps {
 	readonly credentialFormatValidator: CredentialFormatValidator;
 	/** Same idea for endpoint params validation — adapter over the registry. */
 	readonly endpointParamsValidator: EndpointParamsValidator;
+	readonly providerConnectivitySchemaTables: readonly unknown[];
 }
 
 export const providerConnectivityModule: ContextModule = {
@@ -78,7 +79,7 @@ export const providerConnectivityModule: ContextModule = {
 			},
 			ingestUseCases: {},
 			eventHandlers: [],
-			schemaTables: [],
+			schemaTables: d.providerConnectivitySchemaTables,
 		};
 	},
 };

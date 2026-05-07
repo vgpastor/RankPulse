@@ -36,6 +36,7 @@ export interface ProjectManagementDeps {
 	 * composition root provides the actual `trackedKeywordRepo.countForProject`.
 	 */
 	readonly trackedKeywordCountForProject: (projectId: string) => Promise<number>;
+	readonly projectManagementSchemaTables: readonly unknown[];
 }
 
 export const projectManagementModule: ContextModule = {
@@ -72,7 +73,7 @@ export const projectManagementModule: ContextModule = {
 			},
 			ingestUseCases: {},
 			eventHandlers: [],
-			schemaTables: [],
+			schemaTables: d.projectManagementSchemaTables,
 		};
 	},
 };

@@ -1,7 +1,7 @@
 import type { Provider, ValueProvider } from '@nestjs/common';
 import {
 	AiSearchInsights as AISIUseCases,
-	Core as ApplicationCore,
+	type Core as ApplicationCore,
 	BingWebmasterInsights as BWIUseCases,
 	EntityAwareness as EAUseCases,
 	ExperienceAnalytics as EXAUseCases,
@@ -16,7 +16,6 @@ import {
 	WebPerformance as WPUseCases,
 } from '@rankpulse/application';
 
-const { buildAutoScheduleHandlers } = ApplicationCore;
 type SharedDeps = ApplicationCore.SharedDeps;
 
 import {
@@ -86,6 +85,14 @@ export interface BootstrapResult {
  * Builds every adapter and use case the application needs, wiring them into
  * NestJS providers keyed by Tokens. Controllers depend only on these tokens,
  * never on concrete implementations — keeping the framework boundary thin.
+ *
+ * Each bounded context's wiring lives in its own
+ * `packages/application/src/<context>/module.ts` (`ContextModule.compose`).
+ * This root assembles the cross-cutting infrastructure (drizzle, redis, jwt,
+ * crypto, the provider registry) and threads it into every module via the
+ * opaque `SharedDeps` brand. Returned `useCases`, `eventHandlers` and
+ * `schemaTables` are merged centrally — adding a context is one new entry
+ * in `compose...` + the module file, never edits to this scaffolding.
  */
 export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const drizzle = DrizzlePersistence.createDrizzleClient({
@@ -168,114 +175,10 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		googleAiStudioProviderManifest,
 	]);
 
-	// ContextModule pattern (ADR 0002 Phase 4 — pilot context). Identity-access
-	// owns its use-case wiring in `packages/application/src/identity-access/module.ts`;
-	// the composition root just hands it the slice of `SharedDeps` it needs and
-	// reads back the instantiated use cases. Other 12 contexts still use the
-	// imperative pattern below — they migrate incrementally in follow-up PRs.
-	const identityAccessDeps: IAUseCases.IdentityAccessDeps = {
-		clock: SystemClock,
-		ids: SystemIdGenerator,
-		events: eventPublisher,
-		orgRepo,
-		userRepo,
-		membershipRepo,
-		apiTokenRepo,
-		passwordHasher,
-		apiTokenGenerator,
-	};
-	const identityAccess = IAUseCases.identityAccessModule.compose(identityAccessDeps as unknown as SharedDeps);
-	const registerOrganization = identityAccess.useCases
-		.RegisterOrganization as IAUseCases.RegisterOrganizationUseCase;
-	const authenticateUser = identityAccess.useCases.AuthenticateUser as IAUseCases.AuthenticateUserUseCase;
-	const inviteUser = identityAccess.useCases.InviteUser as IAUseCases.InviteUserUseCase;
-	const issueApiToken = identityAccess.useCases.IssueApiToken as IAUseCases.IssueApiTokenUseCase;
-
-	const createProject = new PMUseCases.CreateProjectUseCase(
-		projectRepo,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const addDomain = new PMUseCases.AddDomainToProjectUseCase(projectRepo, SystemClock, eventPublisher);
-	const addLocation = new PMUseCases.AddProjectLocationUseCase(projectRepo, SystemClock, eventPublisher);
-	const addCompetitor = new PMUseCases.AddCompetitorUseCase(
-		projectRepo,
-		competitorRepo,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const importKeywords = new PMUseCases.ImportKeywordsUseCase(
-		projectRepo,
-		keywordListRepo,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const createPortfolio = new PMUseCases.CreatePortfolioUseCase(
-		portfolioRepo,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const listPortfolios = new PMUseCases.ListPortfoliosUseCase(portfolioRepo);
-	const getPortfolio = new PMUseCases.GetPortfolioUseCase(portfolioRepo);
-	const renamePortfolio = new PMUseCases.RenamePortfolioUseCase(portfolioRepo);
-	const deletePortfolio = new PMUseCases.DeletePortfolioUseCase(portfolioRepo);
-
-	// BACKLOG #18 — competitor auto-discovery. The list use case needs the
-	// project's keyword count to evaluate the eligibility ratio. We don't
-	// leak the rank-tracking aggregate; we expose a tiny lambda over the
-	// tracked-keyword repo so suggestions stay project-management-pure.
-	const listCompetitorSuggestions = new PMUseCases.ListCompetitorSuggestionsUseCase(
-		competitorSuggestionRepo,
-		(projectId) => trackedKeywordRepo.countForProject(projectId as ProjectManagement.ProjectId),
-	);
-	const promoteCompetitorSuggestion = new PMUseCases.PromoteCompetitorSuggestionUseCase(
-		competitorSuggestionRepo,
-		competitorRepo,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const dismissCompetitorSuggestion = new PMUseCases.DismissCompetitorSuggestionUseCase(
-		competitorSuggestionRepo,
-		SystemClock,
-	);
-
-	const registerCredential = new PCUseCases.RegisterProviderCredentialUseCase(
-		credentialRepo,
-		credentialVault,
-		{
-			validate: (providerId, plaintextSecret) => {
-				providerRegistry.get(providerId).validateCredentialPlaintext(plaintextSecret);
-			},
-		},
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const resolveCredential = new PCUseCases.ResolveProviderCredentialUseCase(
-		credentialRepo,
-		credentialVault,
-		SystemClock,
-	);
-	const triggerJobDefinitionRun = new PCUseCases.TriggerJobDefinitionRunUseCase(
-		jobDefRepo,
-		jobScheduler,
-		SystemIdGenerator,
-	);
-	const listJobDefinitions = new PCUseCases.ListJobDefinitionsUseCase(jobDefRepo);
-	const getJobDefinition = new PCUseCases.GetJobDefinitionUseCase(jobDefRepo);
-	const updateJobDefinition = new PCUseCases.UpdateJobDefinitionUseCase(jobDefRepo, jobScheduler);
-	const deleteJobDefinition = new PCUseCases.DeleteJobDefinitionUseCase(jobDefRepo, jobScheduler);
-	const listJobRuns = new PCUseCases.ListJobRunsUseCase(jobRunRepo);
-
-	// ADR 0001 — entity-bound endpoints are auto-scheduled by their bounded
-	// context's link/add handler (see the AutoScheduleOn... blocks below).
-	// `ScheduleEndpointFetchUseCase` no longer carries cross-context resolvers
-	// to back-fill systemParams from user-facing identifiers.
+	// `ScheduleEndpointFetch` is built first because it's needed by the
+	// auto-schedule handlers each context module emits via `compose(deps)`.
+	// Its dependency surface is identical to the other provider-connectivity
+	// use cases — the module returns it under the same instance below.
 	const scheduleEndpointFetch = new PCUseCases.ScheduleEndpointFetchUseCase(
 		jobDefRepo,
 		jobScheduler,
@@ -294,150 +197,32 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		SystemClock,
 		SystemIdGenerator,
 		eventPublisher,
-		// ADR 0001 fully realised: every entity-bound endpoint is now
-		// auto-scheduled by its bounded context's link/add handler (see the
-		// `eventPublisher.on(...)` blocks below). The SystemParamResolver
-		// pattern is gone.
-	);
-	const recordApiUsage = new PCUseCases.RecordApiUsageUseCase(
-		apiUsageRepo,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
 	);
 
-	const startTrackingKeyword = new RTUseCases.StartTrackingKeywordUseCase(
-		trackedKeywordRepo,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const recordRankingObservation = new RTUseCases.RecordRankingObservationUseCase(
-		trackedKeywordRepo,
-		observationRepo,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const queryRankingHistory = new RTUseCases.QueryRankingHistoryUseCase(trackedKeywordRepo, observationRepo);
-
-	const linkGscProperty = new SCIUseCases.LinkGscPropertyUseCase(
-		gscPropertyRepo,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const ingestGscRows = new SCIUseCases.IngestGscRowsUseCase(
-		gscPropertyRepo,
-		gscObservationRepo,
-		SystemIdGenerator,
-		eventPublisher,
-		SystemClock,
-	);
-	const queryGscPerformance = new SCIUseCases.QueryGscPerformanceUseCase(gscPropertyRepo, gscObservationRepo);
-
-	// Issue #33 — entity-awareness use cases
-	const linkWikipediaArticle = new EAUseCases.LinkWikipediaArticleUseCase(
-		wikipediaArticleRepo,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const unlinkWikipediaArticle = new EAUseCases.UnlinkWikipediaArticleUseCase(
-		wikipediaArticleRepo,
-		SystemClock,
-		eventPublisher,
-	);
-	const queryWikipediaPageviews = new EAUseCases.QueryWikipediaPageviewsUseCase(
-		wikipediaArticleRepo,
-		wikipediaPageviewRepo,
-	);
-
-	// Issue #18 — web-performance use cases
-	const trackPage = new WPUseCases.TrackPageUseCase(
-		trackedPageRepo,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const untrackPage = new WPUseCases.UntrackPageUseCase(trackedPageRepo);
-	const queryPageSpeedHistory = new WPUseCases.QueryPageSpeedHistoryUseCase(
-		trackedPageRepo,
-		pageSpeedSnapshotRepo,
-	);
-
-	// Issue #17 — traffic-analytics (GA4) use cases
-	const linkGa4Property = new TAUseCases.LinkGa4PropertyUseCase(
-		ga4PropertyRepo,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const unlinkGa4Property = new TAUseCases.UnlinkGa4PropertyUseCase(ga4PropertyRepo, SystemClock);
-	const queryGa4Metrics = new TAUseCases.QueryGa4MetricsUseCase(ga4PropertyRepo, ga4DailyMetricRepo);
-
-	// Issue #20 — bing-webmaster-insights use cases
-	const linkBingProperty = new BWIUseCases.LinkBingPropertyUseCase(
-		bingPropertyRepo,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const unlinkBingProperty = new BWIUseCases.UnlinkBingPropertyUseCase(bingPropertyRepo, SystemClock);
-	const queryBingTraffic = new BWIUseCases.QueryBingTrafficUseCase(
-		bingPropertyRepo,
-		bingTrafficObservationRepo,
-	);
-
-	// Issue #25 — macro-context use cases
-	const addMonitoredDomain = new MCUseCases.AddMonitoredDomainUseCase(
-		monitoredDomainRepo,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const removeMonitoredDomain = new MCUseCases.RemoveMonitoredDomainUseCase(monitoredDomainRepo, SystemClock);
-	const queryRadarHistory = new MCUseCases.QueryRadarHistoryUseCase(
-		monitoredDomainRepo,
-		radarRankSnapshotRepo,
-	);
-
-	// Issue #45 — meta-ads-attribution use cases
-	const linkMetaPixel = new MAAUseCases.LinkMetaPixelUseCase(
-		metaPixelRepo,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const unlinkMetaPixel = new MAAUseCases.UnlinkMetaPixelUseCase(metaPixelRepo, SystemClock);
-	const linkMetaAdAccount = new MAAUseCases.LinkMetaAdAccountUseCase(
-		metaAdAccountRepo,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const unlinkMetaAdAccount = new MAAUseCases.UnlinkMetaAdAccountUseCase(metaAdAccountRepo, SystemClock);
-	const queryMetaPixelEvents = new MAAUseCases.QueryMetaPixelEventsUseCase(
-		metaPixelRepo,
-		metaPixelEventDailyRepo,
-	);
-	const queryMetaAdsInsights = new MAAUseCases.QueryMetaAdsInsightsUseCase(
-		metaAdAccountRepo,
-		metaAdsInsightDailyRepo,
-	);
-
-	// Issue #43 — experience-analytics use cases
-	const linkClarityProject = new EXAUseCases.LinkClarityProjectUseCase(
-		clarityProjectRepo,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const unlinkClarityProject = new EXAUseCases.UnlinkClarityProjectUseCase(clarityProjectRepo, SystemClock);
-	const queryExperienceHistory = new EXAUseCases.QueryExperienceHistoryUseCase(
-		clarityProjectRepo,
-		experienceSnapshotRepo,
-	);
+	// ADR 0002 Phase 4a — the auto-schedule logger is shared across every
+	// bounded context's auto-schedule handlers. Kept here (vs. per-context)
+	// because the logger backend is an infrastructure decision: today
+	// console.log; tomorrow pino with a request id.
+	const autoScheduleLogger = {
+		info: (meta: object, msg: string) => {
+			// eslint-disable-next-line no-console
+			console.log(`[auto-schedule] ${msg}`, meta);
+		},
+		error: (meta: object, msg: string) => {
+			// eslint-disable-next-line no-console
+			console.error(`[auto-schedule] ${msg}`, meta);
+		},
+		child: (bindings: object) => ({
+			info: (meta: object, msg: string) => {
+				// eslint-disable-next-line no-console
+				console.log(`[auto-schedule] ${msg}`, { ...bindings, ...meta });
+			},
+			error: (meta: object, msg: string) => {
+				// eslint-disable-next-line no-console
+				console.error(`[auto-schedule] ${msg}`, { ...bindings, ...meta });
+			},
+		}),
+	};
 
 	// Sub-issue #61 of #27 — AI Brand Radar foundation.
 	// MentionExtractor: optional. If ANTHROPIC_API_KEY is missing, we wire a
@@ -448,97 +233,232 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		? new AiSearchInsightsInfra.AnthropicMentionExtractor({ apiKey: env.ANTHROPIC_API_KEY })
 		: noopMentionExtractor();
 
-	const registerBrandPrompt = new AISIUseCases.RegisterBrandPromptUseCase(
-		brandPromptRepo,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const pauseBrandPrompt = new AISIUseCases.PauseBrandPromptUseCase(
-		brandPromptRepo,
-		SystemClock,
-		eventPublisher,
-	);
-	const resumeBrandPrompt = new AISIUseCases.ResumeBrandPromptUseCase(
-		brandPromptRepo,
-		SystemClock,
-		eventPublisher,
-	);
-	const deleteBrandPrompt = new AISIUseCases.DeleteBrandPromptUseCase(brandPromptRepo);
-	const listBrandPrompts = new AISIUseCases.ListBrandPromptsUseCase(brandPromptRepo);
-	const recordLlmAnswer = new AISIUseCases.RecordLlmAnswerUseCase(
+	// One typed `compose(deps)` per bounded context. Each module narrows the
+	// opaque `SharedDeps` to its own `<Context>Deps` shape internally; this
+	// scope only owns the cross-cutting deps (logger, schedule executor,
+	// shared clock/ids/events).
+	const identityAccess = IAUseCases.identityAccessModule.compose({
+		clock: SystemClock,
+		ids: SystemIdGenerator,
+		events: eventPublisher,
+		orgRepo,
+		userRepo,
+		membershipRepo,
+		apiTokenRepo,
+		passwordHasher,
+		apiTokenGenerator,
+		identityAccessSchemaTables: DrizzlePersistence.schema.identityAccessSchemaTables,
+	} satisfies IAUseCases.IdentityAccessDeps as unknown as SharedDeps);
+
+	const projectManagement = PMUseCases.projectManagementModule.compose({
+		clock: SystemClock,
+		ids: SystemIdGenerator,
+		events: eventPublisher,
+		projectRepo,
+		portfolioRepo,
+		keywordListRepo,
+		competitorRepo,
+		competitorSuggestionRepo,
+		// BACKLOG #18 — project-management's `ListCompetitorSuggestions` needs
+		// the project's tracked-keyword count to evaluate the eligibility ratio.
+		// We don't leak the rank-tracking aggregate; we expose a tiny lambda
+		// over the tracked-keyword repo so suggestions stay project-management-pure.
+		trackedKeywordCountForProject: (projectId) =>
+			trackedKeywordRepo.countForProject(projectId as ProjectManagement.ProjectId),
+		projectManagementSchemaTables: DrizzlePersistence.schema.projectManagementSchemaTables,
+	} satisfies PMUseCases.ProjectManagementDeps as unknown as SharedDeps);
+
+	const providerConnectivity = PCUseCases.providerConnectivityModule.compose({
+		clock: SystemClock,
+		ids: SystemIdGenerator,
+		events: eventPublisher,
+		credentialRepo,
+		credentialVault,
+		jobDefRepo,
+		jobRunRepo,
+		apiUsageRepo,
+		jobScheduler,
+		credentialFormatValidator: {
+			validate: (providerId, plaintextSecret) => {
+				providerRegistry.get(providerId).validateCredentialPlaintext(plaintextSecret);
+			},
+		},
+		endpointParamsValidator: {
+			validate: (providerId, endpointId, params) => {
+				const descriptor = providerRegistry.endpoint(providerId, endpointId);
+				const parsed = descriptor.paramsSchema.safeParse(params);
+				if (!parsed.success) {
+					throw new InvalidInputError(
+						`Invalid params for ${providerId}/${endpointId}: ${parsed.error.message}`,
+					);
+				}
+				return parsed.data as Record<string, unknown>;
+			},
+		},
+		providerConnectivitySchemaTables: DrizzlePersistence.schema.providerConnectivitySchemaTables,
+	} satisfies PCUseCases.ProviderConnectivityDeps as unknown as SharedDeps);
+
+	const rankTracking = RTUseCases.rankTrackingModule.compose({
+		clock: SystemClock,
+		ids: SystemIdGenerator,
+		events: eventPublisher,
+		trackedKeywordRepo,
+		observationRepo,
+		projectRepo,
+		rankTrackingSchemaTables: DrizzlePersistence.schema.rankTrackingSchemaTables,
+	} satisfies RTUseCases.RankTrackingDeps as unknown as SharedDeps);
+
+	// Per-context deps with auto-schedule include `scheduleEndpointFetch` and
+	// `logger` so the module's `buildAutoScheduleHandlers` call has what it
+	// needs. AI search additionally needs `projects` and `credentials` for
+	// its `dynamicSchedules` resolver.
+	const autoScheduleSurface = {
+		scheduleEndpointFetch,
+		logger: autoScheduleLogger,
+	};
+
+	const searchConsoleInsights = SCIUseCases.searchConsoleInsightsModule.compose({
+		clock: SystemClock,
+		ids: SystemIdGenerator,
+		events: eventPublisher,
+		gscPropertyRepo,
+		gscObservationRepo,
+		searchConsoleInsightsSchemaTables: DrizzlePersistence.schema.searchConsoleInsightsSchemaTables,
+		...autoScheduleSurface,
+	} satisfies SCIUseCases.SearchConsoleInsightsDeps as unknown as SharedDeps);
+
+	const webPerformance = WPUseCases.webPerformanceModule.compose({
+		clock: SystemClock,
+		ids: SystemIdGenerator,
+		events: eventPublisher,
+		trackedPageRepo,
+		pageSpeedSnapshotRepo,
+		webPerformanceSchemaTables: DrizzlePersistence.schema.webPerformanceSchemaTables,
+		...autoScheduleSurface,
+	} satisfies WPUseCases.WebPerformanceDeps as unknown as SharedDeps);
+
+	const entityAwareness = EAUseCases.entityAwarenessModule.compose({
+		clock: SystemClock,
+		ids: SystemIdGenerator,
+		events: eventPublisher,
+		wikipediaArticleRepo,
+		wikipediaPageviewRepo,
+		entityAwarenessSchemaTables: DrizzlePersistence.schema.entityAwarenessSchemaTables,
+		...autoScheduleSurface,
+	} satisfies EAUseCases.EntityAwarenessDeps as unknown as SharedDeps);
+
+	const trafficAnalytics = TAUseCases.trafficAnalyticsModule.compose({
+		clock: SystemClock,
+		ids: SystemIdGenerator,
+		events: eventPublisher,
+		ga4PropertyRepo,
+		ga4DailyMetricRepo,
+		trafficAnalyticsSchemaTables: DrizzlePersistence.schema.trafficAnalyticsSchemaTables,
+		...autoScheduleSurface,
+	} satisfies TAUseCases.TrafficAnalyticsDeps as unknown as SharedDeps);
+
+	const bingWebmasterInsights = BWIUseCases.bingWebmasterInsightsModule.compose({
+		clock: SystemClock,
+		ids: SystemIdGenerator,
+		events: eventPublisher,
+		bingPropertyRepo,
+		bingTrafficObservationRepo,
+		bingWebmasterInsightsSchemaTables: DrizzlePersistence.schema.bingWebmasterInsightsSchemaTables,
+		...autoScheduleSurface,
+	} satisfies BWIUseCases.BingWebmasterInsightsDeps as unknown as SharedDeps);
+
+	const macroContext = MCUseCases.macroContextModule.compose({
+		clock: SystemClock,
+		ids: SystemIdGenerator,
+		events: eventPublisher,
+		monitoredDomainRepo,
+		radarRankSnapshotRepo,
+		macroContextSchemaTables: DrizzlePersistence.schema.macroContextSchemaTables,
+		...autoScheduleSurface,
+	} satisfies MCUseCases.MacroContextDeps as unknown as SharedDeps);
+
+	const experienceAnalytics = EXAUseCases.experienceAnalyticsModule.compose({
+		clock: SystemClock,
+		ids: SystemIdGenerator,
+		events: eventPublisher,
+		clarityProjectRepo,
+		experienceSnapshotRepo,
+		experienceAnalyticsSchemaTables: DrizzlePersistence.schema.experienceAnalyticsSchemaTables,
+		...autoScheduleSurface,
+	} satisfies EXAUseCases.ExperienceAnalyticsDeps as unknown as SharedDeps);
+
+	const metaAdsAttribution = MAAUseCases.metaAdsAttributionModule.compose({
+		clock: SystemClock,
+		ids: SystemIdGenerator,
+		events: eventPublisher,
+		metaPixelRepo,
+		metaAdAccountRepo,
+		metaPixelEventDailyRepo,
+		metaAdsInsightDailyRepo,
+		metaAdsAttributionSchemaTables: DrizzlePersistence.schema.metaAdsAttributionSchemaTables,
+		...autoScheduleSurface,
+	} satisfies MAAUseCases.MetaAdsAttributionDeps as unknown as SharedDeps);
+
+	const aiSearchInsights = AISIUseCases.aiSearchInsightsModule.compose({
+		clock: SystemClock,
+		ids: SystemIdGenerator,
+		events: eventPublisher,
 		brandPromptRepo,
 		llmAnswerRepo,
+		llmAnswerReadModel,
 		brandWatchlistResolver,
 		mentionExtractor,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const queryLlmAnswers = new AISIUseCases.QueryLlmAnswersUseCase(llmAnswerRepo);
-	const queryAiSearchPresence = new AISIUseCases.QueryAiSearchPresenceUseCase(llmAnswerReadModel);
-	const queryAiSearchSov = new AISIUseCases.QueryAiSearchSovUseCase(llmAnswerReadModel);
-	const queryAiSearchCitations = new AISIUseCases.QueryAiSearchCitationsUseCase(llmAnswerReadModel);
-	const queryPromptSovDaily = new AISIUseCases.QueryPromptSovDailyUseCase(llmAnswerReadModel);
-	const queryCompetitiveMatrix = new AISIUseCases.QueryCompetitiveMatrixUseCase(llmAnswerReadModel);
-	const queryAiSearchAlerts = new AISIUseCases.QueryAiSearchAlertsUseCase(llmAnswerReadModel);
-
-	// ADR 0002 Phase 4a — all auto-schedule handlers built from per-context
-	// configs via `buildAutoScheduleHandlers`. Each context owns its own
-	// `auto-schedule.config.ts` and contributes one or more
-	// `AutoScheduleConfig` entries; the factory turns them into
-	// EventHandlers wired to a shared logger + scheduleEndpointFetch.
-	//
-	// The deps cast carries `scheduleEndpointFetch`, `projects`, `credentials`
-	// and `logger` so the AI search dynamicSchedules callback can read project
-	// locations + connected credentials at handle-time. The opaque `_brand`
-	// field on SharedDeps preserves the contract type while letting concrete
-	// fields flow through (see `packages/application/src/_core/module.ts`).
-	const autoScheduleSharedDeps = {
-		_brand: 'SharedDeps' as const,
-		scheduleEndpointFetch,
+		aiSearchInsightsSchemaTables: DrizzlePersistence.schema.aiSearchInsightsSchemaTables,
+		...autoScheduleSurface,
+		// dynamicSchedules in `aiSearchInsightsAutoScheduleConfigs` reads
+		// project locations + connected credentials at handle-time. These
+		// adapter shapes are read directly off the deps cast inside the config
+		// callback (see ai-search-insights/event-handlers/auto-schedule.config.ts).
 		projects: projectRepo,
 		credentials: credentialRepo,
-		logger: {
-			info: (meta: object, msg: string) => {
-				// eslint-disable-next-line no-console
-				console.log(`[auto-schedule] ${msg}`, meta);
-			},
-			error: (meta: object, msg: string) => {
-				// eslint-disable-next-line no-console
-				console.error(`[auto-schedule] ${msg}`, meta);
-			},
-			child: (bindings: object) => ({
-				info: (meta: object, msg: string) => {
-					// eslint-disable-next-line no-console
-					console.log(`[auto-schedule] ${msg}`, { ...bindings, ...meta });
-				},
-				error: (meta: object, msg: string) => {
-					// eslint-disable-next-line no-console
-					console.error(`[auto-schedule] ${msg}`, { ...bindings, ...meta });
-				},
-			}),
-		},
-	} as unknown as SharedDeps;
+	} as AISIUseCases.AiSearchInsightsDeps as unknown as SharedDeps);
 
-	const autoScheduleHandlers = buildAutoScheduleHandlers(autoScheduleSharedDeps, [
-		...AISIUseCases.aiSearchInsightsAutoScheduleConfigs,
-		...SCIUseCases.searchConsoleInsightsAutoScheduleConfigs,
-		...TAUseCases.trafficAnalyticsAutoScheduleConfigs,
-		...EAUseCases.entityAwarenessAutoScheduleConfigs,
-		...BWIUseCases.bingWebmasterInsightsAutoScheduleConfigs,
-		...EXAUseCases.experienceAnalyticsAutoScheduleConfigs,
-		...WPUseCases.webPerformanceAutoScheduleConfigs,
-		...MCUseCases.macroContextAutoScheduleConfigs,
-		...MAAUseCases.metaAdsAttributionAutoScheduleConfigs,
-	]);
-	for (const handler of autoScheduleHandlers) {
+	// Wire every module's auto-schedule (and future) event handlers to the
+	// in-memory event publisher. Each `EventHandler.events` is an array of
+	// event types it cares about; we register one fanout-friendly listener
+	// per (handler, event) pair.
+	const allHandlers = [
+		...identityAccess.eventHandlers,
+		...projectManagement.eventHandlers,
+		...providerConnectivity.eventHandlers,
+		...rankTracking.eventHandlers,
+		...searchConsoleInsights.eventHandlers,
+		...webPerformance.eventHandlers,
+		...entityAwareness.eventHandlers,
+		...trafficAnalytics.eventHandlers,
+		...bingWebmasterInsights.eventHandlers,
+		...macroContext.eventHandlers,
+		...experienceAnalytics.eventHandlers,
+		...metaAdsAttribution.eventHandlers,
+		...aiSearchInsights.eventHandlers,
+	];
+	for (const handler of allHandlers) {
 		for (const eventType of handler.events) {
 			eventPublisher.on(eventType, (event) => {
 				void handler.handle(event);
 			});
 		}
 	}
+
+	const u = (m: { useCases: Record<string, unknown> }) => m.useCases;
+	const ia = u(identityAccess);
+	const pm = u(projectManagement);
+	const pc = u(providerConnectivity);
+	const rt = u(rankTracking);
+	const sci = u(searchConsoleInsights);
+	const wp = u(webPerformance);
+	const ea = u(entityAwareness);
+	const ta = u(trafficAnalytics);
+	const bwi = u(bingWebmasterInsights);
+	const mc = u(macroContext);
+	const exa = u(experienceAnalytics);
+	const maa = u(metaAdsAttribution);
+	const aisi = u(aiSearchInsights);
 
 	const providers: Provider[] = [
 		value(Tokens.AppEnv, env),
@@ -549,33 +469,38 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.EventPublisher, eventPublisher),
 		value(Tokens.PasswordHasher, passwordHasher),
 		value(Tokens.ApiTokenGenerator, apiTokenGenerator),
+
+		// identity-access
 		value(Tokens.OrganizationRepository, orgRepo),
 		value(Tokens.UserRepository, userRepo),
 		value(Tokens.MembershipRepository, membershipRepo),
 		value(Tokens.ApiTokenRepository, apiTokenRepo),
+		value(Tokens.RegisterOrganization, ia.RegisterOrganization),
+		value(Tokens.AuthenticateUser, ia.AuthenticateUser),
+		value(Tokens.InviteUser, ia.InviteUser),
+		value(Tokens.IssueApiToken, ia.IssueApiToken),
+
+		// project-management
 		value(Tokens.PortfolioRepository, portfolioRepo),
 		value(Tokens.ProjectRepository, projectRepo),
 		value(Tokens.KeywordListRepository, keywordListRepo),
 		value(Tokens.CompetitorRepository, competitorRepo),
 		value(Tokens.CompetitorSuggestionRepository, competitorSuggestionRepo),
-		value(Tokens.RegisterOrganization, registerOrganization),
-		value(Tokens.AuthenticateUser, authenticateUser),
-		value(Tokens.InviteUser, inviteUser),
-		value(Tokens.IssueApiToken, issueApiToken),
-		value(Tokens.CreateProject, createProject),
-		value(Tokens.AddDomainToProject, addDomain),
-		value(Tokens.AddProjectLocation, addLocation),
-		value(Tokens.AddCompetitor, addCompetitor),
-		value(Tokens.ImportKeywords, importKeywords),
-		value(Tokens.CreatePortfolio, createPortfolio),
-		value(Tokens.ListPortfolios, listPortfolios),
-		value(Tokens.GetPortfolio, getPortfolio),
-		value(Tokens.RenamePortfolio, renamePortfolio),
-		value(Tokens.DeletePortfolio, deletePortfolio),
-		value(Tokens.ListCompetitorSuggestions, listCompetitorSuggestions),
-		value(Tokens.PromoteCompetitorSuggestion, promoteCompetitorSuggestion),
-		value(Tokens.DismissCompetitorSuggestion, dismissCompetitorSuggestion),
+		value(Tokens.CreateProject, pm.CreateProject),
+		value(Tokens.AddDomainToProject, pm.AddDomainToProject),
+		value(Tokens.AddProjectLocation, pm.AddProjectLocation),
+		value(Tokens.AddCompetitor, pm.AddCompetitor),
+		value(Tokens.ImportKeywords, pm.ImportKeywords),
+		value(Tokens.CreatePortfolio, pm.CreatePortfolio),
+		value(Tokens.ListPortfolios, pm.ListPortfolios),
+		value(Tokens.GetPortfolio, pm.GetPortfolio),
+		value(Tokens.RenamePortfolio, pm.RenamePortfolio),
+		value(Tokens.DeletePortfolio, pm.DeletePortfolio),
+		value(Tokens.ListCompetitorSuggestions, pm.ListCompetitorSuggestions),
+		value(Tokens.PromoteCompetitorSuggestion, pm.PromoteCompetitorSuggestion),
+		value(Tokens.DismissCompetitorSuggestion, pm.DismissCompetitorSuggestion),
 
+		// provider-connectivity
 		value(Tokens.CredentialRepository, credentialRepo),
 		value(Tokens.JobDefinitionRepository, jobDefRepo),
 		value(Tokens.JobRunRepository, jobRunRepo),
@@ -584,93 +509,106 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.CredentialVault, credentialVault),
 		value(Tokens.JobScheduler, jobScheduler),
 		value(Tokens.ProviderRegistry, providerRegistry),
-		value(Tokens.RegisterProviderCredential, registerCredential),
-		value(Tokens.ResolveProviderCredential, resolveCredential),
+		value(Tokens.RegisterProviderCredential, pc.RegisterProviderCredential),
+		value(Tokens.ResolveProviderCredential, pc.ResolveProviderCredential),
+		// `ScheduleEndpointFetch` is intentionally pinned to the instance
+		// constructed above (used by the module's auto-schedule handlers);
+		// the module returns the same instance under its useCase key so
+		// controllers and handlers share state (e.g. the idempotency map).
 		value(Tokens.ScheduleEndpointFetch, scheduleEndpointFetch),
-		value(Tokens.TriggerJobDefinitionRun, triggerJobDefinitionRun),
-		value(Tokens.ListJobDefinitions, listJobDefinitions),
-		value(Tokens.GetJobDefinition, getJobDefinition),
-		value(Tokens.UpdateJobDefinition, updateJobDefinition),
-		value(Tokens.DeleteJobDefinition, deleteJobDefinition),
-		value(Tokens.ListJobRuns, listJobRuns),
-		value(Tokens.RecordApiUsage, recordApiUsage),
+		value(Tokens.TriggerJobDefinitionRun, pc.TriggerJobDefinitionRun),
+		value(Tokens.ListJobDefinitions, pc.ListJobDefinitions),
+		value(Tokens.GetJobDefinition, pc.GetJobDefinition),
+		value(Tokens.UpdateJobDefinition, pc.UpdateJobDefinition),
+		value(Tokens.DeleteJobDefinition, pc.DeleteJobDefinition),
+		value(Tokens.ListJobRuns, pc.ListJobRuns),
+		value(Tokens.RecordApiUsage, pc.RecordApiUsage),
 
+		// rank-tracking
 		value(Tokens.TrackedKeywordRepository, trackedKeywordRepo),
 		value(Tokens.RankingObservationRepository, observationRepo),
-		value(Tokens.StartTrackingKeyword, startTrackingKeyword),
-		value(Tokens.RecordRankingObservation, recordRankingObservation),
-		value(Tokens.QueryRankingHistory, queryRankingHistory),
+		value(Tokens.StartTrackingKeyword, rt.StartTrackingKeyword),
+		value(Tokens.RecordRankingObservation, rt.RecordRankingObservation),
+		value(Tokens.QueryRankingHistory, rt.QueryRankingHistory),
 
+		// search-console-insights
 		value(Tokens.GscPropertyRepository, gscPropertyRepo),
 		value(Tokens.GscPerformanceObservationRepository, gscObservationRepo),
-		value(Tokens.LinkGscProperty, linkGscProperty),
-		value(Tokens.IngestGscRows, ingestGscRows),
-		value(Tokens.QueryGscPerformance, queryGscPerformance),
+		value(Tokens.LinkGscProperty, sci.LinkGscProperty),
+		value(Tokens.IngestGscRows, sci.IngestGscRows),
+		value(Tokens.QueryGscPerformance, sci.QueryGscPerformance),
 
+		// web-performance + entity-awareness
 		value(Tokens.WikipediaArticleRepository, wikipediaArticleRepo),
 		value(Tokens.WikipediaPageviewObservationRepository, wikipediaPageviewRepo),
 		value(Tokens.TrackedPageRepository, trackedPageRepo),
 		value(Tokens.PageSpeedSnapshotRepository, pageSpeedSnapshotRepo),
-		value(Tokens.TrackPage, trackPage),
-		value(Tokens.UntrackPage, untrackPage),
-		value(Tokens.QueryPageSpeedHistory, queryPageSpeedHistory),
-		value(Tokens.LinkWikipediaArticle, linkWikipediaArticle),
-		value(Tokens.UnlinkWikipediaArticle, unlinkWikipediaArticle),
-		value(Tokens.QueryWikipediaPageviews, queryWikipediaPageviews),
+		value(Tokens.TrackPage, wp.TrackPage),
+		value(Tokens.UntrackPage, wp.UntrackPage),
+		value(Tokens.QueryPageSpeedHistory, wp.QueryPageSpeedHistory),
+		value(Tokens.LinkWikipediaArticle, ea.LinkWikipediaArticle),
+		value(Tokens.UnlinkWikipediaArticle, ea.UnlinkWikipediaArticle),
+		value(Tokens.QueryWikipediaPageviews, ea.QueryWikipediaPageviews),
 
+		// traffic-analytics
 		value(Tokens.Ga4PropertyRepository, ga4PropertyRepo),
 		value(Tokens.Ga4DailyMetricRepository, ga4DailyMetricRepo),
-		value(Tokens.LinkGa4Property, linkGa4Property),
-		value(Tokens.UnlinkGa4Property, unlinkGa4Property),
-		value(Tokens.QueryGa4Metrics, queryGa4Metrics),
+		value(Tokens.LinkGa4Property, ta.LinkGa4Property),
+		value(Tokens.UnlinkGa4Property, ta.UnlinkGa4Property),
+		value(Tokens.QueryGa4Metrics, ta.QueryGa4Metrics),
 
+		// bing-webmaster-insights
 		value(Tokens.BingPropertyRepository, bingPropertyRepo),
 		value(Tokens.BingTrafficObservationRepository, bingTrafficObservationRepo),
-		value(Tokens.LinkBingProperty, linkBingProperty),
-		value(Tokens.UnlinkBingProperty, unlinkBingProperty),
-		value(Tokens.QueryBingTraffic, queryBingTraffic),
+		value(Tokens.LinkBingProperty, bwi.LinkBingProperty),
+		value(Tokens.UnlinkBingProperty, bwi.UnlinkBingProperty),
+		value(Tokens.QueryBingTraffic, bwi.QueryBingTraffic),
 
+		// macro-context
 		value(Tokens.MonitoredDomainRepository, monitoredDomainRepo),
 		value(Tokens.RadarRankSnapshotRepository, radarRankSnapshotRepo),
-		value(Tokens.AddMonitoredDomain, addMonitoredDomain),
-		value(Tokens.RemoveMonitoredDomain, removeMonitoredDomain),
-		value(Tokens.QueryRadarHistory, queryRadarHistory),
+		value(Tokens.AddMonitoredDomain, mc.AddMonitoredDomain),
+		value(Tokens.RemoveMonitoredDomain, mc.RemoveMonitoredDomain),
+		value(Tokens.QueryRadarHistory, mc.QueryRadarHistory),
 
+		// meta-ads-attribution
 		value(Tokens.MetaPixelRepository, metaPixelRepo),
 		value(Tokens.MetaAdAccountRepository, metaAdAccountRepo),
 		value(Tokens.MetaPixelEventDailyRepository, metaPixelEventDailyRepo),
 		value(Tokens.MetaAdsInsightDailyRepository, metaAdsInsightDailyRepo),
-		value(Tokens.LinkMetaPixel, linkMetaPixel),
-		value(Tokens.UnlinkMetaPixel, unlinkMetaPixel),
-		value(Tokens.LinkMetaAdAccount, linkMetaAdAccount),
-		value(Tokens.UnlinkMetaAdAccount, unlinkMetaAdAccount),
-		value(Tokens.QueryMetaPixelEvents, queryMetaPixelEvents),
-		value(Tokens.QueryMetaAdsInsights, queryMetaAdsInsights),
+		value(Tokens.LinkMetaPixel, maa.LinkMetaPixel),
+		value(Tokens.UnlinkMetaPixel, maa.UnlinkMetaPixel),
+		value(Tokens.LinkMetaAdAccount, maa.LinkMetaAdAccount),
+		value(Tokens.UnlinkMetaAdAccount, maa.UnlinkMetaAdAccount),
+		value(Tokens.QueryMetaPixelEvents, maa.QueryMetaPixelEvents),
+		value(Tokens.QueryMetaAdsInsights, maa.QueryMetaAdsInsights),
 
+		// experience-analytics
 		value(Tokens.ClarityProjectRepository, clarityProjectRepo),
 		value(Tokens.ExperienceSnapshotRepository, experienceSnapshotRepo),
-		value(Tokens.LinkClarityProject, linkClarityProject),
-		value(Tokens.UnlinkClarityProject, unlinkClarityProject),
-		value(Tokens.QueryExperienceHistory, queryExperienceHistory),
+		value(Tokens.LinkClarityProject, exa.LinkClarityProject),
+		value(Tokens.UnlinkClarityProject, exa.UnlinkClarityProject),
+		value(Tokens.QueryExperienceHistory, exa.QueryExperienceHistory),
 
+		// ai-search-insights
 		value(Tokens.BrandPromptRepository, brandPromptRepo),
 		value(Tokens.LlmAnswerRepository, llmAnswerRepo),
 		value(Tokens.LlmAnswerReadModel, llmAnswerReadModel),
 		value(Tokens.BrandWatchlistResolver, brandWatchlistResolver),
 		value(Tokens.MentionExtractor, mentionExtractor),
-		value(Tokens.RegisterBrandPrompt, registerBrandPrompt),
-		value(Tokens.PauseBrandPrompt, pauseBrandPrompt),
-		value(Tokens.ResumeBrandPrompt, resumeBrandPrompt),
-		value(Tokens.DeleteBrandPrompt, deleteBrandPrompt),
-		value(Tokens.ListBrandPrompts, listBrandPrompts),
-		value(Tokens.RecordLlmAnswer, recordLlmAnswer),
-		value(Tokens.QueryLlmAnswers, queryLlmAnswers),
-		value(Tokens.QueryAiSearchPresence, queryAiSearchPresence),
-		value(Tokens.QueryAiSearchSov, queryAiSearchSov),
-		value(Tokens.QueryAiSearchCitations, queryAiSearchCitations),
-		value(Tokens.QueryPromptSovDaily, queryPromptSovDaily),
-		value(Tokens.QueryCompetitiveMatrix, queryCompetitiveMatrix),
-		value(Tokens.QueryAiSearchAlerts, queryAiSearchAlerts),
+		value(Tokens.RegisterBrandPrompt, aisi.RegisterBrandPrompt),
+		value(Tokens.PauseBrandPrompt, aisi.PauseBrandPrompt),
+		value(Tokens.ResumeBrandPrompt, aisi.ResumeBrandPrompt),
+		value(Tokens.DeleteBrandPrompt, aisi.DeleteBrandPrompt),
+		value(Tokens.ListBrandPrompts, aisi.ListBrandPrompts),
+		value(Tokens.RecordLlmAnswer, aisi.RecordLlmAnswer),
+		value(Tokens.QueryLlmAnswers, aisi.QueryLlmAnswers),
+		value(Tokens.QueryAiSearchPresence, aisi.QueryAiSearchPresence),
+		value(Tokens.QueryAiSearchSov, aisi.QueryAiSearchSov),
+		value(Tokens.QueryAiSearchCitations, aisi.QueryAiSearchCitations),
+		value(Tokens.QueryPromptSovDaily, aisi.QueryPromptSovDaily),
+		value(Tokens.QueryCompetitiveMatrix, aisi.QueryCompetitiveMatrix),
+		value(Tokens.QueryAiSearchAlerts, aisi.QueryAiSearchAlerts),
 	];
 
 	return {
