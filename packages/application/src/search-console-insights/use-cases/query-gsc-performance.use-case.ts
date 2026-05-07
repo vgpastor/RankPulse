@@ -38,10 +38,10 @@ export class QueryGscPerformanceUseCase {
 		const rows = await this.observations.listForProperty(id, {
 			from: cmd.from,
 			to: cmd.to,
-			query: cmd.query ?? null,
-			page: cmd.page ?? null,
-			country: cmd.country ?? null,
-			device: cmd.device ?? null,
+			query: cmd.query,
+			page: cmd.page,
+			country: cmd.country,
+			device: cmd.device,
 		});
 		return rows.map((o) => ({
 			observedAt: o.observedAt.toISOString(),

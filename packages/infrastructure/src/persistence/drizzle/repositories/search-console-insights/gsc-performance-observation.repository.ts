@@ -55,12 +55,14 @@ export class DrizzleGscPerformanceObservationRepository
 			eq(gscObservations.gscPropertyId, propertyId),
 			between(gscObservations.observedAt, query.from, query.to),
 		];
-		// Empty-string filter = "rows where this dimension was absent in
-		// the GSC API response", consistent with the saveAll bridge.
-		if (query.query !== undefined) conditions.push(eq(gscObservations.query, query.query ?? ''));
-		if (query.page !== undefined) conditions.push(eq(gscObservations.page, query.page ?? ''));
-		if (query.country !== undefined) conditions.push(eq(gscObservations.country, query.country ?? ''));
-		if (query.device !== undefined) conditions.push(eq(gscObservations.device, query.device ?? ''));
+		// `undefined`/`null` = "no filter on this dimension"; `''` (explicit
+		// empty string) = "filter for rows where this dimension was absent
+		// in the GSC API response" (storage uses `''` instead of NULL so
+		// the natural-key PK can cover every row without COALESCE indexes).
+		if (query.query != null) conditions.push(eq(gscObservations.query, query.query));
+		if (query.page != null) conditions.push(eq(gscObservations.page, query.page));
+		if (query.country != null) conditions.push(eq(gscObservations.country, query.country));
+		if (query.device != null) conditions.push(eq(gscObservations.device, query.device));
 
 		const rows = await this.db
 			.select()
