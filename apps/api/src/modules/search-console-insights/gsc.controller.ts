@@ -84,10 +84,10 @@ export class GscController {
 			gscPropertyId: id,
 			from,
 			to,
-			query: q.query ?? null,
-			page: q.page ?? null,
-			country: q.country ?? null,
-			device: q.device ?? null,
+			query: q.query,
+			page: q.page,
+			country: q.country,
+			device: q.device,
 		});
 	}
 

@@ -5,6 +5,14 @@ import type { GscPropertyId } from '../value-objects/identifiers.js';
 export interface GscObservationQuery {
 	from: Date;
 	to: Date;
+	/**
+	 * Dimension filter semantics (apply identically to query/page/country/device):
+	 *   - `undefined` or `null` → no filter on this dimension.
+	 *   - `''` (explicit empty string) → match rows where the dimension was
+	 *     absent in the GSC API response (storage uses `''` instead of NULL
+	 *     so the natural-key PK can cover every row without COALESCE).
+	 *   - any other string → exact match on that value.
+	 */
 	query?: string | null;
 	page?: string | null;
 	country?: string | null;
