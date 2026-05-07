@@ -285,20 +285,22 @@ export class ProviderFetchProcessor {
 			});
 			await this.deps.rawPayloadRepo.save(rawPayload);
 
-			// BACKLOG #4 fix — endpoints that bill per item (e.g. search-volume
-			// at $0.005/keyword) declare a `costFor(params)` that returns the
-			// real cost for THIS call. Falls back to `cost.amount` (worst-case)
-			// for endpoints with flat per-call billing OR if costFor throws
-			// on a malformed params shape (we charge worst-case AND log so
-			// the operator sees the misconfigure).
+			// Endpoints that bill per item (DataForSEO search-volume,
+			// $0.005/keyword) or per consumed unit (OpenAI/Anthropic
+			// tokens + web_search) declare `costFor(params, response)` so
+			// api_usage reflects the real upstream cost instead of the
+			// worst-case `cost.amount`. Falls back to `cost.amount` for
+			// flat-billed endpoints OR if costFor throws on a malformed
+			// payload (we charge worst-case AND log so the operator sees
+			// the misconfigure).
 			let realCostCents = endpointDescriptor.cost.amount;
 			if (endpointDescriptor.costFor) {
 				try {
-					realCostCents = endpointDescriptor.costFor(resolvedParams);
+					realCostCents = endpointDescriptor.costFor(resolvedParams, fetchResult);
 				} catch (err) {
 					runLog.warn(
 						{ err: err instanceof Error ? err.message : String(err) },
-						'costFor() threw on resolvedParams — billing worst-case for this run',
+						'costFor() threw on resolvedParams/fetchResult — billing worst-case for this run',
 					);
 				}
 			}

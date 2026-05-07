@@ -75,6 +75,25 @@ export const normaliseOpenAiResponse = (raw: OpenAiResponsePayload): NormalisedL
 	};
 };
 
+/**
+ * Lightweight cost-only projection for the descriptor's `costFor` hook.
+ * Skips text and citation extraction (the worker only needs the cents
+ * for the api_usage ledger; the full normalisation runs later inside
+ * the IngestRouter). Defensive against undefined `usage` so a malformed
+ * response degrades to zero cost instead of throwing — the worker logs
+ * any throw and bills worst-case in that case.
+ */
+export const costFromRawPayload = (raw: OpenAiResponsePayload): number => {
+	const model = raw.model ?? 'gpt-5-mini';
+	const tokenUsage = AiSearchInsights.TokenUsage.create({
+		inputTokens: raw.usage?.input_tokens ?? 0,
+		outputTokens: raw.usage?.output_tokens ?? 0,
+		cachedInputTokens: raw.usage?.input_tokens_details?.cached_tokens ?? 0,
+		webSearchCalls: countWebSearchCalls(raw.output),
+	});
+	return computeCostCents(model, tokenUsage);
+};
+
 const extractTextFromOutput = (output: OpenAiResponsePayload['output']): string => {
 	if (!Array.isArray(output)) return '';
 	const parts: string[] = [];
