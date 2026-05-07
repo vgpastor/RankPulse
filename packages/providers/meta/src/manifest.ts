@@ -169,7 +169,20 @@ const endpoints: readonly EndpointManifest[] = [
 	{
 		descriptor: pixelEventsStatsDescriptor,
 		fetch: adapt<PixelEventsStatsParams, PixelEventsStatsResponse>(fetchPixelEventsStats),
-		ingest: pixelEventsIngest as IngestBinding,
+		// Router-bypass: the processor's legacy if-else dispatch (line ~400)
+		// reads `meta-pixel-events-stats` raw payloads through
+		// `extractPixelEventRows(...)` + `ingestMetaPixelEventsUseCase` directly,
+		// because the ACL needs the resolved `dateBucket` fallback (Meta's pixel
+		// events stats sometimes return rows with null `date_start`, and the
+		// fallback uses `metaParams.endDate` from the resolved-token params).
+		// That orchestration is per-call and lives in the processor; the
+		// `IngestRouter` only models stateless `(response, ctx) -> rows` ACLs.
+		// Leaving `pixelEventsIngest` set crashes worker bootstrap with
+		// `IngestRouter: no IngestUseCase registered for key
+		// 'meta-ads-attribution:ingest-meta-pixel-events'`. When the
+		// router gains a `dateBucketResolver` extension this can be wired
+		// back; until then, `null` is the contract.
+		ingest: null,
 	},
 	{
 		descriptor: adsInsightsDescriptor,
