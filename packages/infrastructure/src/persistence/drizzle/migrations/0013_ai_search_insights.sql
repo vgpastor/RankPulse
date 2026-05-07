@@ -57,6 +57,22 @@ BEGIN
 			if_not_exists => TRUE,
 			migrate_data => TRUE
 		);
+		-- `add_compression_policy` requires columnstore (TimescaleDB
+		-- compression) to be enabled on the hypertable first; without
+		-- this ALTER it raises:
+		--   "columnstore not enabled on hypertable \"llm_answers\""
+		-- Skipped when columnstore is already enabled so the block is
+		-- safe to re-run.
+		IF NOT COALESCE(
+			(SELECT compression_enabled FROM timescaledb_information.hypertables WHERE hypertable_name = 'llm_answers'),
+			false
+		) THEN
+			ALTER TABLE llm_answers SET (
+				timescaledb.compress = true,
+				timescaledb.compress_segmentby = 'project_id, ai_provider',
+				timescaledb.compress_orderby = 'captured_at DESC, id'
+			);
+		END IF;
 		-- Compress chunks older than 7 days. Mentions/citations/raw_text are
 		-- the bulk of the row; columnstore compression collapses them ~10x
 		-- in production-grade datasets.
