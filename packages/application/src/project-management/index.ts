@@ -1,3 +1,4 @@
+export * from './module.js';
 export * from './use-cases/add-competitor.use-case.js';
 export * from './use-cases/add-domain-to-project.use-case.js';
 export * from './use-cases/change-project-locations.use-case.js';

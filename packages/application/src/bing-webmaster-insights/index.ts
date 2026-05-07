@@ -1,4 +1,5 @@
 export * from './event-handlers/auto-schedule.config.js';
+export * from './module.js';
 export * from './use-cases/ingest-bing-traffic.use-case.js';
 export * from './use-cases/link-bing-property.use-case.js';
 export * from './use-cases/query-bing-traffic.use-case.js';

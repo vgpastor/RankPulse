@@ -168,30 +168,28 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		googleAiStudioProviderManifest,
 	]);
 
-	const registerOrganization = new IAUseCases.RegisterOrganizationUseCase(
+	// ContextModule pattern (ADR 0002 Phase 4 — pilot context). Identity-access
+	// owns its use-case wiring in `packages/application/src/identity-access/module.ts`;
+	// the composition root just hands it the slice of `SharedDeps` it needs and
+	// reads back the instantiated use cases. Other 12 contexts still use the
+	// imperative pattern below — they migrate incrementally in follow-up PRs.
+	const identityAccessDeps: IAUseCases.IdentityAccessDeps = {
+		clock: SystemClock,
+		ids: SystemIdGenerator,
+		events: eventPublisher,
 		orgRepo,
 		userRepo,
 		membershipRepo,
-		passwordHasher,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const authenticateUser = new IAUseCases.AuthenticateUserUseCase(userRepo, passwordHasher);
-	const inviteUser = new IAUseCases.InviteUserUseCase(
-		membershipRepo,
-		userRepo,
-		SystemClock,
-		SystemIdGenerator,
-		eventPublisher,
-	);
-	const issueApiToken = new IAUseCases.IssueApiTokenUseCase(
-		membershipRepo,
 		apiTokenRepo,
+		passwordHasher,
 		apiTokenGenerator,
-		SystemClock,
-		SystemIdGenerator,
-	);
+	};
+	const identityAccess = IAUseCases.identityAccessModule.compose(identityAccessDeps as unknown as SharedDeps);
+	const registerOrganization = identityAccess.useCases
+		.RegisterOrganization as IAUseCases.RegisterOrganizationUseCase;
+	const authenticateUser = identityAccess.useCases.AuthenticateUser as IAUseCases.AuthenticateUserUseCase;
+	const inviteUser = identityAccess.useCases.InviteUser as IAUseCases.InviteUserUseCase;
+	const issueApiToken = identityAccess.useCases.IssueApiToken as IAUseCases.IssueApiTokenUseCase;
 
 	const createProject = new PMUseCases.CreateProjectUseCase(
 		projectRepo,
