@@ -16,6 +16,7 @@ export interface RankTrackingDeps {
 	readonly trackedKeywordRepo: RTDomain.TrackedKeywordRepository;
 	readonly observationRepo: RTDomain.RankingObservationRepository;
 	readonly projectRepo: PMDomain.ProjectRepository;
+	readonly rankTrackingSchemaTables: readonly unknown[];
 }
 
 export const rankTrackingModule: ContextModule = {
@@ -36,7 +37,7 @@ export const rankTrackingModule: ContextModule = {
 			},
 			ingestUseCases: {},
 			eventHandlers: [],
-			schemaTables: [],
+			schemaTables: d.rankTrackingSchemaTables,
 		};
 	},
 };

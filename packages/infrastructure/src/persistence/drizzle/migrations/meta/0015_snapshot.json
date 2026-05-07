@@ -1,0 +1,4553 @@
+{
+	"id": "fa793570-f48e-4c2b-b0b5-019669600eab",
+	"prevId": "f4d3c290-4b57-44a8-95cc-e9a8b71c5b21",
+	"version": "7",
+	"dialect": "postgresql",
+	"tables": {
+		"public.api_tokens": {
+			"name": "api_tokens",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"organization_id": {
+					"name": "organization_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"created_by": {
+					"name": "created_by",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"name": {
+					"name": "name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"hashed_token": {
+					"name": "hashed_token",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"scopes": {
+					"name": "scopes",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"expires_at": {
+					"name": "expires_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"revoked_at": {
+					"name": "revoked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"api_tokens_hashed_unique": {
+					"name": "api_tokens_hashed_unique",
+					"columns": [
+						{
+							"expression": "hashed_token",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"api_tokens_org_idx": {
+					"name": "api_tokens_org_idx",
+					"columns": [
+						{
+							"expression": "organization_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"api_tokens_organization_id_organizations_id_fk": {
+					"name": "api_tokens_organization_id_organizations_id_fk",
+					"tableFrom": "api_tokens",
+					"tableTo": "organizations",
+					"columnsFrom": ["organization_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"api_tokens_created_by_users_id_fk": {
+					"name": "api_tokens_created_by_users_id_fk",
+					"tableFrom": "api_tokens",
+					"tableTo": "users",
+					"columnsFrom": ["created_by"],
+					"columnsTo": ["id"],
+					"onDelete": "restrict",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.api_usage_entries": {
+			"name": "api_usage_entries",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"organization_id": {
+					"name": "organization_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"credential_id": {
+					"name": "credential_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"provider_id": {
+					"name": "provider_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"endpoint_id": {
+					"name": "endpoint_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"calls": {
+					"name": "calls",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"cost_millicents": {
+					"name": "cost_millicents",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"occurred_at": {
+					"name": "occurred_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"api_usage_org_occurred_idx": {
+					"name": "api_usage_org_occurred_idx",
+					"columns": [
+						{
+							"expression": "organization_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "occurred_at",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"api_usage_credential_idx": {
+					"name": "api_usage_credential_idx",
+					"columns": [
+						{
+							"expression": "credential_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "occurred_at",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"api_usage_project_idx": {
+					"name": "api_usage_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "occurred_at",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"api_usage_entries_organization_id_organizations_id_fk": {
+					"name": "api_usage_entries_organization_id_organizations_id_fk",
+					"tableFrom": "api_usage_entries",
+					"tableTo": "organizations",
+					"columnsFrom": ["organization_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"api_usage_entries_credential_id_provider_credentials_id_fk": {
+					"name": "api_usage_entries_credential_id_provider_credentials_id_fk",
+					"tableFrom": "api_usage_entries",
+					"tableTo": "provider_credentials",
+					"columnsFrom": ["credential_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"api_usage_entries_project_id_projects_id_fk": {
+					"name": "api_usage_entries_project_id_projects_id_fk",
+					"tableFrom": "api_usage_entries",
+					"tableTo": "projects",
+					"columnsFrom": ["project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.bing_properties": {
+			"name": "bing_properties",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"organization_id": {
+					"name": "organization_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"site_url": {
+					"name": "site_url",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"credential_id": {
+					"name": "credential_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"linked_at": {
+					"name": "linked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"unlinked_at": {
+					"name": "unlinked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"bing_properties_project_site_unique": {
+					"name": "bing_properties_project_site_unique",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "site_url",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"bing_properties_project_idx": {
+					"name": "bing_properties_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"bing_properties_organization_id_organizations_id_fk": {
+					"name": "bing_properties_organization_id_organizations_id_fk",
+					"tableFrom": "bing_properties",
+					"tableTo": "organizations",
+					"columnsFrom": ["organization_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"bing_properties_project_id_projects_id_fk": {
+					"name": "bing_properties_project_id_projects_id_fk",
+					"tableFrom": "bing_properties",
+					"tableTo": "projects",
+					"columnsFrom": ["project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"bing_properties_credential_id_provider_credentials_id_fk": {
+					"name": "bing_properties_credential_id_provider_credentials_id_fk",
+					"tableFrom": "bing_properties",
+					"tableTo": "provider_credentials",
+					"columnsFrom": ["credential_id"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.bing_traffic_observations": {
+			"name": "bing_traffic_observations",
+			"schema": "",
+			"columns": {
+				"bing_property_id": {
+					"name": "bing_property_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"observed_date": {
+					"name": "observed_date",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"clicks": {
+					"name": "clicks",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"impressions": {
+					"name": "impressions",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"avg_click_position": {
+					"name": "avg_click_position",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"avg_impression_position": {
+					"name": "avg_impression_position",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"raw_payload_id": {
+					"name": "raw_payload_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"bing_traffic_observations_project_idx": {
+					"name": "bing_traffic_observations_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "observed_date",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"bing_traffic_observations_bing_property_id_bing_properties_id_fk": {
+					"name": "bing_traffic_observations_bing_property_id_bing_properties_id_fk",
+					"tableFrom": "bing_traffic_observations",
+					"tableTo": "bing_properties",
+					"columnsFrom": ["bing_property_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {
+				"bing_traffic_observations_bing_property_id_observed_date_pk": {
+					"name": "bing_traffic_observations_bing_property_id_observed_date_pk",
+					"columns": ["bing_property_id", "observed_date"]
+				}
+			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.brand_prompts": {
+			"name": "brand_prompts",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"organization_id": {
+					"name": "organization_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"text": {
+					"name": "text",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"kind": {
+					"name": "kind",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"paused_at": {
+					"name": "paused_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"brand_prompts_project_text_unique": {
+					"name": "brand_prompts_project_text_unique",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "text",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"brand_prompts_project_idx": {
+					"name": "brand_prompts_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"brand_prompts_organization_id_organizations_id_fk": {
+					"name": "brand_prompts_organization_id_organizations_id_fk",
+					"tableFrom": "brand_prompts",
+					"tableTo": "organizations",
+					"columnsFrom": ["organization_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"brand_prompts_project_id_projects_id_fk": {
+					"name": "brand_prompts_project_id_projects_id_fk",
+					"tableFrom": "brand_prompts",
+					"tableTo": "projects",
+					"columnsFrom": ["project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.chat_conversations_daily": {
+			"name": "chat_conversations_daily",
+			"schema": "",
+			"columns": {
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"day": {
+					"name": "day",
+					"type": "date",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"started": {
+					"name": "started",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"completed": {
+					"name": "completed",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"avg_duration_seconds": {
+					"name": "avg_duration_seconds",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"raw_payload_id": {
+					"name": "raw_payload_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"chat_conversations_daily_day_idx": {
+					"name": "chat_conversations_daily_day_idx",
+					"columns": [
+						{
+							"expression": "day",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {
+				"chat_conversations_daily_project_id_day_pk": {
+					"name": "chat_conversations_daily_project_id_day_pk",
+					"columns": ["project_id", "day"]
+				}
+			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.clarity_daily_metrics": {
+			"name": "clarity_daily_metrics",
+			"schema": "",
+			"columns": {
+				"clarity_project_id": {
+					"name": "clarity_project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"observed_date": {
+					"name": "observed_date",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"sessions_count": {
+					"name": "sessions_count",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"bot_sessions_count": {
+					"name": "bot_sessions_count",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"distinct_user_count": {
+					"name": "distinct_user_count",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"pages_per_session": {
+					"name": "pages_per_session",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"rage_clicks": {
+					"name": "rage_clicks",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"dead_clicks": {
+					"name": "dead_clicks",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"avg_engagement_seconds": {
+					"name": "avg_engagement_seconds",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"avg_scroll_depth": {
+					"name": "avg_scroll_depth",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"raw_payload_id": {
+					"name": "raw_payload_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"clarity_daily_metrics_project_idx": {
+					"name": "clarity_daily_metrics_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "observed_date",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"clarity_daily_metrics_clarity_project_id_clarity_projects_id_fk": {
+					"name": "clarity_daily_metrics_clarity_project_id_clarity_projects_id_fk",
+					"tableFrom": "clarity_daily_metrics",
+					"tableTo": "clarity_projects",
+					"columnsFrom": ["clarity_project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {
+				"clarity_daily_metrics_clarity_project_id_observed_date_pk": {
+					"name": "clarity_daily_metrics_clarity_project_id_observed_date_pk",
+					"columns": ["clarity_project_id", "observed_date"]
+				}
+			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.clarity_projects": {
+			"name": "clarity_projects",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"organization_id": {
+					"name": "organization_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"clarity_handle": {
+					"name": "clarity_handle",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"credential_id": {
+					"name": "credential_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"linked_at": {
+					"name": "linked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"unlinked_at": {
+					"name": "unlinked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"clarity_projects_project_handle_unique": {
+					"name": "clarity_projects_project_handle_unique",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "clarity_handle",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"clarity_projects_project_idx": {
+					"name": "clarity_projects_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"clarity_projects_organization_id_organizations_id_fk": {
+					"name": "clarity_projects_organization_id_organizations_id_fk",
+					"tableFrom": "clarity_projects",
+					"tableTo": "organizations",
+					"columnsFrom": ["organization_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"clarity_projects_project_id_projects_id_fk": {
+					"name": "clarity_projects_project_id_projects_id_fk",
+					"tableFrom": "clarity_projects",
+					"tableTo": "projects",
+					"columnsFrom": ["project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"clarity_projects_credential_id_provider_credentials_id_fk": {
+					"name": "clarity_projects_credential_id_provider_credentials_id_fk",
+					"tableFrom": "clarity_projects",
+					"tableTo": "provider_credentials",
+					"columnsFrom": ["credential_id"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.competitor_suggestions": {
+			"name": "competitor_suggestions",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"domain": {
+					"name": "domain",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"keywords_in_top10": {
+					"name": "keywords_in_top10",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'[]'::jsonb"
+				},
+				"total_top10_hits": {
+					"name": "total_top10_hits",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"first_seen_at": {
+					"name": "first_seen_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"last_seen_at": {
+					"name": "last_seen_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"status": {
+					"name": "status",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'PENDING'"
+				},
+				"promoted_at": {
+					"name": "promoted_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"dismissed_at": {
+					"name": "dismissed_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"competitor_suggestions_project_domain_unique": {
+					"name": "competitor_suggestions_project_domain_unique",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "domain",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"competitor_suggestions_project_status_idx": {
+					"name": "competitor_suggestions_project_status_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "status",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"competitor_suggestions_project_id_projects_id_fk": {
+					"name": "competitor_suggestions_project_id_projects_id_fk",
+					"tableFrom": "competitor_suggestions",
+					"tableTo": "projects",
+					"columnsFrom": ["project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.competitors": {
+			"name": "competitors",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"domain": {
+					"name": "domain",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"label": {
+					"name": "label",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"competitors_project_domain_unique": {
+					"name": "competitors_project_domain_unique",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "domain",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"competitors_project_id_projects_id_fk": {
+					"name": "competitors_project_id_projects_id_fk",
+					"tableFrom": "competitors",
+					"tableTo": "projects",
+					"columnsFrom": ["project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.email_engagement_daily": {
+			"name": "email_engagement_daily",
+			"schema": "",
+			"columns": {
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"day": {
+					"name": "day",
+					"type": "date",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"sent": {
+					"name": "sent",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"delivered": {
+					"name": "delivered",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"opened": {
+					"name": "opened",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"unique_opened": {
+					"name": "unique_opened",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"clicked": {
+					"name": "clicked",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"unique_clicked": {
+					"name": "unique_clicked",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"bounced": {
+					"name": "bounced",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"unsubscribed": {
+					"name": "unsubscribed",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"complaints": {
+					"name": "complaints",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"blocked": {
+					"name": "blocked",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"invalid": {
+					"name": "invalid",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"campaign_id": {
+					"name": "campaign_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "''"
+				},
+				"raw_payload_id": {
+					"name": "raw_payload_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"email_engagement_daily_day_idx": {
+					"name": "email_engagement_daily_day_idx",
+					"columns": [
+						{
+							"expression": "day",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {
+				"email_engagement_daily_project_id_day_campaign_id_pk": {
+					"name": "email_engagement_daily_project_id_day_campaign_id_pk",
+					"columns": ["project_id", "day", "campaign_id"]
+				}
+			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.ga4_daily_metrics": {
+			"name": "ga4_daily_metrics",
+			"schema": "",
+			"columns": {
+				"ga4_property_id": {
+					"name": "ga4_property_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"observed_date": {
+					"name": "observed_date",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"dimensions_hash": {
+					"name": "dimensions_hash",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"dimensions": {
+					"name": "dimensions",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"metrics": {
+					"name": "metrics",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"raw_payload_id": {
+					"name": "raw_payload_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"ga4_daily_metrics_project_idx": {
+					"name": "ga4_daily_metrics_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "observed_date",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"ga4_daily_metrics_ga4_property_id_ga4_properties_id_fk": {
+					"name": "ga4_daily_metrics_ga4_property_id_ga4_properties_id_fk",
+					"tableFrom": "ga4_daily_metrics",
+					"tableTo": "ga4_properties",
+					"columnsFrom": ["ga4_property_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {
+				"ga4_daily_metrics_ga4_property_id_observed_date_dimensions_hash_pk": {
+					"name": "ga4_daily_metrics_ga4_property_id_observed_date_dimensions_hash_pk",
+					"columns": ["ga4_property_id", "observed_date", "dimensions_hash"]
+				}
+			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.ga4_properties": {
+			"name": "ga4_properties",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"organization_id": {
+					"name": "organization_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"property_handle": {
+					"name": "property_handle",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"credential_id": {
+					"name": "credential_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"linked_at": {
+					"name": "linked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"unlinked_at": {
+					"name": "unlinked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"ga4_properties_project_handle_unique": {
+					"name": "ga4_properties_project_handle_unique",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "property_handle",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"ga4_properties_project_idx": {
+					"name": "ga4_properties_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"ga4_properties_organization_id_organizations_id_fk": {
+					"name": "ga4_properties_organization_id_organizations_id_fk",
+					"tableFrom": "ga4_properties",
+					"tableTo": "organizations",
+					"columnsFrom": ["organization_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"ga4_properties_project_id_projects_id_fk": {
+					"name": "ga4_properties_project_id_projects_id_fk",
+					"tableFrom": "ga4_properties",
+					"tableTo": "projects",
+					"columnsFrom": ["project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"ga4_properties_credential_id_provider_credentials_id_fk": {
+					"name": "ga4_properties_credential_id_provider_credentials_id_fk",
+					"tableFrom": "ga4_properties",
+					"tableTo": "provider_credentials",
+					"columnsFrom": ["credential_id"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.gsc_observations": {
+			"name": "gsc_observations",
+			"schema": "",
+			"columns": {
+				"observed_at": {
+					"name": "observed_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"gsc_property_id": {
+					"name": "gsc_property_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"query": {
+					"name": "query",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "''"
+				},
+				"page": {
+					"name": "page",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "''"
+				},
+				"country": {
+					"name": "country",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "''"
+				},
+				"device": {
+					"name": "device",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "''"
+				},
+				"clicks": {
+					"name": "clicks",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"impressions": {
+					"name": "impressions",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"ctr": {
+					"name": "ctr",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"position": {
+					"name": "position",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"raw_payload_id": {
+					"name": "raw_payload_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"gsc_observations_project_idx": {
+					"name": "gsc_observations_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "observed_at",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {
+				"gsc_observations_observed_at_gsc_property_id_query_page_country_device_pk": {
+					"name": "gsc_observations_observed_at_gsc_property_id_query_page_country_device_pk",
+					"columns": ["observed_at", "gsc_property_id", "query", "page", "country", "device"]
+				}
+			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.gsc_properties": {
+			"name": "gsc_properties",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"organization_id": {
+					"name": "organization_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"site_url": {
+					"name": "site_url",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"property_type": {
+					"name": "property_type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"credential_id": {
+					"name": "credential_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"linked_at": {
+					"name": "linked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"unlinked_at": {
+					"name": "unlinked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"gsc_properties_project_site_unique": {
+					"name": "gsc_properties_project_site_unique",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "site_url",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"gsc_properties_project_idx": {
+					"name": "gsc_properties_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"gsc_properties_organization_id_organizations_id_fk": {
+					"name": "gsc_properties_organization_id_organizations_id_fk",
+					"tableFrom": "gsc_properties",
+					"tableTo": "organizations",
+					"columnsFrom": ["organization_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"gsc_properties_project_id_projects_id_fk": {
+					"name": "gsc_properties_project_id_projects_id_fk",
+					"tableFrom": "gsc_properties",
+					"tableTo": "projects",
+					"columnsFrom": ["project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"gsc_properties_credential_id_provider_credentials_id_fk": {
+					"name": "gsc_properties_credential_id_provider_credentials_id_fk",
+					"tableFrom": "gsc_properties",
+					"tableTo": "provider_credentials",
+					"columnsFrom": ["credential_id"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.keyword_lists": {
+			"name": "keyword_lists",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"name": {
+					"name": "name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"keyword_lists_project_idx": {
+					"name": "keyword_lists_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"keyword_lists_project_id_projects_id_fk": {
+					"name": "keyword_lists_project_id_projects_id_fk",
+					"tableFrom": "keyword_lists",
+					"tableTo": "projects",
+					"columnsFrom": ["project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.keywords": {
+			"name": "keywords",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"list_id": {
+					"name": "list_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"phrase": {
+					"name": "phrase",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"tags": {
+					"name": "tags",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'[]'::jsonb"
+				}
+			},
+			"indexes": {
+				"keywords_list_phrase_unique": {
+					"name": "keywords_list_phrase_unique",
+					"columns": [
+						{
+							"expression": "list_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "phrase",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"keywords_list_id_keyword_lists_id_fk": {
+					"name": "keywords_list_id_keyword_lists_id_fk",
+					"tableFrom": "keywords",
+					"tableTo": "keyword_lists",
+					"columnsFrom": ["list_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.llm_answers": {
+			"name": "llm_answers",
+			"schema": "",
+			"columns": {
+				"captured_at": {
+					"name": "captured_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"brand_prompt_id": {
+					"name": "brand_prompt_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"ai_provider": {
+					"name": "ai_provider",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"model": {
+					"name": "model",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"country": {
+					"name": "country",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"language": {
+					"name": "language",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"raw_text": {
+					"name": "raw_text",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"mentions": {
+					"name": "mentions",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'[]'::jsonb"
+				},
+				"citations": {
+					"name": "citations",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'[]'::jsonb"
+				},
+				"input_tokens": {
+					"name": "input_tokens",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"output_tokens": {
+					"name": "output_tokens",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"cached_input_tokens": {
+					"name": "cached_input_tokens",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"web_search_calls": {
+					"name": "web_search_calls",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"cost_millicents": {
+					"name": "cost_millicents",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"raw_payload_id": {
+					"name": "raw_payload_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"llm_answers_prompt_idx": {
+					"name": "llm_answers_prompt_idx",
+					"columns": [
+						{
+							"expression": "brand_prompt_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "captured_at",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"llm_answers_project_idx": {
+					"name": "llm_answers_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "captured_at",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"llm_answers_provider_locale_idx": {
+					"name": "llm_answers_provider_locale_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "ai_provider",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "country",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "language",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "captured_at",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {
+				"llm_answers_captured_at_id_pk": {
+					"name": "llm_answers_captured_at_id_pk",
+					"columns": ["captured_at", "id"]
+				}
+			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.memberships": {
+			"name": "memberships",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"organization_id": {
+					"name": "organization_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"user_id": {
+					"name": "user_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"role": {
+					"name": "role",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"revoked_at": {
+					"name": "revoked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"memberships_org_user_active_unique": {
+					"name": "memberships_org_user_active_unique",
+					"columns": [
+						{
+							"expression": "organization_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "user_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"where": "\"memberships\".\"revoked_at\" IS NULL",
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"memberships_user_idx": {
+					"name": "memberships_user_idx",
+					"columns": [
+						{
+							"expression": "user_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"memberships_organization_id_organizations_id_fk": {
+					"name": "memberships_organization_id_organizations_id_fk",
+					"tableFrom": "memberships",
+					"tableTo": "organizations",
+					"columnsFrom": ["organization_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"memberships_user_id_users_id_fk": {
+					"name": "memberships_user_id_users_id_fk",
+					"tableFrom": "memberships",
+					"tableTo": "users",
+					"columnsFrom": ["user_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.meta_ad_accounts": {
+			"name": "meta_ad_accounts",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"organization_id": {
+					"name": "organization_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"ad_account_handle": {
+					"name": "ad_account_handle",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"credential_id": {
+					"name": "credential_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"linked_at": {
+					"name": "linked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"unlinked_at": {
+					"name": "unlinked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"meta_ad_accounts_project_handle_unique": {
+					"name": "meta_ad_accounts_project_handle_unique",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "ad_account_handle",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"meta_ad_accounts_project_idx": {
+					"name": "meta_ad_accounts_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"meta_ad_accounts_organization_id_organizations_id_fk": {
+					"name": "meta_ad_accounts_organization_id_organizations_id_fk",
+					"tableFrom": "meta_ad_accounts",
+					"tableTo": "organizations",
+					"columnsFrom": ["organization_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"meta_ad_accounts_project_id_projects_id_fk": {
+					"name": "meta_ad_accounts_project_id_projects_id_fk",
+					"tableFrom": "meta_ad_accounts",
+					"tableTo": "projects",
+					"columnsFrom": ["project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"meta_ad_accounts_credential_id_provider_credentials_id_fk": {
+					"name": "meta_ad_accounts_credential_id_provider_credentials_id_fk",
+					"tableFrom": "meta_ad_accounts",
+					"tableTo": "provider_credentials",
+					"columnsFrom": ["credential_id"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.meta_ads_insights_daily": {
+			"name": "meta_ads_insights_daily",
+			"schema": "",
+			"columns": {
+				"meta_ad_account_id": {
+					"name": "meta_ad_account_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"observed_date": {
+					"name": "observed_date",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"level": {
+					"name": "level",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"entity_id": {
+					"name": "entity_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"entity_name": {
+					"name": "entity_name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "''"
+				},
+				"impressions": {
+					"name": "impressions",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"clicks": {
+					"name": "clicks",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"spend": {
+					"name": "spend",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"conversions": {
+					"name": "conversions",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"raw_payload_id": {
+					"name": "raw_payload_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"meta_ads_insights_daily_project_idx": {
+					"name": "meta_ads_insights_daily_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "observed_date",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"meta_ads_insights_daily_meta_ad_account_id_meta_ad_accounts_id_fk": {
+					"name": "meta_ads_insights_daily_meta_ad_account_id_meta_ad_accounts_id_fk",
+					"tableFrom": "meta_ads_insights_daily",
+					"tableTo": "meta_ad_accounts",
+					"columnsFrom": ["meta_ad_account_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {
+				"meta_ads_insights_daily_meta_ad_account_id_observed_date_level_entity_id_pk": {
+					"name": "meta_ads_insights_daily_meta_ad_account_id_observed_date_level_entity_id_pk",
+					"columns": ["meta_ad_account_id", "observed_date", "level", "entity_id"]
+				}
+			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.meta_pixel_events_daily": {
+			"name": "meta_pixel_events_daily",
+			"schema": "",
+			"columns": {
+				"meta_pixel_id": {
+					"name": "meta_pixel_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"observed_date": {
+					"name": "observed_date",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"event_name": {
+					"name": "event_name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"event_count": {
+					"name": "event_count",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"value_sum": {
+					"name": "value_sum",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"raw_payload_id": {
+					"name": "raw_payload_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"meta_pixel_events_daily_project_idx": {
+					"name": "meta_pixel_events_daily_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "observed_date",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"meta_pixel_events_daily_meta_pixel_id_meta_pixels_id_fk": {
+					"name": "meta_pixel_events_daily_meta_pixel_id_meta_pixels_id_fk",
+					"tableFrom": "meta_pixel_events_daily",
+					"tableTo": "meta_pixels",
+					"columnsFrom": ["meta_pixel_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {
+				"meta_pixel_events_daily_meta_pixel_id_observed_date_event_name_pk": {
+					"name": "meta_pixel_events_daily_meta_pixel_id_observed_date_event_name_pk",
+					"columns": ["meta_pixel_id", "observed_date", "event_name"]
+				}
+			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.meta_pixels": {
+			"name": "meta_pixels",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"organization_id": {
+					"name": "organization_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"pixel_handle": {
+					"name": "pixel_handle",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"credential_id": {
+					"name": "credential_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"linked_at": {
+					"name": "linked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"unlinked_at": {
+					"name": "unlinked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"meta_pixels_project_handle_unique": {
+					"name": "meta_pixels_project_handle_unique",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "pixel_handle",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"meta_pixels_project_idx": {
+					"name": "meta_pixels_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"meta_pixels_organization_id_organizations_id_fk": {
+					"name": "meta_pixels_organization_id_organizations_id_fk",
+					"tableFrom": "meta_pixels",
+					"tableTo": "organizations",
+					"columnsFrom": ["organization_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"meta_pixels_project_id_projects_id_fk": {
+					"name": "meta_pixels_project_id_projects_id_fk",
+					"tableFrom": "meta_pixels",
+					"tableTo": "projects",
+					"columnsFrom": ["project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"meta_pixels_credential_id_provider_credentials_id_fk": {
+					"name": "meta_pixels_credential_id_provider_credentials_id_fk",
+					"tableFrom": "meta_pixels",
+					"tableTo": "provider_credentials",
+					"columnsFrom": ["credential_id"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.monitored_domains": {
+			"name": "monitored_domains",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"organization_id": {
+					"name": "organization_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"domain": {
+					"name": "domain",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"credential_id": {
+					"name": "credential_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"added_at": {
+					"name": "added_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"removed_at": {
+					"name": "removed_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"monitored_domains_project_domain_unique": {
+					"name": "monitored_domains_project_domain_unique",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "domain",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"monitored_domains_project_idx": {
+					"name": "monitored_domains_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"monitored_domains_organization_id_organizations_id_fk": {
+					"name": "monitored_domains_organization_id_organizations_id_fk",
+					"tableFrom": "monitored_domains",
+					"tableTo": "organizations",
+					"columnsFrom": ["organization_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"monitored_domains_project_id_projects_id_fk": {
+					"name": "monitored_domains_project_id_projects_id_fk",
+					"tableFrom": "monitored_domains",
+					"tableTo": "projects",
+					"columnsFrom": ["project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"monitored_domains_credential_id_provider_credentials_id_fk": {
+					"name": "monitored_domains_credential_id_provider_credentials_id_fk",
+					"tableFrom": "monitored_domains",
+					"tableTo": "provider_credentials",
+					"columnsFrom": ["credential_id"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.organizations": {
+			"name": "organizations",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"name": {
+					"name": "name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"slug": {
+					"name": "slug",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"organizations_slug_unique": {
+					"name": "organizations_slug_unique",
+					"columns": [
+						{
+							"expression": "slug",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.page_speed_snapshots": {
+			"name": "page_speed_snapshots",
+			"schema": "",
+			"columns": {
+				"tracked_page_id": {
+					"name": "tracked_page_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"observed_at": {
+					"name": "observed_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"lcp_ms": {
+					"name": "lcp_ms",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"inp_ms": {
+					"name": "inp_ms",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"cls": {
+					"name": "cls",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"fcp_ms": {
+					"name": "fcp_ms",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"ttfb_ms": {
+					"name": "ttfb_ms",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"performance_score": {
+					"name": "performance_score",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"seo_score": {
+					"name": "seo_score",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"accessibility_score": {
+					"name": "accessibility_score",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"best_practices_score": {
+					"name": "best_practices_score",
+					"type": "double precision",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"page_speed_snapshots_project_idx": {
+					"name": "page_speed_snapshots_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "observed_at",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"page_speed_snapshots_tracked_page_id_tracked_pages_id_fk": {
+					"name": "page_speed_snapshots_tracked_page_id_tracked_pages_id_fk",
+					"tableFrom": "page_speed_snapshots",
+					"tableTo": "tracked_pages",
+					"columnsFrom": ["tracked_page_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {
+				"page_speed_snapshots_tracked_page_id_observed_at_pk": {
+					"name": "page_speed_snapshots_tracked_page_id_observed_at_pk",
+					"columns": ["tracked_page_id", "observed_at"]
+				}
+			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.portfolios": {
+			"name": "portfolios",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"organization_id": {
+					"name": "organization_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"name": {
+					"name": "name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"portfolios_org_idx": {
+					"name": "portfolios_org_idx",
+					"columns": [
+						{
+							"expression": "organization_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"portfolios_organization_id_organizations_id_fk": {
+					"name": "portfolios_organization_id_organizations_id_fk",
+					"tableFrom": "portfolios",
+					"tableTo": "organizations",
+					"columnsFrom": ["organization_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.project_domains": {
+			"name": "project_domains",
+			"schema": "",
+			"columns": {
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"domain": {
+					"name": "domain",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"kind": {
+					"name": "kind",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				}
+			},
+			"indexes": {
+				"project_domains_project_domain_unique": {
+					"name": "project_domains_project_domain_unique",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "domain",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"project_domains_project_id_projects_id_fk": {
+					"name": "project_domains_project_id_projects_id_fk",
+					"tableFrom": "project_domains",
+					"tableTo": "projects",
+					"columnsFrom": ["project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.project_locations": {
+			"name": "project_locations",
+			"schema": "",
+			"columns": {
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"country": {
+					"name": "country",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"language": {
+					"name": "language",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				}
+			},
+			"indexes": {
+				"project_locations_unique": {
+					"name": "project_locations_unique",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "country",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "language",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"project_locations_project_id_projects_id_fk": {
+					"name": "project_locations_project_id_projects_id_fk",
+					"tableFrom": "project_locations",
+					"tableTo": "projects",
+					"columnsFrom": ["project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.projects": {
+			"name": "projects",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"organization_id": {
+					"name": "organization_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"portfolio_id": {
+					"name": "portfolio_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"name": {
+					"name": "name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"primary_domain": {
+					"name": "primary_domain",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"kind": {
+					"name": "kind",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"archived_at": {
+					"name": "archived_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"projects_org_idx": {
+					"name": "projects_org_idx",
+					"columns": [
+						{
+							"expression": "organization_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"projects_org_primary_domain_unique": {
+					"name": "projects_org_primary_domain_unique",
+					"columns": [
+						{
+							"expression": "organization_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "primary_domain",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"projects_organization_id_organizations_id_fk": {
+					"name": "projects_organization_id_organizations_id_fk",
+					"tableFrom": "projects",
+					"tableTo": "organizations",
+					"columnsFrom": ["organization_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"projects_portfolio_id_portfolios_id_fk": {
+					"name": "projects_portfolio_id_portfolios_id_fk",
+					"tableFrom": "projects",
+					"tableTo": "portfolios",
+					"columnsFrom": ["portfolio_id"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.provider_credentials": {
+			"name": "provider_credentials",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"organization_id": {
+					"name": "organization_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"provider_id": {
+					"name": "provider_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"scope_type": {
+					"name": "scope_type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"scope_id": {
+					"name": "scope_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"label": {
+					"name": "label",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"ciphertext": {
+					"name": "ciphertext",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"nonce": {
+					"name": "nonce",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"last_four": {
+					"name": "last_four",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"expires_at": {
+					"name": "expires_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"revoked_at": {
+					"name": "revoked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"provider_credentials_unique": {
+					"name": "provider_credentials_unique",
+					"columns": [
+						{
+							"expression": "organization_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "provider_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "scope_type",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "scope_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "label",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"provider_credentials_org_provider_idx": {
+					"name": "provider_credentials_org_provider_idx",
+					"columns": [
+						{
+							"expression": "organization_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "provider_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"provider_credentials_organization_id_organizations_id_fk": {
+					"name": "provider_credentials_organization_id_organizations_id_fk",
+					"tableFrom": "provider_credentials",
+					"tableTo": "organizations",
+					"columnsFrom": ["organization_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.provider_job_definitions": {
+			"name": "provider_job_definitions",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"provider_id": {
+					"name": "provider_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"endpoint_id": {
+					"name": "endpoint_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"params_hash": {
+					"name": "params_hash",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"params": {
+					"name": "params",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"cron": {
+					"name": "cron",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"credential_override_id": {
+					"name": "credential_override_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"enabled": {
+					"name": "enabled",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": true
+				},
+				"last_run_at": {
+					"name": "last_run_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"provider_job_definitions_unique": {
+					"name": "provider_job_definitions_unique",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "provider_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "endpoint_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "params_hash",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"provider_job_definitions_project_idx": {
+					"name": "provider_job_definitions_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"provider_job_definitions_project_id_projects_id_fk": {
+					"name": "provider_job_definitions_project_id_projects_id_fk",
+					"tableFrom": "provider_job_definitions",
+					"tableTo": "projects",
+					"columnsFrom": ["project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"provider_job_definitions_credential_override_id_provider_credentials_id_fk": {
+					"name": "provider_job_definitions_credential_override_id_provider_credentials_id_fk",
+					"tableFrom": "provider_job_definitions",
+					"tableTo": "provider_credentials",
+					"columnsFrom": ["credential_override_id"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.provider_job_runs": {
+			"name": "provider_job_runs",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"definition_id": {
+					"name": "definition_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"credential_id": {
+					"name": "credential_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"status": {
+					"name": "status",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"started_at": {
+					"name": "started_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"finished_at": {
+					"name": "finished_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"raw_payload_id": {
+					"name": "raw_payload_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"error_json": {
+					"name": "error_json",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"provider_job_runs_definition_idx": {
+					"name": "provider_job_runs_definition_idx",
+					"columns": [
+						{
+							"expression": "definition_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "started_at",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"provider_job_runs_definition_id_provider_job_definitions_id_fk": {
+					"name": "provider_job_runs_definition_id_provider_job_definitions_id_fk",
+					"tableFrom": "provider_job_runs",
+					"tableTo": "provider_job_definitions",
+					"columnsFrom": ["definition_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"provider_job_runs_credential_id_provider_credentials_id_fk": {
+					"name": "provider_job_runs_credential_id_provider_credentials_id_fk",
+					"tableFrom": "provider_job_runs",
+					"tableTo": "provider_credentials",
+					"columnsFrom": ["credential_id"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.radar_rank_snapshots": {
+			"name": "radar_rank_snapshots",
+			"schema": "",
+			"columns": {
+				"monitored_domain_id": {
+					"name": "monitored_domain_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"observed_date": {
+					"name": "observed_date",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"rank": {
+					"name": "rank",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"bucket": {
+					"name": "bucket",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"categories": {
+					"name": "categories",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'{}'::jsonb"
+				},
+				"raw_payload_id": {
+					"name": "raw_payload_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"radar_rank_snapshots_project_idx": {
+					"name": "radar_rank_snapshots_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "observed_date",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"radar_rank_snapshots_monitored_domain_id_monitored_domains_id_fk": {
+					"name": "radar_rank_snapshots_monitored_domain_id_monitored_domains_id_fk",
+					"tableFrom": "radar_rank_snapshots",
+					"tableTo": "monitored_domains",
+					"columnsFrom": ["monitored_domain_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {
+				"radar_rank_snapshots_monitored_domain_id_observed_date_pk": {
+					"name": "radar_rank_snapshots_monitored_domain_id_observed_date_pk",
+					"columns": ["monitored_domain_id", "observed_date"]
+				}
+			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.ranking_observations": {
+			"name": "ranking_observations",
+			"schema": "",
+			"columns": {
+				"observed_at": {
+					"name": "observed_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"tracked_keyword_id": {
+					"name": "tracked_keyword_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"domain": {
+					"name": "domain",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"phrase": {
+					"name": "phrase",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"country": {
+					"name": "country",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"language": {
+					"name": "language",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"device": {
+					"name": "device",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"position": {
+					"name": "position",
+					"type": "smallint",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"url": {
+					"name": "url",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"serp_features": {
+					"name": "serp_features",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'[]'::jsonb"
+				},
+				"source_provider": {
+					"name": "source_provider",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"raw_payload_id": {
+					"name": "raw_payload_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"ranking_observations_keyword_idx": {
+					"name": "ranking_observations_keyword_idx",
+					"columns": [
+						{
+							"expression": "tracked_keyword_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "observed_at",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"ranking_observations_project_idx": {
+					"name": "ranking_observations_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "observed_at",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {
+				"ranking_observations_observed_at_tracked_keyword_id_pk": {
+					"name": "ranking_observations_observed_at_tracked_keyword_id_pk",
+					"columns": ["observed_at", "tracked_keyword_id"]
+				}
+			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.raw_payloads": {
+			"name": "raw_payloads",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"provider_id": {
+					"name": "provider_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"endpoint_id": {
+					"name": "endpoint_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"request_hash": {
+					"name": "request_hash",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"payload": {
+					"name": "payload",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"payload_size": {
+					"name": "payload_size",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"fetched_at": {
+					"name": "fetched_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"raw_payloads_request_hash_unique": {
+					"name": "raw_payloads_request_hash_unique",
+					"columns": [
+						{
+							"expression": "request_hash",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"raw_payloads_provider_endpoint_idx": {
+					"name": "raw_payloads_provider_endpoint_idx",
+					"columns": [
+						{
+							"expression": "provider_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "endpoint_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "fetched_at",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.tracked_keywords": {
+			"name": "tracked_keywords",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"organization_id": {
+					"name": "organization_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"domain": {
+					"name": "domain",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"phrase": {
+					"name": "phrase",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"country": {
+					"name": "country",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"language": {
+					"name": "language",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"device": {
+					"name": "device",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"search_engine": {
+					"name": "search_engine",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"paused_at": {
+					"name": "paused_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"started_at": {
+					"name": "started_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"tracked_keywords_unique": {
+					"name": "tracked_keywords_unique",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "domain",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "phrase",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "country",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "language",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "device",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "search_engine",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"tracked_keywords_project_idx": {
+					"name": "tracked_keywords_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"tracked_keywords_organization_id_organizations_id_fk": {
+					"name": "tracked_keywords_organization_id_organizations_id_fk",
+					"tableFrom": "tracked_keywords",
+					"tableTo": "organizations",
+					"columnsFrom": ["organization_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"tracked_keywords_project_id_projects_id_fk": {
+					"name": "tracked_keywords_project_id_projects_id_fk",
+					"tableFrom": "tracked_keywords",
+					"tableTo": "projects",
+					"columnsFrom": ["project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.tracked_pages": {
+			"name": "tracked_pages",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"organization_id": {
+					"name": "organization_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"url": {
+					"name": "url",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"strategy": {
+					"name": "strategy",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"added_at": {
+					"name": "added_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"tracked_pages_project_url_strategy_unique": {
+					"name": "tracked_pages_project_url_strategy_unique",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "url",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "strategy",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"tracked_pages_project_idx": {
+					"name": "tracked_pages_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"tracked_pages_organization_id_organizations_id_fk": {
+					"name": "tracked_pages_organization_id_organizations_id_fk",
+					"tableFrom": "tracked_pages",
+					"tableTo": "organizations",
+					"columnsFrom": ["organization_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"tracked_pages_project_id_projects_id_fk": {
+					"name": "tracked_pages_project_id_projects_id_fk",
+					"tableFrom": "tracked_pages",
+					"tableTo": "projects",
+					"columnsFrom": ["project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.users": {
+			"name": "users",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"email": {
+					"name": "email",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"name": {
+					"name": "name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"password_hash": {
+					"name": "password_hash",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"locale": {
+					"name": "locale",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'en'"
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"users_email_unique": {
+					"name": "users_email_unique",
+					"columns": [
+						{
+							"expression": "lower(\"email\")",
+							"asc": true,
+							"isExpression": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.wikipedia_articles": {
+			"name": "wikipedia_articles",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"organization_id": {
+					"name": "organization_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"wikipedia_project": {
+					"name": "wikipedia_project",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"slug": {
+					"name": "slug",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"label": {
+					"name": "label",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"linked_at": {
+					"name": "linked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"unlinked_at": {
+					"name": "unlinked_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				}
+			},
+			"indexes": {
+				"wikipedia_articles_project_article_unique": {
+					"name": "wikipedia_articles_project_article_unique",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "wikipedia_project",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "slug",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"wikipedia_articles_project_idx": {
+					"name": "wikipedia_articles_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"wikipedia_articles_organization_id_organizations_id_fk": {
+					"name": "wikipedia_articles_organization_id_organizations_id_fk",
+					"tableFrom": "wikipedia_articles",
+					"tableTo": "organizations",
+					"columnsFrom": ["organization_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"wikipedia_articles_project_id_projects_id_fk": {
+					"name": "wikipedia_articles_project_id_projects_id_fk",
+					"tableFrom": "wikipedia_articles",
+					"tableTo": "projects",
+					"columnsFrom": ["project_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.wikipedia_pageviews": {
+			"name": "wikipedia_pageviews",
+			"schema": "",
+			"columns": {
+				"article_id": {
+					"name": "article_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"project_id": {
+					"name": "project_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"observed_at": {
+					"name": "observed_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"views": {
+					"name": "views",
+					"type": "bigint",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"access": {
+					"name": "access",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"agent": {
+					"name": "agent",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"granularity": {
+					"name": "granularity",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				}
+			},
+			"indexes": {
+				"wikipedia_pageviews_project_idx": {
+					"name": "wikipedia_pageviews_project_idx",
+					"columns": [
+						{
+							"expression": "project_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "observed_at",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"wikipedia_pageviews_article_id_wikipedia_articles_id_fk": {
+					"name": "wikipedia_pageviews_article_id_wikipedia_articles_id_fk",
+					"tableFrom": "wikipedia_pageviews",
+					"tableTo": "wikipedia_articles",
+					"columnsFrom": ["article_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {
+				"wikipedia_pageviews_article_id_observed_at_pk": {
+					"name": "wikipedia_pageviews_article_id_observed_at_pk",
+					"columns": ["article_id", "observed_at"]
+				}
+			},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		}
+	},
+	"enums": {},
+	"schemas": {},
+	"sequences": {},
+	"roles": {},
+	"policies": {},
+	"views": {},
+	"_meta": {
+		"columns": {},
+		"schemas": {},
+		"tables": {}
+	}
+}

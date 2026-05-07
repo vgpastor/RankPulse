@@ -25,46 +25,37 @@ export interface IdentityAccessDeps {
 	readonly apiTokenRepo: IADomain.ApiTokenRepository;
 	readonly passwordHasher: IADomain.PasswordHasher;
 	readonly apiTokenGenerator: IADomain.ApiTokenGenerator;
+	readonly identityAccessSchemaTables: readonly unknown[];
 }
 
-/**
- * `ContextModule` for identity-access. The composition root iterates
- * every context's module and merges their `useCases` maps into the DI
- * registry; `ingestUseCases` and `eventHandlers` are empty here because
- * identity-access has no provider ingest or auto-schedule today.
- */
 export const identityAccessModule: ContextModule = {
 	id: 'identity-access',
 	compose(deps: SharedDeps): ContextRegistrations {
 		const d = deps as unknown as IdentityAccessDeps;
-		const registerOrganization = new RegisterOrganizationUseCase(
-			d.orgRepo,
-			d.userRepo,
-			d.membershipRepo,
-			d.passwordHasher,
-			d.clock,
-			d.ids,
-			d.events,
-		);
-		const authenticateUser = new AuthenticateUserUseCase(d.userRepo, d.passwordHasher);
-		const inviteUser = new InviteUserUseCase(d.membershipRepo, d.userRepo, d.clock, d.ids, d.events);
-		const issueApiToken = new IssueApiTokenUseCase(
-			d.membershipRepo,
-			d.apiTokenRepo,
-			d.apiTokenGenerator,
-			d.clock,
-			d.ids,
-		);
 		return {
 			useCases: {
-				RegisterOrganization: registerOrganization,
-				AuthenticateUser: authenticateUser,
-				InviteUser: inviteUser,
-				IssueApiToken: issueApiToken,
+				RegisterOrganization: new RegisterOrganizationUseCase(
+					d.orgRepo,
+					d.userRepo,
+					d.membershipRepo,
+					d.passwordHasher,
+					d.clock,
+					d.ids,
+					d.events,
+				),
+				AuthenticateUser: new AuthenticateUserUseCase(d.userRepo, d.passwordHasher),
+				InviteUser: new InviteUserUseCase(d.membershipRepo, d.userRepo, d.clock, d.ids, d.events),
+				IssueApiToken: new IssueApiTokenUseCase(
+					d.membershipRepo,
+					d.apiTokenRepo,
+					d.apiTokenGenerator,
+					d.clock,
+					d.ids,
+				),
 			},
 			ingestUseCases: {},
 			eventHandlers: [],
-			schemaTables: [],
+			schemaTables: d.identityAccessSchemaTables,
 		};
 	},
 };
