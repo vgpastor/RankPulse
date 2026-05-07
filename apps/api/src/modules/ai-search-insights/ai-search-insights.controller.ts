@@ -60,11 +60,7 @@ export class AiSearchInsightsController {
 		@Body(new ZodValidationPipe(AiSearchInsightsContracts.RegisterBrandPromptRequest))
 		body: RegisterBrandPromptRequest,
 	): Promise<RegisterBrandPromptResponse> {
-		const project = await this.projects.findById(projectId as ProjectManagement.ProjectId);
-		if (!project) {
-			throw new NotFoundError(`Project ${projectId} not found`);
-		}
-		await this.orgMembership.require(principal, project.organizationId);
+		const project = await this.requireProjectAccess(principal, projectId);
 		const result = await this.registerPrompt.execute({
 			organizationId: project.organizationId,
 			projectId,
@@ -79,11 +75,7 @@ export class AiSearchInsightsController {
 		@Principal() principal: AuthPrincipal,
 		@Param('projectId') projectId: string,
 	): Promise<ListBrandPromptsResponse> {
-		const project = await this.projects.findById(projectId as ProjectManagement.ProjectId);
-		if (!project) {
-			throw new NotFoundError(`Project ${projectId} not found`);
-		}
-		await this.orgMembership.require(principal, project.organizationId);
+		await this.requireProjectAccess(principal, projectId);
 		const items = await this.listPrompts.execute({ projectId });
 		return { items: items.map((i) => ({ ...i })) };
 	}
@@ -145,11 +137,7 @@ export class AiSearchInsightsController {
 		@Query(new ZodValidationPipe(AiSearchInsightsContracts.ListLlmAnswersQuery))
 		query: ListLlmAnswersQuery,
 	): Promise<ListLlmAnswersResponse> {
-		const project = await this.projects.findById(projectId as ProjectManagement.ProjectId);
-		if (!project) {
-			throw new NotFoundError(`Project ${projectId} not found`);
-		}
-		await this.orgMembership.require(principal, project.organizationId);
+		await this.requireProjectAccess(principal, projectId);
 		const items = await this.queryAnswers.execute({
 			projectId,
 			brandPromptId: query.brandPromptId,
@@ -272,11 +260,7 @@ export class AiSearchInsightsController {
 		projectId: string,
 		promptId: string,
 	): Promise<AiSearchInsights.BrandPrompt> {
-		const project = await this.projects.findById(projectId as ProjectManagement.ProjectId);
-		if (!project) {
-			throw new NotFoundError(`Project ${projectId} not found`);
-		}
-		await this.orgMembership.require(principal, project.organizationId);
+		const project = await this.requireProjectAccess(principal, projectId);
 		const prompt = await this.promptRepo.findById(promptId as AiSearchInsights.BrandPromptId);
 		if (!prompt || prompt.projectId !== project.id) {
 			throw new NotFoundError(`BrandPrompt ${promptId} not found in project ${projectId}`);
