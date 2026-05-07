@@ -4,6 +4,7 @@ import { InvalidInputError } from '@rankpulse/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BingApiError, BingHttpClient } from './http.js';
 
+// Test fixture only — split + interpolated to avoid secret-scanner false positives.
 const validApiKey = `${'A'.repeat(8)}${'B'.repeat(8)}${'C'.repeat(8)}${'D'.repeat(8)}`;
 
 const baseConfig: HttpConfig = {
