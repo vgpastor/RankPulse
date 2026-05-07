@@ -30,6 +30,15 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 		projectId: ProjectManagement.ProjectId,
 		filter: AiSearchInsights.AiSearchReadModelFilter,
 	): Promise<AiSearchInsights.AiSearchPresenceSummary> {
+		// postgres-js (v3.4.x) does not auto-coerce `Date` objects passed
+		// as `sql\`...\`` template parameters — Bind packet writer hits
+		// `Buffer.byteLength(<Date>)` and throws ERR_INVALID_ARG_TYPE,
+		// surfacing as a 500 from this read endpoint. Coercing to ISO
+		// strings here keeps the query semantically identical (postgres
+		// parses them as `timestamptz`) without round-tripping through
+		// the driver's type registry.
+		const fromIso = filter.from.toISOString();
+		const toIso = filter.to.toISOString();
 		const rows = await this.db.execute(sql<{
 			total_answers: number;
 			answers_with_own_mention: number;
@@ -43,7 +52,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					CASE WHEN jsonb_typeof(citations) = 'array' THEN citations ELSE '[]'::jsonb END AS citations
 				FROM llm_answers
 				WHERE project_id = ${projectId}
-				  AND captured_at BETWEEN ${filter.from} AND ${filter.to}
+				  AND captured_at BETWEEN ${fromIso} AND ${toIso}
 			)
 			SELECT
 				COUNT(*)::int AS total_answers,
@@ -84,6 +93,9 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 		projectId: ProjectManagement.ProjectId,
 		filter: AiSearchInsights.AiSearchReadModelFilter,
 	): Promise<readonly AiSearchInsights.AiSearchSovRow[]> {
+		// See `presenceForProject` for the postgres-js Date binding rationale.
+		const fromIso = filter.from.toISOString();
+		const toIso = filter.to.toISOString();
 		const rows = await this.db.execute(sql<{
 			ai_provider: string;
 			country: string;
@@ -101,7 +113,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					CASE WHEN jsonb_typeof(citations) = 'array' THEN citations ELSE '[]'::jsonb END AS citations
 				FROM llm_answers
 				WHERE project_id = ${projectId}
-				  AND captured_at BETWEEN ${filter.from} AND ${filter.to}
+				  AND captured_at BETWEEN ${fromIso} AND ${toIso}
 			),
 			totals AS (
 				SELECT ai_provider, country, language, COUNT(*)::int AS total_answers
@@ -180,6 +192,9 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 	): Promise<readonly AiSearchInsights.AiSearchCitationRow[]> {
 		const onlyOwn = filter.onlyOwnDomains ?? false;
 		const aiProvider = filter.aiProvider ?? null;
+		// See `presenceForProject` for the postgres-js Date binding rationale.
+		const fromIso = filter.from.toISOString();
+		const toIso = filter.to.toISOString();
 		const rows = await this.db.execute(sql<{
 			url: string;
 			domain: string;
@@ -201,7 +216,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					CASE WHEN jsonb_typeof(a.citations) = 'array' THEN a.citations ELSE '[]'::jsonb END
 				) c
 				WHERE a.project_id = ${projectId}
-				  AND a.captured_at BETWEEN ${filter.from} AND ${filter.to}
+				  AND a.captured_at BETWEEN ${fromIso} AND ${toIso}
 				  AND (${aiProvider}::text IS NULL OR a.ai_provider = ${aiProvider}::text)
 			)
 			SELECT
@@ -245,6 +260,9 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 		brandPromptId: AiSearchInsights.BrandPromptId,
 		filter: AiSearchInsights.AiSearchReadModelFilter,
 	): Promise<readonly AiSearchInsights.AiSearchSovDailyPoint[]> {
+		// See `presenceForProject` for the postgres-js Date binding rationale.
+		const fromIso = filter.from.toISOString();
+		const toIso = filter.to.toISOString();
 		const rows = await this.db.execute(sql<{
 			day: string;
 			total_answers: number;
@@ -256,7 +274,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					CASE WHEN jsonb_typeof(mentions) = 'array' THEN mentions ELSE '[]'::jsonb END AS mentions
 				FROM llm_answers
 				WHERE brand_prompt_id = ${brandPromptId}
-				  AND captured_at BETWEEN ${filter.from} AND ${filter.to}
+				  AND captured_at BETWEEN ${fromIso} AND ${toIso}
 			)
 			SELECT
 				to_char(captured_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day,
@@ -309,6 +327,10 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 	): Promise<readonly AiSearchInsights.AiSearchWeeklySovDelta[]> {
 		const thisWeekStart = new Date(asOf.getTime() - 7 * 24 * 60 * 60 * 1000);
 		const lastWeekStart = new Date(asOf.getTime() - 14 * 24 * 60 * 60 * 1000);
+		// See `presenceForProject` for the postgres-js Date binding rationale.
+		const asOfIso = asOf.toISOString();
+		const thisWeekStartIso = thisWeekStart.toISOString();
+		const lastWeekStartIso = lastWeekStart.toISOString();
 		const rows = await this.db.execute(sql<{
 			ai_provider: string;
 			country: string;
@@ -323,24 +345,24 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					CASE WHEN jsonb_typeof(mentions) = 'array' THEN mentions ELSE '[]'::jsonb END AS mentions
 				FROM llm_answers
 				WHERE project_id = ${projectId}
-				  AND captured_at >= ${lastWeekStart}
-				  AND captured_at <= ${asOf}
+				  AND captured_at >= ${lastWeekStartIso}
+				  AND captured_at <= ${asOfIso}
 			)
 			SELECT
 				ai_provider,
 				country,
 				language,
-				COUNT(*) FILTER (WHERE captured_at >= ${thisWeekStart})::int AS this_week_total,
+				COUNT(*) FILTER (WHERE captured_at >= ${thisWeekStartIso})::int AS this_week_total,
 				COUNT(*) FILTER (
-					WHERE captured_at >= ${thisWeekStart}
+					WHERE captured_at >= ${thisWeekStartIso}
 					  AND jsonb_path_exists(mentions, '$[*] ? (@.isOwnBrand == true)')
 				)::int AS this_week_own_mentions,
 				COUNT(*) FILTER (
-					WHERE captured_at >= ${lastWeekStart} AND captured_at < ${thisWeekStart}
+					WHERE captured_at >= ${lastWeekStartIso} AND captured_at < ${thisWeekStartIso}
 				)::int AS last_week_total,
 				COUNT(*) FILTER (
-					WHERE captured_at >= ${lastWeekStart}
-					  AND captured_at < ${thisWeekStart}
+					WHERE captured_at >= ${lastWeekStartIso}
+					  AND captured_at < ${thisWeekStartIso}
 					  AND jsonb_path_exists(mentions, '$[*] ? (@.isOwnBrand == true)')
 				)::int AS last_week_own_mentions
 			FROM base
@@ -382,6 +404,9 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 		projectId: ProjectManagement.ProjectId,
 		filter: AiSearchInsights.AiSearchReadModelFilter,
 	): Promise<readonly AiSearchInsights.AiSearchOwnCitationStreak[]> {
+		// See `presenceForProject` for the postgres-js Date binding rationale.
+		const fromIso = filter.from.toISOString();
+		const toIso = filter.to.toISOString();
 		// Streak detection: for each (own_url × provider × locale) look at the
 		// per-day citation presence and find the longest run of consecutive
 		// days. The "currentlyCited" bit is the presence of the URL in the
@@ -412,7 +437,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					CASE WHEN jsonb_typeof(a.citations) = 'array' THEN a.citations ELSE '[]'::jsonb END
 				) c
 				WHERE a.project_id = ${projectId}
-				  AND a.captured_at BETWEEN ${filter.from} AND ${filter.to}
+				  AND a.captured_at BETWEEN ${fromIso} AND ${toIso}
 				  AND COALESCE((c->>'isOwnDomain')::bool, false) = true
 				GROUP BY a.ai_provider, a.country, a.language, c->>'url', c->>'domain', day
 			),
@@ -436,7 +461,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					MAX(captured_at AT TIME ZONE 'UTC')::date AS last_capture_day
 				FROM llm_answers
 				WHERE project_id = ${projectId}
-				  AND captured_at BETWEEN ${filter.from} AND ${filter.to}
+				  AND captured_at BETWEEN ${fromIso} AND ${toIso}
 				GROUP BY ai_provider, country, language
 			),
 			top_streak AS (
@@ -453,7 +478,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 				t.language,
 				t.streak_days::int,
 				(t.last_day || 'T00:00:00Z')::timestamptz AS last_seen_at,
-				(t.last_day = l.last_capture_day) AS currently_cited
+				(t.last_day::date = l.last_capture_day) AS currently_cited
 			FROM top_streak t
 			JOIN latest_per_locale l USING (ai_provider, country, language)
 		`);
@@ -485,6 +510,9 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 		projectId: ProjectManagement.ProjectId,
 		filter: AiSearchInsights.AiSearchReadModelFilter,
 	): Promise<readonly AiSearchInsights.AiSearchPositionLead[]> {
+		// See `presenceForProject` for the postgres-js Date binding rationale.
+		const fromIso = filter.from.toISOString();
+		const toIso = filter.to.toISOString();
 		const rows = await this.db.execute(sql<{
 			ai_provider: string;
 			country: string;
@@ -503,7 +531,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					CASE WHEN jsonb_typeof(a.mentions) = 'array' THEN a.mentions ELSE '[]'::jsonb END
 				) m
 				WHERE a.project_id = ${projectId}
-				  AND a.captured_at BETWEEN ${filter.from} AND ${filter.to}
+				  AND a.captured_at BETWEEN ${fromIso} AND ${toIso}
 			),
 			own_pos AS (
 				SELECT ai_provider, country, language, AVG(position)::float AS own_avg_position

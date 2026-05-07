@@ -106,12 +106,27 @@ const endpoints: readonly EndpointManifest[] = [
 	{
 		descriptor: serpGoogleOrganicLiveDescriptor,
 		fetch: adapt(fetchSerpGoogleOrganicLive),
-		ingest: rankTrackingIngest as IngestBinding,
+		// Ranking observations stay router-bypass: the processor's legacy
+		// if-else fans ONE SERP fetch out across N tracked-keyword domains
+		// (BACKLOG #15) — `1 fetch → N rows of the same shape` is exactly
+		// what the IngestRouter does NOT model. The fan-out reads the
+		// project's tracked keywords + competitor list and emits
+		// per-domain RankingObservations, plus seeds CompetitorSuggestion
+		// candidates from top-10 (BACKLOG #18). When Phase 5 lands the
+		// `1 def per trackedKeywordId` schedule shape (so rows-per-call
+		// collapses to 1), `rankTrackingIngest` can be wired back here.
+		// Until then, leaving this set crashes the worker bootstrap with
+		// `IngestRouter: no IngestUseCase registered for key
+		// 'rank-tracking:record-ranking-observation'` because the
+		// fan-out pipeline has no use-case registered against the router
+		// key (it's executed inline against the use case object).
+		ingest: null,
 	},
 	{
 		descriptor: serpGoogleOrganicAdvancedDescriptor,
 		fetch: adapt(fetchSerpGoogleOrganicAdvanced),
-		ingest: rankTrackingIngest as IngestBinding,
+		// Same router-bypass rationale as serp-google-organic-live above.
+		ingest: null,
 	},
 	{
 		descriptor: keywordsDataSearchVolumeDescriptor,
