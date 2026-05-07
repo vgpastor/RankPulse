@@ -1,5 +1,6 @@
 import type { EndpointDescriptor, FetchContext } from '@rankpulse/provider-core';
 import { z } from 'zod';
+import { costFromRawPayload } from '../acl/messages-to-llm-answer.acl.js';
 import { parseCredential } from '../credential.js';
 import type { AnthropicHttp } from '../http.js';
 
@@ -34,9 +35,12 @@ export type MessagesWithWebSearchParams = z.infer<typeof MessagesWithWebSearchPa
  *
  * Worst-case call: 200 input + 4000 output tokens + 5 searches
  *   ≈ $0.0006 input + $0.06 output + $0.05 search ≈ 11.06 cents.
- * Typical call: 200 input + 800 output tokens + 2 searches
- *   ≈ ~3.2 cents. Pinning the descriptor at 11 cents is the safe ledger
- * upper bound; `costFor` below computes the precise figure post-fetch.
+ * Typical call: 200 input + 800 output tokens + 2 searches ≈ ~3.2 cents.
+ *
+ * `cost.amount` reserves the 11¢ worst-case in the ledger so budget
+ * alerts stay safe; `costFor` reads the actual `usage` block off the
+ * response and returns the precise figure post-fetch — that's what
+ * api_usage actually charges.
  */
 export const MESSAGES_WORST_CASE_COST_CENTS = 11;
 const WEB_SEARCH_MAX_USES = 5;
@@ -49,6 +53,7 @@ export const messagesWithWebSearchDescriptor: EndpointDescriptor = {
 		'Calls Anthropic /v1/messages with the web_search_20250305 tool enabled, captures the grounded answer + URL citations, and ships the raw text + citations to the AI Brand Radar pipeline.',
 	paramsSchema: MessagesWithWebSearchParams,
 	cost: { unit: 'usd_cents', amount: MESSAGES_WORST_CASE_COST_CENTS },
+	costFor: (_params, response) => costFromRawPayload(response as AnthropicMessagesPayload),
 	defaultCron: '0 7 * * *',
 	rateLimit: { max: 50, durationMs: 60_000 },
 };

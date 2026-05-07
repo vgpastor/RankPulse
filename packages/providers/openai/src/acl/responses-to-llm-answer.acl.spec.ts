@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { normaliseOpenAiResponse } from './responses-to-llm-answer.acl.js';
+import { responsesWithWebSearchDescriptor } from '../endpoints/responses-with-web-search.js';
+import { costFromRawPayload, normaliseOpenAiResponse } from './responses-to-llm-answer.acl.js';
 
 describe('normaliseOpenAiResponse', () => {
 	it('joins text spans, dedupes citations, counts web_search_calls', () => {
@@ -80,5 +81,43 @@ describe('normaliseOpenAiResponse', () => {
 		expect(result.citationUrls).toEqual([]);
 		expect(result.model).toBe('gpt-5-mini');
 		expect(result.costCents).toBe(0);
+	});
+});
+
+describe('costFromRawPayload (OpenAI)', () => {
+	it('matches the cost computed by normaliseOpenAiResponse on the same payload', () => {
+		const raw = {
+			model: 'gpt-5-mini',
+			output: [
+				{ type: 'web_search_call', id: 'ws_1', status: 'completed' },
+				{ type: 'web_search_call', id: 'ws_2', status: 'completed' },
+			],
+			usage: {
+				input_tokens: 1_000,
+				output_tokens: 2_000,
+				input_tokens_details: { cached_tokens: 200 },
+			},
+		};
+		expect(costFromRawPayload(raw)).toBe(normaliseOpenAiResponse(raw).costCents);
+	});
+
+	it('returns 0 when usage is missing — defensive against malformed responses', () => {
+		expect(costFromRawPayload({})).toBe(0);
+	});
+});
+
+describe('responsesWithWebSearchDescriptor.costFor', () => {
+	it('charges typical-call cost (well below the 3.5¢ worst-case)', () => {
+		const typical = {
+			usage: { input_tokens: 200, output_tokens: 500 },
+			output: [{ type: 'web_search_call' }],
+		};
+		const cost = responsesWithWebSearchDescriptor.costFor?.({}, typical) ?? -1;
+		expect(cost).toBeGreaterThan(0);
+		expect(cost).toBeLessThan(responsesWithWebSearchDescriptor.cost.amount);
+		// 1 web_search × 3¢ + tokens (200 × $0.40/M + 500 × $1.60/M ≈ 0.088¢)
+		// → ~3.09¢. Range allows for pricing nudges without being brittle.
+		expect(cost).toBeGreaterThanOrEqual(3);
+		expect(cost).toBeLessThan(3.2);
 	});
 });

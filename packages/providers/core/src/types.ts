@@ -32,14 +32,29 @@ export interface EndpointDescriptor {
 	readonly paramsSchema: ZodTypeAny;
 	readonly cost: { unit: 'usd_cents'; amount: number };
 	/**
-	 * Optional dynamic cost calculator. Endpoints that scale per item
-	 * (e.g. DataForSEO search-volume bills per-keyword on a 1000-keyword
-	 * batch) implement this so the api_usage ledger reflects the real
-	 * upstream cost instead of the worst-case `cost.amount`.
+	 * Optional dynamic cost calculator. The worker calls this once it has
+	 * both the resolved params AND the parsed upstream response, so two
+	 * billing models are supported:
 	 *
-	 * If absent, the worker falls back to `cost.amount`.
+	 * - **Params-driven**: endpoints whose cost is fully predictable from
+	 *   the request shape. Example: DataForSEO search-volume bills
+	 *   per-keyword and the keyword count is in the params, so the
+	 *   descriptor only inspects `params` and ignores `response`.
+	 *
+	 * - **Response-driven**: endpoints whose cost depends on what the
+	 *   upstream actually returned (token usage, web_search count, page
+	 *   characters consumed, …). Example: OpenAI/Anthropic AI Brand Radar
+	 *   bill per token + per web_search call; the descriptor delegates to
+	 *   the provider's ACL helper to derive the real figure from the raw
+	 *   payload.
+	 *
+	 * If absent, the worker falls back to `cost.amount` (worst-case).
+	 *
+	 * Implementations MUST be defensive: a thrown error causes the worker
+	 * to bill worst-case for that run AND log a warning, so a malformed
+	 * upstream payload won't break ingest.
 	 */
-	readonly costFor?: (params: unknown) => number;
+	readonly costFor?: (params: unknown, response: unknown) => number;
 	/**
 	 * BACKLOG #21 — DIRECTIVA: every endpoint MUST declare a default cron
 	 * so the scheduling layer can auto-wire a JobDefinition without the

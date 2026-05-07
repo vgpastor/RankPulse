@@ -27,14 +27,16 @@ export const keywordsDataSearchVolumeDescriptor: EndpointDescriptor = {
 		'Monthly search volume, CPC and competition for up to 1000 keywords in a country/language. Underpins keyword prioritisation.',
 	paramsSchema: KeywordsDataSearchVolumeParams,
 	cost: { unit: 'usd_cents', amount: SEARCH_VOLUME_COST_CENTS_MAX },
-	costFor: (raw) => {
+	// Search-volume billing is fully predictable from the request shape
+	// (cost = keywords × $0.005), so the response argument is unused here.
+	costFor: (params) => {
 		// Reuses the descriptor's own zod schema for safety. The processor
 		// already validated `params` against this schema before dispatch,
 		// so a parse failure here means the resolvedParams object lost
 		// its shape between scheduling and billing — surface it loudly so
 		// the operator notices rather than silently absorbing the worst-
 		// case cost forever.
-		const parsed = KeywordsDataSearchVolumeParams.safeParse(raw);
+		const parsed = KeywordsDataSearchVolumeParams.safeParse(params);
 		if (!parsed.success) {
 			throw new Error(
 				`keywords-data-search-volume costFor: malformed params (${parsed.error.message}); falling back to worst-case`,

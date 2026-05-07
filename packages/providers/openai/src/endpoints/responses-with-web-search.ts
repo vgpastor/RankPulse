@@ -1,5 +1,6 @@
 import type { EndpointDescriptor, FetchContext } from '@rankpulse/provider-core';
 import { z } from 'zod';
+import { costFromRawPayload } from '../acl/responses-to-llm-answer.acl.js';
 import { parseCredential } from '../credential.js';
 import type { OpenAiHttp } from '../http.js';
 
@@ -44,8 +45,10 @@ export type ResponsesWithWebSearchParams = z.infer<typeof ResponsesWithWebSearch
  *  - Token component for gpt-5-mini: input $0.40/1M, output $1.60/1M.
  *  - Average response (~200 input + 500 output tokens) → ~0.1 cents in tokens.
  *
- * We pin the descriptor's `cost.amount` to the worst case (3.5 cents) and
- * compute the precise figure in `costFor` once the response usage is known.
+ * `cost.amount` is the worst-case ledger reservation (used when costFor is
+ * unavailable or throws on a malformed payload). `costFor` reads the parsed
+ * usage off the response and returns the precise figure — that's what
+ * api_usage actually charges.
  */
 export const RESPONSES_WORST_CASE_COST_CENTS = 3.5;
 
@@ -57,6 +60,7 @@ export const responsesWithWebSearchDescriptor: EndpointDescriptor = {
 		'Calls OpenAI /v1/responses with the web_search tool enabled, captures the grounded answer + URL citations, and ships the raw text + citations to the AI Brand Radar pipeline.',
 	paramsSchema: ResponsesWithWebSearchParams,
 	cost: { unit: 'usd_cents', amount: RESPONSES_WORST_CASE_COST_CENTS },
+	costFor: (_params, response) => costFromRawPayload(response as OpenAiResponsePayload),
 	defaultCron: '0 7 * * *',
 	rateLimit: { max: 500, durationMs: 60_000 },
 };

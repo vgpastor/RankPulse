@@ -81,6 +81,26 @@ export const normaliseAnthropicResponse = (raw: AnthropicMessagesPayload): Norma
 	};
 };
 
+/**
+ * Lightweight cost-only projection for the descriptor's `costFor` hook.
+ * Skips text and citation extraction (the worker only needs the cents
+ * for the api_usage ledger; the full normalisation runs later inside
+ * the IngestRouter). Defensive against undefined `usage` so a malformed
+ * response degrades to zero cost instead of throwing — the worker logs
+ * any throw and bills worst-case in that case.
+ */
+export const costFromRawPayload = (raw: AnthropicMessagesPayload): number => {
+	const model = raw.model ?? 'claude-sonnet-4-6';
+	const tokenUsage = AiSearchInsights.TokenUsage.create({
+		inputTokens: raw.usage?.input_tokens ?? 0,
+		outputTokens: raw.usage?.output_tokens ?? 0,
+		cachedInputTokens: raw.usage?.cache_read_input_tokens ?? 0,
+		webSearchCalls: raw.usage?.server_tool_use?.web_search_requests ?? 0,
+	});
+	const cacheWrites = raw.usage?.cache_creation_input_tokens ?? 0;
+	return computeCostCents(model, tokenUsage, cacheWrites);
+};
+
 const extractText = (content: AnthropicMessagesPayload['content']): string => {
 	if (!Array.isArray(content)) return '';
 	const parts: string[] = [];

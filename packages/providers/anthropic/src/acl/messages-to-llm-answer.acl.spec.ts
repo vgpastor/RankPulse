@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { normaliseAnthropicResponse } from './messages-to-llm-answer.acl.js';
+import { messagesWithWebSearchDescriptor } from '../endpoints/messages-with-web-search.js';
+import { costFromRawPayload, normaliseAnthropicResponse } from './messages-to-llm-answer.acl.js';
 
 describe('normaliseAnthropicResponse', () => {
 	it('joins text blocks, dedupes citation URLs, counts web_search requests', () => {
@@ -68,5 +69,45 @@ describe('normaliseAnthropicResponse', () => {
 			],
 		});
 		expect(result.rawText).toBe('final answer');
+	});
+});
+
+describe('costFromRawPayload (Anthropic)', () => {
+	it('matches the cost computed by normaliseAnthropicResponse on the same payload', () => {
+		const raw = {
+			model: 'claude-sonnet-4-6',
+			content: [],
+			usage: {
+				input_tokens: 200,
+				output_tokens: 800,
+				cache_creation_input_tokens: 100,
+				cache_read_input_tokens: 50,
+				server_tool_use: { web_search_requests: 2 },
+			},
+		};
+		expect(costFromRawPayload(raw)).toBe(normaliseAnthropicResponse(raw).costCents);
+	});
+
+	it('returns 0 when usage is missing — defensive against malformed responses', () => {
+		expect(costFromRawPayload({})).toBe(0);
+	});
+});
+
+describe('messagesWithWebSearchDescriptor.costFor', () => {
+	it('charges typical-call cost (well below the 11¢ worst-case)', () => {
+		const typical = {
+			model: 'claude-sonnet-4-6',
+			usage: {
+				input_tokens: 200,
+				output_tokens: 800,
+				server_tool_use: { web_search_requests: 2 },
+			},
+		};
+		const cost = messagesWithWebSearchDescriptor.costFor?.({}, typical) ?? -1;
+		expect(cost).toBeGreaterThan(0);
+		expect(cost).toBeLessThan(messagesWithWebSearchDescriptor.cost.amount);
+		// 2 web_search × 1¢ + tokens (~200 × $3/1M + 800 × $15/1M ≈ 1.26¢)
+		// → ~3.26¢, well below the 11¢ worst-case ledger reservation.
+		expect(cost).toBeCloseTo(3.26, 1);
 	});
 });
