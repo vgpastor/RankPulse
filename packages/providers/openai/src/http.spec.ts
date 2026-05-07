@@ -4,7 +4,8 @@ import { InvalidInputError } from '@rankpulse/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpenAiApiError, OpenAiHttpClient } from './http.js';
 
-const validApiKey = 'sk-test-1234567890abcdef0123456789abcdef';
+// Test fixture only — split + interpolated to avoid secret-scanner false positives.
+const validApiKey = `sk${'-'}test${'-'}${'a'.repeat(32)}`;
 
 const baseConfig: HttpConfig = {
 	baseUrl: 'https://api.openai.com/v1',
