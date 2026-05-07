@@ -8,7 +8,12 @@
  * 60 req/min in descriptors so a misconfigured cron can't drain it.
  */
 import type { FetchContext } from '@rankpulse/provider-core';
-import { BaseHttpClient, type HttpConfig, ProviderApiError } from '@rankpulse/provider-core';
+import {
+	BaseHttpClient,
+	type BaseHttpClientOptions,
+	type HttpConfig,
+	ProviderApiError,
+} from '@rankpulse/provider-core';
 import { validateMetaAccessToken } from './credential.js';
 
 export interface MetaHttpOptions {
@@ -72,11 +77,8 @@ function composeSignals(...signals: ReadonlyArray<AbortSignal | undefined>): Abo
  * `MetaProvider`, which Phase 7 deletes.
  */
 export class MetaHttpClient extends BaseHttpClient {
-	private readonly fetchImpl: typeof fetch;
-
-	constructor(config: HttpConfig, options: { fetchImpl?: typeof fetch } = {}) {
-		super(PROVIDER_ID, config);
-		this.fetchImpl = options.fetchImpl ?? fetch.bind(globalThis);
+	constructor(config: HttpConfig, options: BaseHttpClientOptions = {}) {
+		super(PROVIDER_ID, config, options);
 	}
 
 	protected override async request<T>(
@@ -110,7 +112,7 @@ export class MetaHttpClient extends BaseHttpClient {
 
 		let response: Response;
 		try {
-			response = await this.fetchImpl(url, init);
+			response = await (this.fetchImpl ?? globalThis.fetch)(url, init);
 		} catch (err) {
 			const message =
 				err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError')

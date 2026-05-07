@@ -40,11 +40,10 @@ import { type BrevoHttp, BrevoHttpClient, buildLegacyShim } from './http.js';
  *   `X-API-Key`). The default `BaseHttpClient.applyAuth` for this kind
  *   already returns `{ [headerName]: plaintextSecret }`, so the manifest
  *   needs zero auth-specific overrides.
- * - Why `BrevoHttpClient.request` is overridden anyway: see `./http.ts`
- *   header. The override exists ONLY to enforce Brevo's 8MB response
- *   body cap (Content-Length pre-flight + post-read guard). The auth
- *   header itself is re-used from the parent via `super.applyAuth(...)`
- *   — no duplication.
+ * - Why no `BrevoHttpClient.request` override: Brevo's 8MB response
+ *   body cap moved to `manifest.http.maxResponseBytes` and is enforced
+ *   by `BaseHttpClient.parseResponse` (Content-Length pre-flight +
+ *   post-read guard). No subclass override is needed for the body cap.
  * - Why ALL FOUR endpoints have `ingest: null`: Brevo's payloads are
  *   raw-only ingest today — no worker dispatch is wired (verified by
  *   `grep -n 'brevo' apps/worker/src/processors/provider-fetch.processor.ts`
@@ -117,6 +116,10 @@ export const brevoProviderManifest: ProviderManifest = {
 		baseUrl: 'https://api.brevo.com/v3',
 		auth,
 		defaultTimeoutMs: 60_000,
+		// Brevo email-stats responses are typically <1MB; 8MB is a generous
+		// safety net for `/contacts/{id}` payloads with long event histories.
+		// Enforced by `BaseHttpClient.parseResponse`.
+		maxResponseBytes: 8 * 1024 * 1024,
 	},
 	validateCredentialPlaintext(plaintextSecret: string): void {
 		// `validateBrevoApiKey` throws InvalidInputError on the wrong shape

@@ -36,11 +36,32 @@ function composeSignals(...signals: ReadonlyArray<AbortSignal | undefined>): Abo
  * common cases (bearer, api-key-header, basic). Custom strategies provide
  * their own `sign(req, secret)` function or override the method.
  */
+export interface BaseHttpClientOptions {
+	/**
+	 * Optional fetch override for tests — production code uses the global
+	 * `fetch`. Injected at construction so each subclass can take a
+	 * `{ fetchImpl }` argument too without re-implementing `request`.
+	 */
+	readonly fetchImpl?: typeof fetch;
+}
+
 export abstract class BaseHttpClient implements HttpClient {
+	/**
+	 * Test-injectable fetch reference. `protected` so subclasses that
+	 * override `request<T>` (bing, meta, pagespeed, wikipedia, …) can use
+	 * the SAME injection point — they don't declare their own field. The
+	 * `?? globalThis.fetch` fallback in `request` here is the production
+	 * default; subclass overrides should mirror it.
+	 */
+	protected readonly fetchImpl?: typeof fetch;
+
 	constructor(
 		protected readonly providerId: string,
 		protected readonly config: HttpConfig,
-	) {}
+		options: BaseHttpClientOptions = {},
+	) {
+		this.fetchImpl = options.fetchImpl;
+	}
 
 	get<T>(path: string, query: Record<string, string>, ctx: FetchContext): Promise<T> {
 		return this.request<T>('GET', path, query, undefined, ctx);
@@ -69,7 +90,10 @@ export abstract class BaseHttpClient implements HttpClient {
 		const internalSignal = AbortSignal.timeout(this.config.defaultTimeoutMs ?? 60_000);
 		const signal = composeSignals(ctx.signal, internalSignal);
 
-		const headers = this.applyAuth(ctx.credential.plaintextSecret, body);
+		const headers = {
+			Accept: 'application/json',
+			...this.applyAuth(ctx.credential.plaintextSecret, body),
+		};
 		const init: RequestInit = { method, signal, headers };
 		if (body !== undefined && (method === 'POST' || method === 'PUT')) {
 			init.body = JSON.stringify(body);
@@ -78,7 +102,7 @@ export abstract class BaseHttpClient implements HttpClient {
 
 		let response: Response;
 		try {
-			response = await fetch(url, init);
+			response = await (this.fetchImpl ?? globalThis.fetch)(url, init);
 		} catch (err) {
 			const message =
 				err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError')
@@ -101,7 +125,31 @@ export abstract class BaseHttpClient implements HttpClient {
 	}
 
 	protected async parseResponse<T>(response: Response, method: string, path: string): Promise<T> {
+		const cap = this.config.maxResponseBytes;
+		// Two-stage cap: trust the upstream's Content-Length when it's
+		// honest (cheap reject before allocating the read buffer), then
+		// re-check the post-read length in case the header was missing
+		// or wrong (chunked transfer, mis-configured proxy, …).
+		if (cap !== undefined) {
+			const contentLength = Number(response.headers.get('content-length'));
+			if (Number.isFinite(contentLength) && contentLength > cap) {
+				throw new ProviderApiError(
+					this.providerId,
+					response.status,
+					undefined,
+					`${this.providerId} ${method} ${path} → response too large (Content-Length ${contentLength} > ${cap})`,
+				);
+			}
+		}
 		const text = await response.text();
+		if (cap !== undefined && text.length > cap) {
+			throw new ProviderApiError(
+				this.providerId,
+				response.status,
+				undefined,
+				`${this.providerId} ${method} ${path} → response too large (${text.length} bytes > ${cap})`,
+			);
+		}
 		// 204 No Content + 200 with empty body are both legitimate "no payload"
 		// signals from upstreams; returning undefined is safer than throwing.
 		if (text.length === 0) return undefined as unknown as T;

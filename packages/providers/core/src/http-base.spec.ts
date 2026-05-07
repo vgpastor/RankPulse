@@ -92,4 +92,67 @@ describe('BaseHttpClient', () => {
 		await expect(promise).rejects.toBeInstanceOf(ProviderApiError);
 		fetchMock.mockRestore();
 	});
+
+	it('sets Accept: application/json by default', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+		const client = new TestClient('test', config);
+		await client.get('/endpoint', {}, ctx());
+		const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+		expect(init.headers).toMatchObject({ Accept: 'application/json' });
+		fetchMock.mockRestore();
+	});
+
+	it('throws ProviderApiError when Content-Length exceeds maxResponseBytes', async () => {
+		const overCap = String(8 * 1024 * 1024 + 1);
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response('{}', {
+				status: 200,
+				headers: { 'content-type': 'application/json', 'content-length': overCap },
+			}),
+		);
+		const capped: HttpConfig = { ...config, maxResponseBytes: 8 * 1024 * 1024 };
+		const client = new TestClient('test', capped);
+		await expect(client.get('/endpoint', {}, ctx())).rejects.toMatchObject({
+			name: 'ProviderApiError',
+			providerId: 'test',
+			message: expect.stringContaining('response too large'),
+		});
+		fetchMock.mockRestore();
+	});
+
+	it('throws ProviderApiError when post-read body length exceeds maxResponseBytes', async () => {
+		// No Content-Length header → pre-flight passes; post-read guard catches
+		// it. Simulates a chunked transfer or a mis-configured proxy.
+		const cap = 1024;
+		const oversized = 'x'.repeat(cap + 1);
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(oversized, {
+				status: 200,
+				headers: { 'content-type': 'application/json' },
+			}),
+		);
+		const capped: HttpConfig = { ...config, maxResponseBytes: cap };
+		const client = new TestClient('test', capped);
+		await expect(client.get('/endpoint', {}, ctx())).rejects.toMatchObject({
+			message: expect.stringContaining('response too large'),
+		});
+		fetchMock.mockRestore();
+	});
+
+	it('passes responses under the cap straight through', async () => {
+		const cap = 1024;
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(JSON.stringify({ ok: true }), {
+				status: 200,
+				headers: { 'content-type': 'application/json' },
+			}),
+		);
+		const capped: HttpConfig = { ...config, maxResponseBytes: cap };
+		const client = new TestClient('test', capped);
+		const result = await client.get<{ ok: boolean }>('/endpoint', {}, ctx());
+		expect(result).toEqual({ ok: true });
+		fetchMock.mockRestore();
+	});
 });

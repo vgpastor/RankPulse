@@ -24,11 +24,10 @@ import { buildLegacyShim, type ClarityHttp, ClarityHttpClient } from './http.js'
  *   simplest possible — `Authorization: Bearer <token>`. The default
  *   `BaseHttpClient.applyAuth` for this kind already produces exactly
  *   that header, so the manifest needs zero auth-specific overrides.
- * - Why `ClarityHttpClient.request` is overridden anyway: see
- *   `./http.ts` header. The override exists ONLY to enforce Clarity's
- *   8MB response body cap (Content-Length pre-flight + post-read guard).
- *   The auth header itself is re-used from the parent via
- *   `super.applyAuth(...)` — no duplication.
+ * - Why no `ClarityHttpClient.request` override: Clarity's 8MB response
+ *   body cap moved to `manifest.http.maxResponseBytes` and is enforced
+ *   by `BaseHttpClient.parseResponse` (Content-Length pre-flight +
+ *   post-read guard). No subclass override is needed for the body cap.
  * - Why the ACL wraps the single snapshot in an array: Clarity returns
  *   aggregated metrics over the requested `numOfDays` window — i.e. ONE
  *   snapshot, not a per-day series. `extractSnapshot()` returns a single
@@ -125,6 +124,11 @@ export const microsoftClarityProviderManifest: ProviderManifest = {
 		baseUrl: 'https://www.clarity.ms/export-data/api/v1',
 		auth,
 		defaultTimeoutMs: 60_000,
+		// Clarity `/project-live-insights` payloads are usually small, but
+		// a misconfigured project with many dimensions can produce
+		// surprisingly large responses; 8MB is a generous safety net.
+		// Enforced by `BaseHttpClient.parseResponse`.
+		maxResponseBytes: 8 * 1024 * 1024,
 	},
 	validateCredentialPlaintext(plaintextSecret: string): void {
 		// `validateClarityToken` throws InvalidInputError on the wrong

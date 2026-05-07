@@ -31,9 +31,11 @@ import { type AnthropicHttp, AnthropicHttpClient, buildLegacyShim } from './http
  *   The manifest still declares `'api-key-header'` so the strategy is
  *   self-documenting; the override just extends, doesn't replace, the
  *   contract.
- * - Why `AnthropicHttpClient.request` is overridden anyway: see
- *   `./http.ts` header. The override exists ONLY to enforce the 8MB
- *   response body cap (Content-Length pre-flight + post-read guard).
+ * - Why no `request<T>` override: the 8MB body cap lives on
+ *   `manifest.http.maxResponseBytes` and is enforced by
+ *   `BaseHttpClient.parseResponse`. `AnthropicHttpClient` only
+ *   overrides `applyAuth` (for the dual `x-api-key` + `anthropic-version`
+ *   headers).
  * - Why the ACL wraps the single normalised answer in an array:
  *   `normaliseAnthropicResponse()` returns ONE `NormalisedLlmAnswer`
  *   object — Anthropic's Messages API returns a single assistant
@@ -125,6 +127,9 @@ export const anthropicProviderManifest: ProviderManifest = {
 		baseUrl: 'https://api.anthropic.com/v1',
 		auth,
 		defaultTimeoutMs: 60_000,
+		// Messages API typically returns a few KB; 8 MB is generous but
+		// still tight enough to abort runaway responses before OOM.
+		maxResponseBytes: 8 * 1024 * 1024,
 	},
 	validateCredentialPlaintext(plaintextSecret: string): void {
 		// `parseCredential` throws InvalidInputError on the wrong shape

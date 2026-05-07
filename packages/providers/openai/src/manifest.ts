@@ -121,6 +121,10 @@ export const openaiProviderManifest: ProviderManifest = {
 		baseUrl: 'https://api.openai.com/v1',
 		auth,
 		defaultTimeoutMs: 60_000,
+		// `/v1/responses` payloads usually run a few hundred KB; 8 MB is
+		// generous but still tight enough to abort runaway answers before
+		// OOM. Enforced by `BaseHttpClient.parseResponse`.
+		maxResponseBytes: 8 * 1024 * 1024,
 	},
 	validateCredentialPlaintext(plaintextSecret: string): void {
 		// `parseCredential` throws InvalidInputError when the API key is

@@ -5,7 +5,12 @@
  * misconfigured cron can't drain the quota in a stuck retry loop.
  */
 import type { FetchContext } from '@rankpulse/provider-core';
-import { BaseHttpClient, type HttpConfig, ProviderApiError } from '@rankpulse/provider-core';
+import {
+	BaseHttpClient,
+	type BaseHttpClientOptions,
+	type HttpConfig,
+	ProviderApiError,
+} from '@rankpulse/provider-core';
 import { validateBrevoApiKey } from './credential.js';
 
 export interface BrevoHttpOptions {
@@ -14,33 +19,17 @@ export interface BrevoHttpOptions {
 }
 
 const DEFAULT_BASE_URL = 'https://api.brevo.com/v3';
+/**
+ * Cap on response body. Brevo email-stats responses are typically <1MB;
+ * 8MB is a generous safety net for `/contacts/{id}` payloads with long
+ * event histories. Lives on `manifest.http.maxResponseBytes`; kept here
+ * as a constant so the legacy `BrevoHttp` path (below) enforces the
+ * same cap.
+ */
 const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
 const RESPONSE_BODY_MAX_BYTES = 4_096;
 
 const PROVIDER_ID = 'brevo';
-
-/**
- * Composes two AbortSignals so the request aborts when EITHER fires.
- * Caller-provided signal (job cancellation) + internal timeout signal.
- *
- * Duplicated from `BaseHttpClient` (where it's a private module-level helper)
- * because this client overrides `request` rather than `applyAuth`. See the
- * class header for the rationale.
- */
-function composeSignals(...signals: ReadonlyArray<AbortSignal | undefined>): AbortSignal {
-	const real = signals.filter((s): s is AbortSignal => Boolean(s));
-	const [first, second] = real;
-	if (first && !second) return first;
-	const controller = new AbortController();
-	for (const s of real) {
-		if (s.aborted) {
-			controller.abort();
-			return controller.signal;
-		}
-		s.addEventListener('abort', () => controller.abort(), { once: true });
-	}
-	return controller.signal;
-}
 
 /**
  * BaseHttpClient adapter for Brevo (Sendinblue) REST API v3.
@@ -48,108 +37,19 @@ function composeSignals(...signals: ReadonlyArray<AbortSignal | undefined>): Abo
  * Auth is the simplest non-Bearer case: a single API key applied as
  * `api-key: <plaintext>` (NOT `Authorization: Bearer ...`). The default
  * `BaseHttpClient.applyAuth` for `kind: 'api-key-header'` already produces
- * exactly that header, so we re-use it via `super.applyAuth(...)` rather
- * than duplicating the logic.
+ * exactly that header, so no override is needed.
  *
- * The ONLY reason we override `request` here (instead of just relying on
- * the base) is to enforce Brevo's 8MB response body cap. Brevo statistics
- * payloads are usually small, but the `/contacts/{id}` endpoint can return
- * large per-contact event streams when a recipient has been on heavy
- * campaigns for years; the cap aborts runaway responses before they can
- * OOM the worker.
+ * Body capping (8MB) lives on `manifest.http.maxResponseBytes`; the
+ * base client enforces it via Content-Length pre-flight + post-read
+ * guard, so this class no longer needs a `request<T>` override.
  *
  * Used by the manifest path (Phase 5+). The legacy `BrevoHttp` class
  * below preserves the existing `fetch<X>(http: BrevoHttp, ...)` signature
  * for the OLD `BrevoProvider`, which Phase 7 deletes.
  */
 export class BrevoHttpClient extends BaseHttpClient {
-	private readonly fetchImpl: typeof fetch;
-
-	constructor(config: HttpConfig, options: { fetchImpl?: typeof fetch } = {}) {
-		super(PROVIDER_ID, config);
-		this.fetchImpl = options.fetchImpl ?? fetch.bind(globalThis);
-	}
-
-	protected override async request<T>(
-		method: 'GET' | 'POST' | 'PUT' | 'DELETE',
-		path: string,
-		query: Record<string, string>,
-		body: unknown,
-		ctx: FetchContext,
-	): Promise<T> {
-		const url = this.buildUrl(path, query);
-
-		const internalSignal = AbortSignal.timeout(this.config.defaultTimeoutMs ?? 60_000);
-		const signal = composeSignals(ctx.signal, internalSignal);
-
-		// Re-use the parent's api-key-header construction so we don't
-		// duplicate the `api-key: <plaintext>` formatting. The default
-		// `applyAuth` for `kind: 'api-key-header'` returns exactly
-		// `{ [headerName]: plaintextSecret }` which is all Brevo needs.
-		const headers: Record<string, string> = {
-			...this.applyAuth(ctx.credential.plaintextSecret, body),
-			Accept: 'application/json',
-		};
-		const init: RequestInit = { method, signal, headers };
-		if (body !== undefined && (method === 'POST' || method === 'PUT')) {
-			init.body = JSON.stringify(body);
-			headers['Content-Type'] = 'application/json';
-		}
-
-		let response: Response;
-		try {
-			response = await this.fetchImpl(url, init);
-		} catch (err) {
-			const message =
-				err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError')
-					? 'request aborted or timed out'
-					: `network error: ${err instanceof Error ? err.message : String(err)}`;
-			throw new ProviderApiError(PROVIDER_ID, 0, undefined, message);
-		}
-
-		// Best-effort early kill: if the upstream advertises Content-Length
-		// over the cap, refuse before draining the body. Some responses are
-		// chunked, in which case we fall back to the post-read guard below.
-		const contentLength = response.headers.get('content-length');
-		if (contentLength !== null && Number(contentLength) > MAX_RESPONSE_BYTES) {
-			throw new ProviderApiError(
-				PROVIDER_ID,
-				response.status,
-				undefined,
-				`Brevo ${path} response too large: Content-Length ${contentLength} bytes (cap ${MAX_RESPONSE_BYTES})`,
-			);
-		}
-
-		const text = await response.text();
-		if (text.length > MAX_RESPONSE_BYTES) {
-			throw new ProviderApiError(
-				PROVIDER_ID,
-				response.status,
-				undefined,
-				`Brevo ${path} response too large: ${text.length} bytes (cap ${MAX_RESPONSE_BYTES})`,
-			);
-		}
-
-		if (!response.ok) {
-			throw new ProviderApiError(
-				PROVIDER_ID,
-				response.status,
-				text.slice(0, RESPONSE_BODY_MAX_BYTES),
-				`${PROVIDER_ID} ${method} ${path} → ${response.status}`,
-			);
-		}
-
-		if (text.length === 0) return undefined as unknown as T;
-		try {
-			return JSON.parse(text) as T;
-		} catch {
-			throw new ProviderApiError(
-				PROVIDER_ID,
-				response.status,
-				text.slice(0, RESPONSE_BODY_MAX_BYTES),
-				`${PROVIDER_ID} ${method} ${path} → ${response.status} non-JSON body`,
-			);
-		}
+	constructor(config: HttpConfig, options: BaseHttpClientOptions = {}) {
+		super(PROVIDER_ID, config, options);
 	}
 }
 
