@@ -1,4 +1,5 @@
 import type { AiSearchInsights, ProjectManagement } from '@rankpulse/domain';
+import { normaliseDashboardWindow } from './window-guards.js';
 
 export interface QueryAiSearchCitationsQuery {
 	projectId: string;
@@ -30,22 +31,23 @@ export class QueryAiSearchCitationsUseCase {
 	constructor(private readonly readModel: AiSearchInsights.LlmAnswerReadModel) {}
 
 	async execute(query: QueryAiSearchCitationsQuery): Promise<readonly AiSearchCitationDto[]> {
-		const to = query.to ?? new Date();
-		const from = query.from ?? new Date(to.getTime() - DEFAULT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+		const { from, to } = normaliseDashboardWindow(query, DEFAULT_WINDOW_DAYS);
 		const rows = await this.readModel.citationsForProject(query.projectId as ProjectManagement.ProjectId, {
 			from,
 			to,
 			onlyOwnDomains: query.onlyOwnDomains,
 			aiProvider: query.aiProvider,
 		});
+		const safeIso = (d: Date): string =>
+			Number.isFinite(d.getTime()) ? d.toISOString() : new Date(0).toISOString();
 		return rows.map((r) => ({
 			url: r.url,
-			domain: r.domain,
+			domain: r.domain ?? '',
 			isOwnDomain: r.isOwnDomain,
 			totalCitations: r.totalCitations,
 			providers: r.providers,
-			firstSeenAt: r.firstSeenAt.toISOString(),
-			lastSeenAt: r.lastSeenAt.toISOString(),
+			firstSeenAt: safeIso(r.firstSeenAt),
+			lastSeenAt: safeIso(r.lastSeenAt),
 		}));
 	}
 }

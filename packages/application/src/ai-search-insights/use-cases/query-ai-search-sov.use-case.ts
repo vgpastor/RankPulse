@@ -1,4 +1,5 @@
 import type { AiSearchInsights, ProjectManagement } from '@rankpulse/domain';
+import { normaliseDashboardWindow } from './window-guards.js';
 
 export interface QueryAiSearchSovQuery {
 	projectId: string;
@@ -29,8 +30,7 @@ export class QueryAiSearchSovUseCase {
 	constructor(private readonly readModel: AiSearchInsights.LlmAnswerReadModel) {}
 
 	async execute(query: QueryAiSearchSovQuery): Promise<readonly AiSearchSovDto[]> {
-		const to = query.to ?? new Date();
-		const from = query.from ?? new Date(to.getTime() - DEFAULT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+		const { from, to } = normaliseDashboardWindow(query, DEFAULT_WINDOW_DAYS);
 		const rows = await this.readModel.sovForProject(query.projectId as ProjectManagement.ProjectId, {
 			from,
 			to,

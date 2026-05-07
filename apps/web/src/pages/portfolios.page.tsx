@@ -12,7 +12,8 @@ import {
 	Spinner,
 } from '@rankpulse/ui';
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2 } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
+import { BarChart3, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { AppShell } from '../components/app-shell.js';
 import { CreatePortfolioDrawer } from '../components/create-portfolio-drawer.js';
@@ -134,18 +135,26 @@ export const PortfoliosPage = () => {
 										key: 'actions',
 										header: 'Actions',
 										cell: (p) => (
-											<Button
-												variant="ghost"
-												size="sm"
-												onClick={() => {
-													setConfirmingDelete(p);
-													setDeleteError(null);
-												}}
-												title="Delete"
-											>
-												<Trash2 size={14} />
-												<span className="md:hidden">Delete</span>
-											</Button>
+											<div className="flex items-center gap-1">
+												<Link to="/portfolios/$id/compare" params={{ id: p.id }}>
+													<Button variant="ghost" size="sm" title="Compare projects">
+														<BarChart3 size={14} />
+														<span className="md:hidden">Compare</span>
+													</Button>
+												</Link>
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={() => {
+														setConfirmingDelete(p);
+														setDeleteError(null);
+													}}
+													title="Delete"
+												>
+													<Trash2 size={14} />
+													<span className="md:hidden">Delete</span>
+												</Button>
+											</div>
 										),
 									},
 								]}

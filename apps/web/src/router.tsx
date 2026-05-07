@@ -7,20 +7,30 @@ import {
 	redirect,
 } from '@tanstack/react-router';
 import { useAuthStore } from './lib/auth-store.js';
+import { AiRadarPage } from './pages/ai-radar.page.js';
 import { AiSearchCitationsPage } from './pages/ai-search-citations.page.js';
 import { AiSearchMatrixPage } from './pages/ai-search-matrix.page.js';
 import { BrandPromptsPage } from './pages/brand-prompts.page.js';
+import { CannibalizationPage } from './pages/cannibalization.page.js';
+import { CompetitorsPage } from './pages/competitors.page.js';
 import { CredentialsPage } from './pages/credentials.page.js';
+import { DailyActionsPage } from './pages/daily-actions.page.js';
+import { Ga4PropertiesPage } from './pages/ga4-properties.page.js';
+import { Ga4TrafficPage } from './pages/ga4-traffic.page.js';
+import { GapAnalysisPage } from './pages/gap-analysis.page.js';
 import { GscPerformancePage } from './pages/gsc-performance.page.js';
 import { GscPropertiesPage } from './pages/gsc-properties.page.js';
 import { LoginPage } from './pages/login.page.js';
 import { OnboardingPage } from './pages/onboarding.page.js';
+import { OpportunitiesPage } from './pages/opportunities.page.js';
+import { PortfolioComparePage } from './pages/portfolio-compare.page.js';
 import { PortfoliosPage } from './pages/portfolios.page.js';
 import { ProjectDetailPage } from './pages/project-detail.page.js';
 import { ProjectsPage } from './pages/projects.page.js';
 import { RankingsPage } from './pages/rankings.page.js';
 import { RegisterPage } from './pages/register.page.js';
 import { SchedulesPage } from './pages/schedules.page.js';
+import { WeeklyScorecardPage } from './pages/weekly-scorecard.page.js';
 
 const rootRoute: RootRoute = createRootRoute({
 	component: () => <Outlet />,
@@ -106,6 +116,18 @@ const projectGscPropertiesRoute = createRoute({
 	component: GscPropertiesPage,
 });
 
+const projectGa4PropertiesRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/ga4',
+	component: Ga4PropertiesPage,
+});
+
+const projectGa4TrafficRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/ga4/$propertyId',
+	component: Ga4TrafficPage,
+});
+
 const projectBrandPromptsRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/projects/$id/brand-prompts',
@@ -122,6 +144,48 @@ const projectAiSearchMatrixRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/projects/$id/ai-search/matrix',
 	component: AiSearchMatrixPage,
+});
+
+const projectAiRadarRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/ai-radar',
+	component: AiRadarPage,
+});
+
+const projectCompetitorsRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/competitors',
+	component: CompetitorsPage,
+});
+
+const projectScorecardRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/scorecard',
+	component: WeeklyScorecardPage,
+});
+
+const projectOpportunitiesRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/opportunities',
+	component: OpportunitiesPage,
+});
+
+const projectGapAnalysisRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/gap-analysis',
+	component: GapAnalysisPage,
+});
+
+const projectActionsRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/actions',
+	component: DailyActionsPage,
+});
+
+const projectCannibalizationRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/cannibalization',
+	component: CannibalizationPage,
 });
 
 const projectGscPerformanceRoute = createRoute({
@@ -142,6 +206,12 @@ const portfoliosRoute = createRoute({
 	component: PortfoliosPage,
 });
 
+const portfolioCompareRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/portfolios/$id/compare',
+	component: PortfolioComparePage,
+});
+
 const routeTree = rootRoute.addChildren([
 	indexRoute,
 	loginRoute,
@@ -153,11 +223,21 @@ const routeTree = rootRoute.addChildren([
 	projectSchedulesRoute,
 	projectGscPropertiesRoute,
 	projectGscPerformanceRoute,
+	projectGa4PropertiesRoute,
+	projectGa4TrafficRoute,
 	projectBrandPromptsRoute,
 	projectAiSearchCitationsRoute,
 	projectAiSearchMatrixRoute,
+	projectAiRadarRoute,
+	projectCompetitorsRoute,
+	projectScorecardRoute,
+	projectOpportunitiesRoute,
+	projectGapAnalysisRoute,
+	projectActionsRoute,
+	projectCannibalizationRoute,
 	credentialsRoute,
 	portfoliosRoute,
+	portfolioCompareRoute,
 ]);
 
 export const router = new Router({
