@@ -1,4 +1,5 @@
 export * from './event-handlers/auto-schedule.config.js';
+export * from './module.js';
 export * from './use-cases/delete-brand-prompt.use-case.js';
 export * from './use-cases/list-brand-prompts.use-case.js';
 export * from './use-cases/pause-brand-prompt.use-case.js';
