@@ -5,7 +5,12 @@
  * (https://wikitech.wikimedia.org/wiki/Robot_policy).
  */
 import type { FetchContext } from '@rankpulse/provider-core';
-import { BaseHttpClient, type HttpConfig, ProviderApiError } from '@rankpulse/provider-core';
+import {
+	BaseHttpClient,
+	type BaseHttpClientOptions,
+	type HttpConfig,
+	ProviderApiError,
+} from '@rankpulse/provider-core';
 
 export interface WikipediaHttpOptions {
 	baseUrl?: string;
@@ -66,13 +71,16 @@ function composeSignals(...signals: ReadonlyArray<AbortSignal | undefined>): Abo
  * ...)` and `fetchTopArticles` signatures for the OLD `WikipediaProvider`,
  * which Phase 7 deletes.
  */
+export interface WikipediaHttpClientOptions extends BaseHttpClientOptions {
+	/** Wikimedia robot policy requires a contact-bearing User-Agent. */
+	readonly userAgent?: string;
+}
+
 export class WikipediaHttpClient extends BaseHttpClient {
-	private readonly fetchImpl: typeof fetch;
 	private readonly userAgent: string;
 
-	constructor(config: HttpConfig, options: { fetchImpl?: typeof fetch; userAgent?: string } = {}) {
-		super(PROVIDER_ID, config);
-		this.fetchImpl = options.fetchImpl ?? fetch.bind(globalThis);
+	constructor(config: HttpConfig, options: WikipediaHttpClientOptions = {}) {
+		super(PROVIDER_ID, config, options);
 		this.userAgent = options.userAgent ?? DEFAULT_USER_AGENT;
 	}
 
@@ -105,7 +113,7 @@ export class WikipediaHttpClient extends BaseHttpClient {
 
 		let response: Response;
 		try {
-			response = await this.fetchImpl(url, init);
+			response = await (this.fetchImpl ?? globalThis.fetch)(url, init);
 		} catch (err) {
 			const message =
 				err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError')

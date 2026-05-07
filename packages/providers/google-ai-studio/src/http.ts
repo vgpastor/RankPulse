@@ -6,7 +6,12 @@
  */
 
 import type { FetchContext } from '@rankpulse/provider-core';
-import { BaseHttpClient, type HttpConfig, ProviderApiError } from '@rankpulse/provider-core';
+import {
+	BaseHttpClient,
+	type BaseHttpClientOptions,
+	type HttpConfig,
+	ProviderApiError,
+} from '@rankpulse/provider-core';
 
 export interface GoogleAiStudioHttpOptions {
 	baseUrl?: string;
@@ -17,33 +22,18 @@ export interface GoogleAiStudioHttpOptions {
 const DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 const DEFAULT_TIMEOUT_MS = 60_000;
 
+/**
+ * Cap on response body. Gemini `generateContent` payloads are usually
+ * small, but a 4000-token output paired with verbose grounding metadata
+ * can produce surprisingly large responses; 8MB is generous but tight
+ * enough to abort runaway responses before OOM. Lives on
+ * `manifest.http.maxResponseBytes`; kept here as a constant so the
+ * legacy `GoogleAiStudioHttp` path (below) enforces the same cap.
+ */
 const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
 const RESPONSE_BODY_MAX_BYTES = 4_096;
 
 const PROVIDER_ID = 'google-ai-studio';
-
-/**
- * Composes two AbortSignals so the request aborts when EITHER fires.
- * Caller-provided signal (job cancellation) + internal timeout signal.
- *
- * Duplicated from `BaseHttpClient` (where it's a private module-level helper)
- * because this client overrides `request` rather than `applyAuth`. See the
- * class header for the rationale.
- */
-function composeSignals(...signals: ReadonlyArray<AbortSignal | undefined>): AbortSignal {
-	const real = signals.filter((s): s is AbortSignal => Boolean(s));
-	const [first, second] = real;
-	if (first && !second) return first;
-	const controller = new AbortController();
-	for (const s of real) {
-		if (s.aborted) {
-			controller.abort();
-			return controller.signal;
-		}
-		s.addEventListener('abort', () => controller.abort(), { once: true });
-	}
-	return controller.signal;
-}
 
 /**
  * BaseHttpClient adapter for Google AI Studio (`generativelanguage.googleapis.com`).
@@ -51,15 +41,12 @@ function composeSignals(...signals: ReadonlyArray<AbortSignal | undefined>): Abo
  * Auth is the simplest header case: a single API key applied as
  * `x-goog-api-key: <plaintext>`. The default
  * `BaseHttpClient.applyAuth` for `kind: 'api-key-header'` already produces
- * exactly that header (using the manifest's `headerName`), so we re-use it
- * via `super.applyAuth(...)` rather than duplicating the logic.
+ * exactly that header (using the manifest's `headerName`), so no override
+ * is needed.
  *
- * The ONLY reason we override `request` here (instead of just relying on
- * the base) is to enforce Google AI Studio's 8MB response body cap.
- * Gemini `generateContent` payloads are usually small, but a 4000-token
- * output paired with verbose grounding metadata can produce surprisingly
- * large responses; the cap aborts runaway responses before they can OOM
- * the worker.
+ * Body capping (8MB) lives on `manifest.http.maxResponseBytes`; the
+ * base client enforces it via Content-Length pre-flight + post-read
+ * guard, so this class no longer needs a `request<T>` override.
  *
  * Used by the manifest path (Phase 5+). The legacy `GoogleAiStudioHttp`
  * class below preserves the existing `fetchGeminiGrounded(http:
@@ -67,91 +54,8 @@ function composeSignals(...signals: ReadonlyArray<AbortSignal | undefined>): Abo
  * which Phase 7 deletes.
  */
 export class GoogleAiStudioHttpClient extends BaseHttpClient {
-	private readonly fetchImpl: typeof fetch;
-
-	constructor(config: HttpConfig, options: { fetchImpl?: typeof fetch } = {}) {
-		super(PROVIDER_ID, config);
-		this.fetchImpl = options.fetchImpl ?? fetch.bind(globalThis);
-	}
-
-	protected override async request<T>(
-		method: 'GET' | 'POST' | 'PUT' | 'DELETE',
-		path: string,
-		query: Record<string, string>,
-		body: unknown,
-		ctx: FetchContext,
-	): Promise<T> {
-		const url = this.buildUrl(path, query);
-
-		const internalSignal = AbortSignal.timeout(this.config.defaultTimeoutMs ?? DEFAULT_TIMEOUT_MS);
-		const signal = composeSignals(ctx.signal, internalSignal);
-
-		// Re-use the parent's api-key-header construction so we don't
-		// duplicate the `x-goog-api-key: <plaintext>` formatting.
-		const headers: Record<string, string> = {
-			...this.applyAuth(ctx.credential.plaintextSecret, body),
-			Accept: 'application/json',
-		};
-		const init: RequestInit = { method, signal, headers };
-		if (body !== undefined && (method === 'POST' || method === 'PUT')) {
-			init.body = JSON.stringify(body);
-			headers['Content-Type'] = 'application/json';
-		}
-
-		let response: Response;
-		try {
-			response = await this.fetchImpl(url, init);
-		} catch (err) {
-			const message =
-				err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError')
-					? 'request aborted or timed out'
-					: `network error: ${err instanceof Error ? err.message : String(err)}`;
-			throw new ProviderApiError(PROVIDER_ID, 0, undefined, message);
-		}
-
-		// Best-effort early kill: if the upstream advertises Content-Length
-		// over the cap, refuse before draining the body. Some responses are
-		// chunked, in which case we fall back to the post-read guard below.
-		const contentLength = response.headers.get('content-length');
-		if (contentLength !== null && Number(contentLength) > MAX_RESPONSE_BYTES) {
-			throw new ProviderApiError(
-				PROVIDER_ID,
-				response.status,
-				undefined,
-				`Google AI Studio ${path} response too large: Content-Length ${contentLength} bytes (cap ${MAX_RESPONSE_BYTES})`,
-			);
-		}
-
-		const text = await response.text();
-		if (text.length > MAX_RESPONSE_BYTES) {
-			throw new ProviderApiError(
-				PROVIDER_ID,
-				response.status,
-				undefined,
-				`Google AI Studio ${path} response too large: ${text.length} bytes (cap ${MAX_RESPONSE_BYTES})`,
-			);
-		}
-
-		if (!response.ok) {
-			throw new ProviderApiError(
-				PROVIDER_ID,
-				response.status,
-				text.slice(0, RESPONSE_BODY_MAX_BYTES),
-				`${PROVIDER_ID} ${method} ${path} → ${response.status}`,
-			);
-		}
-
-		if (text.length === 0) return undefined as unknown as T;
-		try {
-			return JSON.parse(text) as T;
-		} catch {
-			throw new ProviderApiError(
-				PROVIDER_ID,
-				response.status,
-				text.slice(0, RESPONSE_BODY_MAX_BYTES),
-				`${PROVIDER_ID} ${method} ${path} → ${response.status} non-JSON body`,
-			);
-		}
+	constructor(config: HttpConfig, options: BaseHttpClientOptions = {}) {
+		super(PROVIDER_ID, config, options);
 	}
 }
 
@@ -176,7 +80,7 @@ export class GoogleAiStudioHttp {
 		const url = `${this.baseUrl}${path}`;
 		const internalAbort = new AbortController();
 		const timeoutHandle = setTimeout(() => internalAbort.abort(), this.timeoutMs);
-		const composedSignal = composeSignals(signal, internalAbort.signal);
+		const composedSignal = composeLegacySignals(signal, internalAbort.signal);
 
 		try {
 			const response = await this.fetchImpl(url, {
@@ -271,3 +175,24 @@ const safeParse = (text: string): unknown => {
 		return text;
 	}
 };
+
+/**
+ * Composes two AbortSignals so the legacy `GoogleAiStudioHttp.post` aborts
+ * when EITHER fires (caller signal + internal timeout). Used only by the
+ * legacy class below; the new `GoogleAiStudioHttpClient` path uses the
+ * `BaseHttpClient` signal composition helper instead.
+ */
+function composeLegacySignals(...signals: ReadonlyArray<AbortSignal | undefined>): AbortSignal {
+	const real = signals.filter((s): s is AbortSignal => Boolean(s));
+	const [first, second] = real;
+	if (first && !second) return first;
+	const controller = new AbortController();
+	for (const s of real) {
+		if (s.aborted) {
+			controller.abort();
+			return controller.signal;
+		}
+		s.addEventListener('abort', () => controller.abort(), { once: true });
+	}
+	return controller.signal;
+}

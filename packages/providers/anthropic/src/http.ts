@@ -4,7 +4,12 @@
  * weight, and the surface is intentionally small (one POST helper).
  */
 import type { FetchContext } from '@rankpulse/provider-core';
-import { BaseHttpClient, type HttpConfig, ProviderApiError } from '@rankpulse/provider-core';
+import {
+	BaseHttpClient,
+	type BaseHttpClientOptions,
+	type HttpConfig,
+	ProviderApiError,
+} from '@rankpulse/provider-core';
 
 export interface AnthropicHttpOptions {
 	baseUrl?: string;
@@ -22,29 +27,6 @@ const RESPONSE_BODY_MAX_BYTES = 4_096;
 const PROVIDER_ID = 'anthropic';
 
 /**
- * Composes two AbortSignals so the request aborts when EITHER fires.
- * Caller-provided signal (job cancellation) + internal timeout signal.
- *
- * Duplicated from `BaseHttpClient` (where it's a private module-level helper)
- * because this client overrides `request` rather than just `applyAuth`. See
- * the class header for the rationale.
- */
-function composeSignals(...signals: ReadonlyArray<AbortSignal | undefined>): AbortSignal {
-	const real = signals.filter((s): s is AbortSignal => Boolean(s));
-	const [first, second] = real;
-	if (first && !second) return first;
-	const controller = new AbortController();
-	for (const s of real) {
-		if (s.aborted) {
-			controller.abort();
-			return controller.signal;
-		}
-		s.addEventListener('abort', () => controller.abort(), { once: true });
-	}
-	return controller.signal;
-}
-
-/**
  * BaseHttpClient adapter for the Anthropic Messages API.
  *
  * Anthropic's auth model is two-pronged: the secret API key goes in
@@ -52,28 +34,22 @@ function composeSignals(...signals: ReadonlyArray<AbortSignal | undefined>): Abo
  * MUST also carry the fixed `anthropic-version: 2023-06-01` header. The
  * default `BaseHttpClient.applyAuth` for `kind: 'api-key-header'` only
  * emits the secret-bearing header, so we override `applyAuth` to emit
- * BOTH headers — `applyAuth` is the right hook for "all auth-related
+ * BOTH — `applyAuth` is the documented hook for "all auth-related
  * headers", which includes the API version pin Anthropic treats as part
  * of the auth contract.
  *
- * `request` is also overridden, but ONLY to enforce the 8MB response
- * body cap. The Messages API typically returns a few KB but a runaway
- * model that spams `web_search` results (capped at 5 uses today, but the
- * cap is in the request body, not enforced upstream) could in theory
- * push the response over the limit. The cap aborts before OOM-ing the
- * worker.
+ * Body capping (8MB) lives on `manifest.http.maxResponseBytes`; the
+ * base client enforces it via Content-Length pre-flight + post-read
+ * guard, so this class no longer needs a `request<T>` override.
  *
- * Used by the manifest path (Phase 5+). The legacy `AnthropicHttp` class
- * below preserves the existing `fetchMessagesWithWebSearch(http:
+ * Used by the manifest path. The legacy `AnthropicHttp` class below
+ * preserves the existing `fetchMessagesWithWebSearch(http:
  * AnthropicHttp, ...)` signature for the OLD `AnthropicProvider`, which
  * Phase 7 deletes.
  */
 export class AnthropicHttpClient extends BaseHttpClient {
-	private readonly fetchImpl: typeof fetch;
-
-	constructor(config: HttpConfig, options: { fetchImpl?: typeof fetch } = {}) {
-		super(PROVIDER_ID, config);
-		this.fetchImpl = options.fetchImpl ?? fetch.bind(globalThis);
+	constructor(config: HttpConfig, options: BaseHttpClientOptions = {}) {
+		super(PROVIDER_ID, config, options);
 	}
 
 	/**
@@ -90,87 +66,6 @@ export class AnthropicHttpClient extends BaseHttpClient {
 			'x-api-key': plaintextSecret,
 			'anthropic-version': ANTHROPIC_VERSION,
 		};
-	}
-
-	protected override async request<T>(
-		method: 'GET' | 'POST' | 'PUT' | 'DELETE',
-		path: string,
-		query: Record<string, string>,
-		body: unknown,
-		ctx: FetchContext,
-	): Promise<T> {
-		const url = this.buildUrl(path, query);
-
-		const internalSignal = AbortSignal.timeout(this.config.defaultTimeoutMs ?? DEFAULT_TIMEOUT_MS);
-		const signal = composeSignals(ctx.signal, internalSignal);
-
-		// `applyAuth` is overridden above to emit `x-api-key` + the fixed
-		// `anthropic-version` pin. Adding `Accept` here keeps content
-		// negotiation localised to the request path.
-		const headers: Record<string, string> = {
-			...this.applyAuth(ctx.credential.plaintextSecret, body),
-			Accept: 'application/json',
-		};
-		const init: RequestInit = { method, signal, headers };
-		if (body !== undefined && (method === 'POST' || method === 'PUT')) {
-			init.body = JSON.stringify(body);
-			headers['Content-Type'] = 'application/json';
-		}
-
-		let response: Response;
-		try {
-			response = await this.fetchImpl(url, init);
-		} catch (err) {
-			const message =
-				err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError')
-					? 'request aborted or timed out'
-					: `network error: ${err instanceof Error ? err.message : String(err)}`;
-			throw new ProviderApiError(PROVIDER_ID, 0, undefined, message);
-		}
-
-		// Best-effort early kill: if the upstream advertises Content-Length
-		// over the cap, refuse before draining the body. Some responses are
-		// chunked, in which case we fall back to the post-read guard below.
-		const contentLength = response.headers.get('content-length');
-		if (contentLength !== null && Number(contentLength) > MAX_RESPONSE_BYTES) {
-			throw new ProviderApiError(
-				PROVIDER_ID,
-				response.status,
-				undefined,
-				`Anthropic ${path} response too large: Content-Length ${contentLength} bytes (cap ${MAX_RESPONSE_BYTES})`,
-			);
-		}
-
-		const text = await response.text();
-		if (text.length > MAX_RESPONSE_BYTES) {
-			throw new ProviderApiError(
-				PROVIDER_ID,
-				response.status,
-				undefined,
-				`Anthropic ${path} response too large: ${text.length} bytes (cap ${MAX_RESPONSE_BYTES})`,
-			);
-		}
-
-		if (!response.ok) {
-			throw new ProviderApiError(
-				PROVIDER_ID,
-				response.status,
-				text.slice(0, RESPONSE_BODY_MAX_BYTES),
-				`${PROVIDER_ID} ${method} ${path} → ${response.status}`,
-			);
-		}
-
-		if (text.length === 0) return undefined as unknown as T;
-		try {
-			return JSON.parse(text) as T;
-		} catch {
-			throw new ProviderApiError(
-				PROVIDER_ID,
-				response.status,
-				text.slice(0, RESPONSE_BODY_MAX_BYTES),
-				`${PROVIDER_ID} ${method} ${path} → ${response.status} non-JSON body`,
-			);
-		}
 	}
 }
 

@@ -25,11 +25,10 @@ import { buildLegacyShim, type PerplexityHttp, PerplexityHttpClient } from './ht
  *   possible, `Authorization: Bearer <pplx-…>`. The default
  *   `BaseHttpClient.applyAuth` for this kind already produces exactly
  *   that header, so the manifest needs zero auth-specific overrides.
- * - Why `PerplexityHttpClient.request` is overridden anyway: see
- *   `./http.ts` header. The override exists ONLY to enforce Perplexity's
- *   8MB response body cap (Content-Length pre-flight + post-read guard).
- *   The auth header itself is re-used from the parent via
- *   `super.applyAuth(...)` — no duplication.
+ * - Why no `PerplexityHttpClient.request` override: Perplexity's 8MB
+ *   response body cap moved to `manifest.http.maxResponseBytes` and is
+ *   enforced by `BaseHttpClient.parseResponse` (Content-Length pre-flight
+ *   + post-read guard). No subclass override is needed for the body cap.
  * - Why the ACL wraps the single LLM answer in an array:
  *   `normalisePerplexityResponse()` returns ONE
  *   `NormalisedLlmAnswer` per Sonar call (a single chat completion),
@@ -119,6 +118,10 @@ export const perplexityProviderManifest: ProviderManifest = {
 		baseUrl: 'https://api.perplexity.ai',
 		auth,
 		defaultTimeoutMs: 60_000,
+		// Perplexity Sonar answers usually fit in a few KB; 8MB is a
+		// generous safety net for runs with many citations. Enforced by
+		// `BaseHttpClient.parseResponse`.
+		maxResponseBytes: 8 * 1024 * 1024,
 	},
 	validateCredentialPlaintext(plaintextSecret: string): void {
 		// `parseCredential` throws InvalidInputError on the wrong shape

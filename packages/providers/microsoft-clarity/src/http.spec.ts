@@ -10,6 +10,9 @@ const baseConfig: HttpConfig = {
 	baseUrl: 'https://www.clarity.ms/export-data/api/v1',
 	auth: { kind: 'bearer-token' },
 	defaultTimeoutMs: 5_000,
+	// Mirrors the manifest's body cap so the cap-enforcement test exercises
+	// the same path the real composition root does.
+	maxResponseBytes: 8 * 1024 * 1024,
 };
 
 const stubContext = (plaintext = validToken, signal?: AbortSignal): FetchContext => ({

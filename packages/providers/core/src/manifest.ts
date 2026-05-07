@@ -49,6 +49,21 @@ export interface HttpConfig {
 	readonly auth: AuthStrategy;
 	readonly defaultTimeoutMs?: number;
 	readonly defaultRetries?: number;
+	/**
+	 * Hard cap on the upstream response body (bytes). When set,
+	 * `BaseHttpClient.parseResponse` does a Content-Length pre-flight
+	 * AND a post-read length guard, throwing `ProviderApiError(provider,
+	 * status, …)` with `message: "response too large"` either way.
+	 * Default (undefined): no cap — the parent's behaviour, suitable for
+	 * providers whose responses are bounded by their API's own paging.
+	 *
+	 * Picked per provider based on the upstream's worst-case response:
+	 * most APIs cap at 8 MB; DataForSEO SERP-advanced legitimately needs
+	 * 32 MB; Wikipedia is constrained to 4 MB by the article-summary
+	 * shape. Setting the cap explicitly even when matching the default
+	 * documents the choice for the next reader.
+	 */
+	readonly maxResponseBytes?: number;
 }
 
 export type AuthStrategy =

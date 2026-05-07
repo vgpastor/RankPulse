@@ -11,6 +11,9 @@ const baseConfig: HttpConfig = {
 	baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
 	auth: { kind: 'api-key-header', headerName: 'x-goog-api-key' },
 	defaultTimeoutMs: 5_000,
+	// Mirrors the manifest's body cap so the cap-enforcement test exercises
+	// the same path the real composition root does.
+	maxResponseBytes: 8 * 1024 * 1024,
 };
 
 const stubContext = (plaintext = validApiKey, signal?: AbortSignal): FetchContext => ({

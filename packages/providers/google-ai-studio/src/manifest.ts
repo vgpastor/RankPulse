@@ -26,10 +26,10 @@ import { buildLegacyShim, type GoogleAiStudioHttp, GoogleAiStudioHttpClient } fr
  *   header (the `?key=` query-param form leaks into proxy logs). The
  *   default `BaseHttpClient.applyAuth` for `'api-key-header'` produces
  *   exactly `{ [headerName]: plaintextSecret }`, so we re-use it.
- * - Why `GoogleAiStudioHttpClient.request` is overridden anyway: see
- *   `./http.ts`. The override exists ONLY to enforce the 8MB response
- *   body cap. The auth header itself is re-used from the parent via
- *   `super.applyAuth(...)` — no duplication.
+ * - Why no `GoogleAiStudioHttpClient.request` override: the 8MB response
+ *   body cap moved to `manifest.http.maxResponseBytes` and is enforced
+ *   by `BaseHttpClient.parseResponse` (Content-Length pre-flight +
+ *   post-read guard). No subclass override is needed for the body cap.
  * - Why the ACL wraps the single normalised answer in an array:
  *   `normaliseGeminiResponse()` returns ONE `NormalisedLlmAnswer` per
  *   `generateContent` payload — the use case ingests one answer per
@@ -85,6 +85,11 @@ export const googleAiStudioProviderManifest: ProviderManifest = {
 		baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
 		auth,
 		defaultTimeoutMs: 60_000,
+		// Gemini `generateContent` payloads are usually small, but verbose
+		// grounding metadata on a 4000-token output can grow large; 8MB is
+		// generous but tight enough to abort runaway responses before OOM.
+		// Enforced by `BaseHttpClient.parseResponse`.
+		maxResponseBytes: 8 * 1024 * 1024,
 	},
 	validateCredentialPlaintext(plaintextSecret: string): void {
 		// `parseCredential` throws InvalidInputError on a malformed key;
