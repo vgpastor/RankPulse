@@ -1,5 +1,6 @@
 // Value objects
 
+export * from './entities/ranked-keyword-observation.js';
 export * from './entities/ranking-observation.js';
 export * from './entities/serp-observation.js';
 // Entities / aggregates
@@ -9,6 +10,7 @@ export * from './events/keyword-entered-top-ten.js';
 export * from './events/keyword-position-changed.js';
 // Events
 export * from './events/tracked-keyword-started.js';
+export * from './ports/ranked-keyword-observation-repository.js';
 export * from './ports/ranking-observation-repository.js';
 export * from './ports/serp-observation-repository.js';
 // Ports

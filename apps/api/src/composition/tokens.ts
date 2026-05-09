@@ -72,6 +72,7 @@ export const Tokens = {
 	TrackedKeywordRepository: Symbol('TrackedKeywordRepository'),
 	RankingObservationRepository: Symbol('RankingObservationRepository'),
 	SerpObservationRepository: Symbol('SerpObservationRepository'),
+	RankedKeywordObservationRepository: Symbol('RankedKeywordObservationRepository'),
 
 	// Rank-Tracking use cases
 	StartTrackingKeyword: Symbol('StartTrackingKeywordUseCase'),
@@ -80,6 +81,8 @@ export const Tokens = {
 	RecordSerpObservation: Symbol('RecordSerpObservationUseCase'),
 	QuerySerpMap: Symbol('QuerySerpMapUseCase'),
 	QuerySerpCompetitorSuggestions: Symbol('QuerySerpCompetitorSuggestionsUseCase'),
+	IngestRankedKeywords: Symbol('IngestRankedKeywordsUseCase'),
+	QueryRankedKeywords: Symbol('QueryRankedKeywordsUseCase'),
 
 	// Search-Console-Insights ports
 	GscPropertyRepository: Symbol('GscPropertyRepository'),

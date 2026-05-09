@@ -120,6 +120,13 @@
 			"when": 1778800000000,
 			"tag": "0016_serp_observations",
 			"breakpoints": true
+		},
+		{
+			"idx": 17,
+			"version": "7",
+			"when": 1778900000000,
+			"tag": "0017_ranked_keywords_observations",
+			"breakpoints": true
 		}
 	]
 }

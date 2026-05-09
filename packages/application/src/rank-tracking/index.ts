@@ -1,4 +1,6 @@
 export * from './module.js';
+export * from './use-cases/ingest-ranked-keywords.use-case.js';
+export * from './use-cases/query-ranked-keywords.use-case.js';
 export * from './use-cases/query-ranking-history.use-case.js';
 export * from './use-cases/query-serp-competitor-suggestions.use-case.js';
 export * from './use-cases/query-serp-map.use-case.js';

@@ -112,3 +112,29 @@ export const SerpCompetitorSuggestionsResponse = z.object({
 	suggestions: z.array(SerpCompetitorSuggestionDto),
 });
 export type SerpCompetitorSuggestionsResponse = z.infer<typeof SerpCompetitorSuggestionsResponse>;
+
+// --- Ranked Keywords (issue #127) ---
+
+export const RankedKeywordsQuery = z.object({
+	targetDomain: z.string().min(3).max(253),
+	limit: z.coerce.number().int().min(1).max(1000).optional(),
+	minVolume: z.coerce.number().int().min(0).optional(),
+});
+export type RankedKeywordsQuery = z.infer<typeof RankedKeywordsQuery>;
+
+export const RankedKeywordsResponseEntry = z.object({
+	keyword: z.string(),
+	position: z.number().int().nullable(),
+	searchVolume: z.number().int().nullable(),
+	keywordDifficulty: z.number().int().nullable(),
+	trafficEstimate: z.number().nullable(),
+	cpc: z.number().nullable(),
+	rankingUrl: z.string().nullable(),
+	observedAt: z.string().datetime(),
+});
+export type RankedKeywordsResponseEntry = z.infer<typeof RankedKeywordsResponseEntry>;
+
+export const RankedKeywordsResponse = z.object({
+	rows: z.array(RankedKeywordsResponseEntry),
+});
+export type RankedKeywordsResponse = z.infer<typeof RankedKeywordsResponse>;

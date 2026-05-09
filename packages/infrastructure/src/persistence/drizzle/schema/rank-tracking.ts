@@ -1,5 +1,7 @@
 import {
+	doublePrecision,
 	index,
+	integer,
 	jsonb,
 	pgTable,
 	primaryKey,
@@ -112,8 +114,53 @@ export const serpObservations = pgTable(
 	}),
 );
 
+/**
+ * Issue #127: keyword universe of a target domain, sourced from
+ * DataForSEO Labs `ranked_keywords/live`. One row per (domain × keyword ×
+ * locale × snapshot). Promoted to a TimescaleDB hypertable by migration
+ * `0017` with chunk-time = 30 days and a 13-month retention policy — the
+ * default schedule is monthly so 13 months keeps the trailing year of
+ * snapshots available for trend deltas.
+ */
+export const rankedKeywordsObservations = pgTable(
+	'ranked_keywords_observations',
+	{
+		observedAt: timestamp('observed_at', { withTimezone: true }).notNull(),
+		projectId: uuid('project_id').notNull(),
+		targetDomain: text('target_domain').notNull(),
+		keyword: text('keyword').notNull(),
+		country: text('country').notNull(),
+		language: text('language').notNull(),
+		position: smallint('position'),
+		searchVolume: integer('search_volume'),
+		keywordDifficulty: smallint('keyword_difficulty'),
+		trafficEstimate: doublePrecision('traffic_estimate'),
+		cpc: doublePrecision('cpc'),
+		rankingUrl: text('ranking_url'),
+		sourceProvider: text('source_provider').notNull(),
+		rawPayloadId: uuid('raw_payload_id'),
+	},
+	(t) => ({
+		pk: primaryKey({
+			columns: [t.observedAt, t.projectId, t.targetDomain, t.keyword, t.country, t.language],
+		}),
+		targetIdx: index('ranked_keywords_observations_target_idx').on(t.targetDomain, t.observedAt),
+		projectTargetIdx: index('ranked_keywords_observations_project_target_idx').on(
+			t.projectId,
+			t.targetDomain,
+			t.observedAt,
+		),
+	}),
+);
+
 export type TrackedKeywordRow = typeof trackedKeywords.$inferSelect;
 export type RankingObservationRow = typeof rankingObservations.$inferSelect;
 export type SerpObservationRow = typeof serpObservations.$inferSelect;
+export type RankedKeywordObservationRow = typeof rankedKeywordsObservations.$inferSelect;
 
-export const rankTrackingSchemaTables = [trackedKeywords, rankingObservations, serpObservations] as const;
+export const rankTrackingSchemaTables = [
+	trackedKeywords,
+	rankingObservations,
+	serpObservations,
+	rankedKeywordsObservations,
+] as const;

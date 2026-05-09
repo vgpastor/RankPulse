@@ -26,6 +26,8 @@ export class RankTrackingController {
 		@Inject(Tokens.QuerySerpMap) private readonly querySerpMap: RTUseCases.QuerySerpMapUseCase,
 		@Inject(Tokens.QuerySerpCompetitorSuggestions)
 		private readonly querySerpSuggestions: RTUseCases.QuerySerpCompetitorSuggestionsUseCase,
+		@Inject(Tokens.QueryRankedKeywords)
+		private readonly queryRankedKeywords: RTUseCases.QueryRankedKeywordsUseCase,
 		@Inject(Tokens.TrackedKeywordRepository)
 		private readonly trackedRepo: RankTracking.TrackedKeywordRepository,
 		@Inject(Tokens.RankingObservationRepository)
@@ -157,6 +159,26 @@ export class RankTrackingController {
 			country: q.country,
 			language: q.language,
 			windowDays: q.windowDays,
+		});
+	}
+
+	@Get('projects/:projectId/ranked-keywords')
+	async rankedKeywords(
+		@Principal() principal: AuthPrincipal,
+		@Param('projectId') projectId: string,
+		@Query(new ZodValidationPipe(RankTrackingContracts.RankedKeywordsQuery))
+		q: RankTrackingContracts.RankedKeywordsQuery,
+	): Promise<RankTrackingContracts.RankedKeywordsResponse> {
+		const project = await this.projects.findById(projectId as ProjectManagement.ProjectId);
+		if (!project) {
+			throw new NotFoundError(`Project ${projectId} not found`);
+		}
+		await this.orgMembership.require(principal, project.organizationId);
+		return this.queryRankedKeywords.execute({
+			projectId,
+			targetDomain: q.targetDomain,
+			limit: q.limit,
+			minVolume: q.minVolume,
 		});
 	}
 

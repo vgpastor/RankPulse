@@ -16,6 +16,7 @@ export * from './in-memory/in-memory-membership-repository.js';
 export * from './in-memory/in-memory-organization-repository.js';
 export * from './in-memory/in-memory-portfolio-repository.js';
 export * from './in-memory/in-memory-project-repository.js';
+export * from './in-memory/in-memory-ranked-keyword-observation-repository.js';
 export * from './in-memory/in-memory-user-repository.js';
 export * from './in-memory/recording-event-publisher.js';
 export * from './in-memory/scripted-mention-extractor.js';

@@ -1,5 +1,11 @@
-import type { AuthStrategy, EndpointManifest, ProviderManifest } from '@rankpulse/provider-core';
+import type {
+	AuthStrategy,
+	EndpointManifest,
+	IngestBinding,
+	ProviderManifest,
+} from '@rankpulse/provider-core';
 import { InvalidInputError } from '@rankpulse/shared';
+import { normaliseRankedKeywordsResponse } from './acl/ranked-keywords-to-domain.acl.js';
 import { parseCredential } from './credential.js';
 import { competitorsDomainDescriptor, fetchCompetitorsDomain } from './endpoints/competitors-domain.js';
 import {
@@ -13,6 +19,11 @@ import {
 } from './endpoints/keywords-data-search-volume.js';
 import { fetchKeywordsForSite, keywordsForSiteDescriptor } from './endpoints/keywords-for-site.js';
 import { fetchOnPageInstantPages, onPageInstantDescriptor } from './endpoints/on-page-instant.js';
+import {
+	fetchRankedKeywords,
+	type RankedKeywordsResponse,
+	rankedKeywordsDescriptor,
+} from './endpoints/ranked-keywords.js';
 import { fetchRelatedKeywords, relatedKeywordsDescriptor } from './endpoints/related-keywords.js';
 import {
 	fetchSerpGoogleOrganicAdvanced,
@@ -72,6 +83,19 @@ const adapt =
  * reject before reaching the use case.
  */
 
+/**
+ * Issue #127: typed ingest binding for the Labs `ranked_keywords/live`
+ * endpoint. The router pumps each row through `IngestRankedKeywordsUseCase`,
+ * which persists into the `ranked_keywords_observations` hypertable. The
+ * `targetDomain` system param is stamped at scheduling time (currently the
+ * scheduler call site supplies it; auto-schedule wiring is a follow-up).
+ */
+const rankTrackingRankedKeywordsIngest: IngestBinding<RankedKeywordsResponse> = {
+	useCaseKey: 'rank-tracking:ingest-ranked-keywords',
+	systemParamKey: 'targetDomain',
+	acl: normaliseRankedKeywordsResponse,
+};
+
 const endpoints: readonly EndpointManifest[] = [
 	{
 		descriptor: serpGoogleOrganicLiveDescriptor,
@@ -124,6 +148,15 @@ const endpoints: readonly EndpointManifest[] = [
 		descriptor: competitorsDomainDescriptor,
 		fetch: adapt(fetchCompetitorsDomain),
 		ingest: null,
+	},
+	{
+		descriptor: rankedKeywordsDescriptor,
+		fetch: adapt(fetchRankedKeywords),
+		// Issue #127: typed ingest path. The auto-schedule (or manual
+		// scheduler call) stamps `targetDomain` into systemParams so the
+		// ACL can validate it and the ingest use case can persist it once
+		// per batch instead of denormalising onto every row.
+		ingest: rankTrackingRankedKeywordsIngest as IngestBinding,
 	},
 	{
 		descriptor: domainWhoisOverviewDescriptor,

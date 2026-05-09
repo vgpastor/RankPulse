@@ -1,3 +1,4 @@
+export * from './acl/ranked-keywords-to-domain.acl.js';
 export * from './acl/serp-to-ranking.acl.js';
 export * from './credential.js';
 export * from './endpoints/competitors-domain.js';
@@ -6,6 +7,7 @@ export * from './endpoints/keyword-difficulty.js';
 export * from './endpoints/keywords-data-search-volume.js';
 export * from './endpoints/keywords-for-site.js';
 export * from './endpoints/on-page-instant.js';
+export * from './endpoints/ranked-keywords.js';
 export * from './endpoints/related-keywords.js';
 export * from './endpoints/serp-google-organic-advanced.js';
 export * from './endpoints/serp-google-organic-live.js';
