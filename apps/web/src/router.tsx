@@ -12,6 +12,7 @@ import { AiSearchCitationsPage } from './pages/ai-search-citations.page.js';
 import { AiSearchMatrixPage } from './pages/ai-search-matrix.page.js';
 import { BrandPromptsPage } from './pages/brand-prompts.page.js';
 import { CannibalizationPage } from './pages/cannibalization.page.js';
+import { CockpitPage } from './pages/cockpit.page.js';
 import { CompetitorsPage } from './pages/competitors.page.js';
 import { CredentialsPage } from './pages/credentials.page.js';
 import { DailyActionsPage } from './pages/daily-actions.page.js';
@@ -30,6 +31,7 @@ import { ProjectsPage } from './pages/projects.page.js';
 import { RankingsPage } from './pages/rankings.page.js';
 import { RegisterPage } from './pages/register.page.js';
 import { SchedulesPage } from './pages/schedules.page.js';
+import { SerpMapPage } from './pages/serp-map.page.js';
 import { WeeklyScorecardPage } from './pages/weekly-scorecard.page.js';
 
 const rootRoute: RootRoute = createRootRoute({
@@ -102,6 +104,18 @@ const projectRankingsRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/projects/$id/rankings',
 	component: RankingsPage,
+});
+
+const projectSerpMapRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/serp-map',
+	component: SerpMapPage,
+});
+
+const projectCockpitRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/cockpit',
+	component: CockpitPage,
 });
 
 const projectSchedulesRoute = createRoute({
@@ -220,6 +234,8 @@ const routeTree = rootRoute.addChildren([
 	projectsRoute,
 	projectDetailRoute,
 	projectRankingsRoute,
+	projectSerpMapRoute,
+	projectCockpitRoute,
 	projectSchedulesRoute,
 	projectGscPropertiesRoute,
 	projectGscPerformanceRoute,

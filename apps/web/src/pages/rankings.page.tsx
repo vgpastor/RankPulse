@@ -15,8 +15,15 @@ import {
 	Spinner,
 } from '@rankpulse/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useParams } from '@tanstack/react-router';
-import { ArrowDown, ArrowUp, LineChart as LineChartIcon, Plus, TrendingUp } from 'lucide-react';
+import { Link, useParams } from '@tanstack/react-router';
+import {
+	ArrowDown,
+	ArrowUp,
+	LineChart as LineChartIcon,
+	Map as MapIcon,
+	Plus,
+	TrendingUp,
+} from 'lucide-react';
 import { type FormEvent, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -315,6 +322,12 @@ export const RankingsPage = () => {
 								</Button>
 							))}
 						</div>
+						<Link to="/projects/$id/serp-map" params={{ id: projectId }}>
+							<Button variant="secondary" size="sm">
+								<MapIcon size={14} />
+								{t('rankingsBoard:openSerpMap')}
+							</Button>
+						</Link>
 						<Button onClick={() => setShowForm((v) => !v)}>
 							<Plus size={16} />
 							{t('rankings:track')}

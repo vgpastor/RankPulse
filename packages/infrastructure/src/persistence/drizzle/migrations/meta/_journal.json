@@ -113,6 +113,13 @@
 			"when": 1778149445025,
 			"tag": "0015_snapshot_reconciliation",
 			"breakpoints": true
+		},
+		{
+			"idx": 16,
+			"version": "7",
+			"when": 1778800000000,
+			"tag": "0016_serp_observations",
+			"breakpoints": true
 		}
 	]
 }

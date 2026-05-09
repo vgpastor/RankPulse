@@ -33,6 +33,7 @@ export {
 export { DrizzleJobRunRepository } from './repositories/provider-connectivity/job-run.repository.js';
 export { DrizzleRawPayloadRepository } from './repositories/provider-connectivity/raw-payload.repository.js';
 export { DrizzleRankingObservationRepository } from './repositories/rank-tracking/ranking-observation.repository.js';
+export { DrizzleSerpObservationRepository } from './repositories/rank-tracking/serp-observation.repository.js';
 export { DrizzleTrackedKeywordRepository } from './repositories/rank-tracking/tracked-keyword.repository.js';
 export { DrizzleGscPerformanceObservationRepository } from './repositories/search-console-insights/gsc-performance-observation.repository.js';
 export { DrizzleGscPropertyRepository } from './repositories/search-console-insights/gsc-property.repository.js';

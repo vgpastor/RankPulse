@@ -4,6 +4,7 @@ import {
 	extractRankingForDomain,
 	extractRankingsForDomains,
 	extractTop10Domains,
+	extractTopSerpResults,
 } from './serp-to-ranking.acl.js';
 
 const fixture: SerpLiveResponse = {
@@ -248,5 +249,106 @@ describe('extractTop10Domains (BACKLOG #18)', () => {
 			],
 		};
 		expect(extractTop10Domains(empty)).toEqual([]);
+	});
+});
+
+describe('extractTopSerpResults (issue #115)', () => {
+	const fixtureWithTitles: SerpLiveResponse = {
+		...fixture,
+		tasks: [
+			{
+				status_code: 20000,
+				status_message: 'Ok.',
+				result: [
+					{
+						keyword: 'control de rondas',
+						location_code: 2724,
+						language_code: 'es',
+						items: [
+							{
+								type: 'organic',
+								rank_absolute: 1,
+								rank_group: 1,
+								domain: 'todoelectronica.com',
+								url: 'https://todoelectronica.com/',
+								title: 'Todo electrónica - Control',
+							},
+							{
+								type: 'organic',
+								rank_absolute: 2,
+								rank_group: 2,
+								domain: 'vigilant.es',
+								url: 'https://vigilant.es/control',
+								title: 'Vigilant',
+							},
+							{ type: 'people_also_ask' },
+							{
+								type: 'organic',
+								rank_absolute: 7,
+								rank_group: 7,
+								domain: 'controlrondas.com',
+								url: 'https://controlrondas.com/',
+								title: 'Control Rondas',
+							},
+						],
+					},
+				],
+			},
+		],
+	};
+
+	it('returns rank + domain + url + title for each organic item, sorted ascending by rank', () => {
+		const rows = extractTopSerpResults(fixtureWithTitles);
+		expect(rows.map((r) => ({ rank: r.rank, domain: r.domain, title: r.title }))).toEqual([
+			{ rank: 1, domain: 'todoelectronica.com', title: 'Todo electrónica - Control' },
+			{ rank: 2, domain: 'vigilant.es', title: 'Vigilant' },
+			{ rank: 7, domain: 'controlrondas.com', title: 'Control Rondas' },
+		]);
+	});
+
+	it('skips non-organic items (people_also_ask, snippet, paid)', () => {
+		const rows = extractTopSerpResults(fixtureWithTitles);
+		expect(rows.map((r) => r.rank)).not.toContain(3);
+	});
+
+	it('respects topN cap', () => {
+		const rows = extractTopSerpResults(fixtureWithTitles, 3);
+		expect(rows.map((r) => r.rank)).toEqual([1, 2]);
+	});
+
+	it('returns empty when there are no organic items', () => {
+		const empty: SerpLiveResponse = {
+			...fixture,
+			tasks: [
+				{
+					status_code: 20000,
+					status_message: 'Ok.',
+					result: [{ keyword: 'x', location_code: 1, language_code: 'en', items: [] }],
+				},
+			],
+		};
+		expect(extractTopSerpResults(empty)).toEqual([]);
+	});
+
+	it('emits null url/title when payload omits them', () => {
+		const noTitle: SerpLiveResponse = {
+			...fixture,
+			tasks: [
+				{
+					status_code: 20000,
+					status_message: 'Ok.',
+					result: [
+						{
+							keyword: 'x',
+							location_code: 1,
+							language_code: 'en',
+							items: [{ type: 'organic', rank_absolute: 5, rank_group: 5, domain: 'a.com' }],
+						},
+					],
+				},
+			],
+		};
+		const rows = extractTopSerpResults(noTitle);
+		expect(rows[0]).toEqual({ rank: 5, domain: 'a.com', url: null, title: null });
 	});
 });

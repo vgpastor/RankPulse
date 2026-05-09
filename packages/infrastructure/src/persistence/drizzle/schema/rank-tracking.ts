@@ -74,7 +74,46 @@ export const rankingObservations = pgTable(
 	}),
 );
 
+/**
+ * Daily snapshot of the SERP top-N for each (project, phrase, country,
+ * language, device) the project tracks. Promoted to a TimescaleDB hypertable
+ * by migration `0016` with a 7-day retention policy — that's enough horizon
+ * for the SERP-map UI and competitor-suggestion derivation while keeping the
+ * row count bounded (issue #115).
+ *
+ * `observed_at` is normalised to start-of-day-UTC at the aggregate boundary
+ * so re-running a fetch later in the same day overwrites the snapshot
+ * idempotently. The composite PK (observed_at + projectId + phrase +
+ * country + language + device + rank) makes that natural.
+ */
+export const serpObservations = pgTable(
+	'serp_observations',
+	{
+		observedAt: timestamp('observed_at', { withTimezone: true }).notNull(),
+		projectId: uuid('project_id').notNull(),
+		phrase: text('phrase').notNull(),
+		country: text('country').notNull(),
+		language: text('language').notNull(),
+		device: text('device').notNull(),
+		rank: smallint('rank').notNull(),
+		domain: text('domain').notNull(),
+		url: text('url'),
+		title: text('title'),
+		sourceProvider: text('source_provider').notNull(),
+		rawPayloadId: uuid('raw_payload_id'),
+	},
+	(t) => ({
+		pk: primaryKey({
+			columns: [t.observedAt, t.projectId, t.phrase, t.country, t.language, t.device, t.rank],
+		}),
+		projectIdx: index('serp_observations_project_idx').on(t.projectId, t.observedAt),
+		projectKeywordIdx: index('serp_observations_project_keyword_idx').on(t.projectId, t.phrase, t.observedAt),
+		projectDomainIdx: index('serp_observations_project_domain_idx').on(t.projectId, t.domain, t.observedAt),
+	}),
+);
+
 export type TrackedKeywordRow = typeof trackedKeywords.$inferSelect;
 export type RankingObservationRow = typeof rankingObservations.$inferSelect;
+export type SerpObservationRow = typeof serpObservations.$inferSelect;
 
-export const rankTrackingSchemaTables = [trackedKeywords, rankingObservations] as const;
+export const rankTrackingSchemaTables = [trackedKeywords, rankingObservations, serpObservations] as const;
