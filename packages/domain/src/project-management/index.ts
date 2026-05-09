@@ -1,6 +1,7 @@
 // Value objects
 
 export * from './entities/competitor.js';
+export * from './entities/competitor-activity-observation.js';
 export * from './entities/competitor-suggestion.js';
 export * from './entities/keyword-list.js';
 // Entities / aggregates
@@ -12,6 +13,7 @@ export * from './events/keywords-added.js';
 export * from './events/location-added.js';
 // Events
 export * from './events/project-created.js';
+export * from './ports/competitor-activity-observation-repository.js';
 export * from './ports/competitor-repository.js';
 export * from './ports/competitor-suggestion-repository.js';
 export * from './ports/keyword-list-repository.js';

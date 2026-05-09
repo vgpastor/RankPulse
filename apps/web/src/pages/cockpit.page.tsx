@@ -13,6 +13,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import {
+	Activity,
 	AlertTriangle,
 	ArrowLeft,
 	BarChart3,
@@ -82,6 +83,10 @@ export const CockpitPage = () => {
 		queryKey: ['project', projectId, 'ai-search', 'sov-daily'],
 		queryFn: () => api.aiSearch.projectSovDaily(projectId),
 	});
+	const competitorActivityQuery = useQuery({
+		queryKey: ['project', projectId, 'cockpit', 'competitor-activity'],
+		queryFn: () => api.cockpit.competitorActivity(projectId),
+	});
 
 	const cockpitMetrics = useMemo(() => {
 		const rows = serpMapQuery.data?.rows ?? [];
@@ -128,6 +133,7 @@ export const CockpitPage = () => {
 	const sovDailyPoints = aiSovDailyQuery.data?.items ?? [];
 	const sovValues = sovDailyPoints.map((p) => p.mentionRate * 100);
 	const latestSovPct = sovValues.length === 0 ? null : (sovValues[sovValues.length - 1] ?? null);
+	const competitorActivity = competitorActivityQuery.data;
 
 	return (
 		<AppShell>
@@ -431,6 +437,39 @@ export const CockpitPage = () => {
 							{t('cockpit:widgets.cannibalization.description')}
 						</p>
 					</WidgetCard>
+
+					<WidgetCard
+						title={t('cockpit:widgets.competitorActivity.title')}
+						hint={t('cockpit:widgets.competitorActivity.hint')}
+						icon={<Activity size={14} className="text-amber-600" />}
+						href={{ to: '/projects/$id/competitor-activity', params: { id: projectId } }}
+						cta={t('cockpit:openDetail')}
+					>
+						{competitorActivityQuery.isLoading ? (
+							<Spinner size="sm" />
+						) : !competitorActivity || competitorActivity.rows.length === 0 ? (
+							<EmptyState
+								title={t('cockpit:widgets.competitorActivity.empty')}
+								description={t('cockpit:widgets.competitorActivity.emptyDescription')}
+							/>
+						) : (
+							<ul className="flex flex-col gap-1.5 text-sm">
+								{competitorActivity.rows.slice(0, 5).map((row) => (
+									<li key={row.competitorId} className="flex items-center justify-between gap-2">
+										<span className="min-w-0 break-words">
+											<span className="font-medium">{row.label}</span>
+										</span>
+										<div className="flex items-center gap-2">
+											<div className="h-1.5 w-12 overflow-hidden rounded-full bg-muted/40">
+												<div className="h-full bg-amber-500" style={{ width: `${row.activityScore}%` }} />
+											</div>
+											<span className="font-mono text-xs">{row.activityScore}</span>
+										</div>
+									</li>
+								))}
+							</ul>
+						)}
+					</WidgetCard>
 				</div>
 
 				<Card>
@@ -478,7 +517,6 @@ export const CockpitPage = () => {
 					<CardContent>
 						<ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
 							{[
-								{ icon: <Users size={14} />, label: t('cockpit:upcoming.items.competitorActivity') },
 								{ icon: <Compass size={14} />, label: t('cockpit:upcoming.items.pageExperience') },
 								{ icon: <BarChart3 size={14} />, label: t('cockpit:upcoming.items.contentGap') },
 								{ icon: <TrendingUp size={14} />, label: t('cockpit:upcoming.items.searchDemand') },

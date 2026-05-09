@@ -1,4 +1,16 @@
-import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import {
+	bigint,
+	index,
+	integer,
+	jsonb,
+	pgTable,
+	primaryKey,
+	smallint,
+	text,
+	timestamp,
+	uniqueIndex,
+	uuid,
+} from 'drizzle-orm/pg-core';
 import { organizations } from './identity-access.js';
 
 export const portfolios = pgTable(
@@ -143,6 +155,47 @@ export const competitorSuggestions = pgTable(
 	}),
 );
 
+/**
+ * Per-day per-source observation of a competitor's external footprint.
+ * Issue #117 Sprint 2 — Competitor Activity Radar.
+ *
+ * Two sources today (Wayback CDX snapshot count + DataForSEO Backlinks
+ * summary) write to the same hypertable so the read model can join them
+ * per `(competitorId, observed_at::date)`. The natural key is
+ * `(observed_at, competitor_id, source)` — ingests truncate `observed_at`
+ * to start-of-day-UTC at the aggregate boundary so re-runs overwrite.
+ *
+ * Promoted to a TimescaleDB hypertable in migration 0017 with a 90-day
+ * retention policy (long enough for WoW comparisons + a quarter of trend).
+ */
+export const competitorActivityObservations = pgTable(
+	'competitor_activity_observations',
+	{
+		observedAt: timestamp('observed_at', { withTimezone: true }).notNull(),
+		competitorId: uuid('competitor_id').notNull(),
+		projectId: uuid('project_id').notNull(),
+		source: text('source').notNull(),
+		// Wayback metrics (null for backlinks rows)
+		waybackSnapshotCount: integer('wayback_snapshot_count'),
+		waybackLatestSnapshotAt: timestamp('wayback_latest_snapshot_at', { withTimezone: true }),
+		waybackEarliestSnapshotAt: timestamp('wayback_earliest_snapshot_at', { withTimezone: true }),
+		// Backlinks metrics (null for wayback rows)
+		backlinksTotal: bigint('backlinks_total', { mode: 'number' }),
+		backlinksReferringDomains: integer('backlinks_referring_domains'),
+		backlinksReferringMainDomains: integer('backlinks_referring_main_domains'),
+		backlinksReferringPages: bigint('backlinks_referring_pages', { mode: 'number' }),
+		backlinksBroken: integer('backlinks_broken'),
+		backlinksSpamScore: smallint('backlinks_spam_score'),
+		backlinksRank: smallint('backlinks_rank'),
+		rawPayloadId: uuid('raw_payload_id'),
+	},
+	(t) => ({
+		pk: primaryKey({ columns: [t.observedAt, t.competitorId, t.source] }),
+		projectIdx: index('competitor_activity_project_idx').on(t.projectId, t.observedAt),
+		competitorIdx: index('competitor_activity_competitor_idx').on(t.competitorId, t.observedAt),
+	}),
+);
+
 export type PortfolioRow = typeof portfolios.$inferSelect;
 export type ProjectRow = typeof projects.$inferSelect;
 export type ProjectDomainRow = typeof projectDomains.$inferSelect;
@@ -151,6 +204,7 @@ export type KeywordListRow = typeof keywordLists.$inferSelect;
 export type KeywordRow = typeof keywords.$inferSelect;
 export type CompetitorRow = typeof competitors.$inferSelect;
 export type CompetitorSuggestionRow = typeof competitorSuggestions.$inferSelect;
+export type CompetitorActivityObservationRow = typeof competitorActivityObservations.$inferSelect;
 
 export const projectManagementSchemaTables = [
 	portfolios,
@@ -161,4 +215,5 @@ export const projectManagementSchemaTables = [
 	keywords,
 	competitors,
 	competitorSuggestions,
+	competitorActivityObservations,
 ] as const;

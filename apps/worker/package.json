@@ -33,6 +33,7 @@
 		"@rankpulse/provider-openai": "workspace:*",
 		"@rankpulse/provider-perplexity": "workspace:*",
 		"@rankpulse/provider-pagespeed": "workspace:*",
+		"@rankpulse/provider-wayback": "workspace:*",
 		"@rankpulse/provider-wikipedia": "workspace:*",
 		"@rankpulse/shared": "workspace:*",
 		"bullmq": "5.76.5",

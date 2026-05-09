@@ -5,9 +5,15 @@ import type {
 	ProviderManifest,
 } from '@rankpulse/provider-core';
 import { InvalidInputError } from '@rankpulse/shared';
+import { summariseBacklinksResponse } from './acl/backlinks-summary.acl.js';
 import { normaliseDomainIntersectionResponse } from './acl/domain-intersection-to-domain.acl.js';
 import { normaliseRankedKeywordsResponse } from './acl/ranked-keywords-to-domain.acl.js';
 import { parseCredential } from './credential.js';
+import {
+	type BacklinksSummaryResponse,
+	backlinksSummaryDescriptor,
+	fetchBacklinksSummary,
+} from './endpoints/backlinks-summary.js';
 import { competitorsDomainDescriptor, fetchCompetitorsDomain } from './endpoints/competitors-domain.js';
 import {
 	type DomainIntersectionResponse,
@@ -199,6 +205,20 @@ const endpoints: readonly EndpointManifest[] = [
 		descriptor: onPageInstantDescriptor,
 		fetch: adapt(fetchOnPageInstantPages),
 		ingest: null,
+	},
+	{
+		descriptor: backlinksSummaryDescriptor,
+		fetch: adapt(fetchBacklinksSummary),
+		// Issue #117 Sprint 2 — Competitor Activity Radar. The ACL produces
+		// ONE summary row per fetch; the IngestRouter routes it to the
+		// project-management context using the `competitorId` carried in
+		// systemParams (set by the auto-schedule handler when an operator
+		// wires a competitor for activity tracking).
+		ingest: {
+			useCaseKey: 'project-management:record-competitor-backlinks-profile',
+			systemParamKey: 'competitorId',
+			acl: (response: BacklinksSummaryResponse) => [summariseBacklinksResponse(response)],
+		} as IngestBinding,
 	},
 ];
 

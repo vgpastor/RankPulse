@@ -39,6 +39,7 @@
 		"@rankpulse/provider-openai": "workspace:*",
 		"@rankpulse/provider-pagespeed": "workspace:*",
 		"@rankpulse/provider-perplexity": "workspace:*",
+		"@rankpulse/provider-wayback": "workspace:*",
 		"@rankpulse/provider-wikipedia": "workspace:*",
 		"@rankpulse/shared": "workspace:*",
 		"drizzle-orm": "0.45.2",

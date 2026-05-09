@@ -53,6 +53,9 @@ async function bootstrap(): Promise<void> {
 	const projectRepo = new DrizzlePersistence.DrizzleProjectRepository(drizzle.db);
 	const competitorRepo = new DrizzlePersistence.DrizzleCompetitorRepository(drizzle.db);
 	const competitorSuggestionRepo = new DrizzlePersistence.DrizzleCompetitorSuggestionRepository(drizzle.db);
+	const competitorActivityRepo = new DrizzlePersistence.DrizzleCompetitorActivityObservationRepository(
+		drizzle.db,
+	);
 	const gscPropertyRepo = new DrizzlePersistence.DrizzleGscPropertyRepository(drizzle.db);
 	const gscObservationRepo = new DrizzlePersistence.DrizzleGscPerformanceObservationRepository(drizzle.db);
 	const wikipediaArticleRepo = new DrizzlePersistence.DrizzleWikipediaArticleRepository(drizzle.db);
@@ -144,6 +147,20 @@ async function bootstrap(): Promise<void> {
 		eventPublisher,
 		SystemClock,
 	);
+	const recordCompetitorWaybackSnapshotUseCase =
+		new ProjectManagementUseCases.RecordCompetitorWaybackSnapshotUseCase(
+			competitorRepo,
+			competitorActivityRepo,
+			SystemClock,
+			SystemIdGenerator,
+		);
+	const recordCompetitorBacklinksProfileUseCase =
+		new ProjectManagementUseCases.RecordCompetitorBacklinksProfileUseCase(
+			competitorRepo,
+			competitorActivityRepo,
+			SystemClock,
+			SystemIdGenerator,
+		);
 	const recordTop10HitsForSuggestionsUseCase =
 		new ProjectManagementUseCases.RecordTop10HitsForSuggestionsUseCase(
 			competitorSuggestionRepo,
@@ -229,6 +246,48 @@ async function bootstrap(): Promise<void> {
 	// rationale); the router returns false for it and the processor falls
 	// through.
 	const ingestUseCases: Record<string, ApplicationCore.IngestUseCase> = {
+		'project-management:record-competitor-wayback-snapshot': {
+			async execute({ rawPayloadId, rows, systemParams }) {
+				const summary = rows[0] as
+					| {
+							snapshotCount: number;
+							latestSnapshotAt: string | null;
+							earliestSnapshotAt: string | null;
+					  }
+					| undefined;
+				if (!summary) return;
+				const competitorId = systemParams.competitorId as string | undefined;
+				if (!competitorId) return;
+				await recordCompetitorWaybackSnapshotUseCase.execute({
+					competitorId,
+					rawPayloadId,
+					summary,
+				});
+			},
+		},
+		'project-management:record-competitor-backlinks-profile': {
+			async execute({ rawPayloadId, rows, systemParams }) {
+				const summary = rows[0] as
+					| {
+							totalBacklinks: number;
+							referringDomains: number;
+							referringMainDomains: number;
+							referringPages: number;
+							brokenBacklinks: number;
+							spamScore: number | null;
+							rank: number | null;
+					  }
+					| undefined;
+				if (!summary) return;
+				const competitorId = systemParams.competitorId as string | undefined;
+				if (!competitorId) return;
+				await recordCompetitorBacklinksProfileUseCase.execute({
+					competitorId,
+					rawPayloadId,
+					summary,
+				});
+			},
+		},
 		'search-console-insights:ingest-gsc-rows': {
 			async execute({ rawPayloadId, rows, systemParams }) {
 				await ingestGscRowsUseCase.execute({

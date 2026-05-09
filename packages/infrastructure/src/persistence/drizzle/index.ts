@@ -21,6 +21,7 @@ export { DrizzleMetaAdsInsightDailyRepository } from './repositories/meta-ads-at
 export { DrizzleMetaPixelRepository } from './repositories/meta-ads-attribution/meta-pixel.repository.js';
 export { DrizzleMetaPixelEventDailyRepository } from './repositories/meta-ads-attribution/meta-pixel-event-daily.repository.js';
 export { DrizzleCompetitorRepository } from './repositories/project-management/competitor.repository.js';
+export { DrizzleCompetitorActivityObservationRepository } from './repositories/project-management/competitor-activity-observation.repository.js';
 export { DrizzleCompetitorSuggestionRepository } from './repositories/project-management/competitor-suggestion.repository.js';
 export { DrizzleKeywordListRepository } from './repositories/project-management/keyword-list.repository.js';
 export { DrizzlePortfolioRepository } from './repositories/project-management/portfolio.repository.js';

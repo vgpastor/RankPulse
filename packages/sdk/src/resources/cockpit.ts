@@ -1,4 +1,4 @@
-import type { SearchConsoleInsightsContracts } from '@rankpulse/contracts';
+import type { ProjectManagementContracts, SearchConsoleInsightsContracts } from '@rankpulse/contracts';
 import type { HttpClient } from '../http.js';
 
 const buildQuery = (input: Record<string, number | string | undefined>): Record<string, string | null> => {
@@ -65,6 +65,15 @@ export class CockpitResource {
 				windowDays: query?.windowDays,
 				dropAlertPct: query?.dropAlertPct,
 			}),
+		});
+	}
+
+	competitorActivity(
+		projectId: string,
+		query?: ProjectManagementContracts.CompetitorActivityQuery,
+	): Promise<ProjectManagementContracts.CompetitorActivityResponse> {
+		return this.http.get(`/projects/${encodeURIComponent(projectId)}/cockpit/competitor-activity`, {
+			query: buildQuery({ windowDays: query?.windowDays }),
 		});
 	}
 }

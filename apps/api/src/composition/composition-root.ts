@@ -45,6 +45,7 @@ import { microsoftClarityProviderManifest } from '@rankpulse/provider-microsoft-
 import { openaiProviderManifest } from '@rankpulse/provider-openai';
 import { pagespeedProviderManifest } from '@rankpulse/provider-pagespeed';
 import { perplexityProviderManifest } from '@rankpulse/provider-perplexity';
+import { waybackProviderManifest } from '@rankpulse/provider-wayback';
 import { wikipediaProviderManifest } from '@rankpulse/provider-wikipedia';
 import { InvalidInputError, SystemClock, SystemIdGenerator } from '@rankpulse/shared';
 import { JwtService } from '../common/auth/jwt.service.js';
@@ -115,6 +116,9 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const keywordListRepo = new DrizzlePersistence.DrizzleKeywordListRepository(drizzle.db);
 	const competitorRepo = new DrizzlePersistence.DrizzleCompetitorRepository(drizzle.db);
 	const competitorSuggestionRepo = new DrizzlePersistence.DrizzleCompetitorSuggestionRepository(drizzle.db);
+	const competitorActivityRepo = new DrizzlePersistence.DrizzleCompetitorActivityObservationRepository(
+		drizzle.db,
+	);
 
 	const credentialRepo = new DrizzlePersistence.DrizzleCredentialRepository(drizzle.db);
 	const jobDefRepo = new DrizzlePersistence.DrizzleJobDefinitionRepository(drizzle.db);
@@ -180,6 +184,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		anthropicProviderManifest,
 		perplexityProviderManifest,
 		googleAiStudioProviderManifest,
+		waybackProviderManifest,
 	]);
 
 	// `ScheduleEndpointFetch` is built first because it's needed by the
@@ -266,6 +271,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		keywordListRepo,
 		competitorRepo,
 		competitorSuggestionRepo,
+		competitorActivityRepo,
 		// BACKLOG #18 — project-management's `ListCompetitorSuggestions` needs
 		// the project's tracked-keyword count to evaluate the eligibility ratio.
 		// We don't leak the rank-tracking aggregate; we expose a tiny lambda
@@ -509,6 +515,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.KeywordListRepository, keywordListRepo),
 		value(Tokens.CompetitorRepository, competitorRepo),
 		value(Tokens.CompetitorSuggestionRepository, competitorSuggestionRepo),
+		value(Tokens.CompetitorActivityObservationRepository, competitorActivityRepo),
 		value(Tokens.CreateProject, pm.CreateProject),
 		value(Tokens.AddDomainToProject, pm.AddDomainToProject),
 		value(Tokens.AddProjectLocation, pm.AddProjectLocation),
@@ -522,6 +529,9 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.ListCompetitorSuggestions, pm.ListCompetitorSuggestions),
 		value(Tokens.PromoteCompetitorSuggestion, pm.PromoteCompetitorSuggestion),
 		value(Tokens.DismissCompetitorSuggestion, pm.DismissCompetitorSuggestion),
+		value(Tokens.RecordCompetitorWaybackSnapshot, pm.RecordCompetitorWaybackSnapshot),
+		value(Tokens.RecordCompetitorBacklinksProfile, pm.RecordCompetitorBacklinksProfile),
+		value(Tokens.QueryCompetitorActivity, pm.QueryCompetitorActivity),
 
 		// provider-connectivity
 		value(Tokens.CredentialRepository, credentialRepo),

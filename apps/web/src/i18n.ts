@@ -562,6 +562,13 @@ const en = {
 				hint: 'Pairs of pages competing for the same keyword.',
 				description: 'See where multiple pages rank for the same query and split clicks.',
 			},
+			competitorActivity: {
+				title: 'Competitor Activity Radar',
+				hint: 'Wayback snapshot deltas + backlinks deltas per registered competitor.',
+				empty: 'No competitor activity yet',
+				emptyDescription:
+					'Schedule a Wayback CDX or DataForSEO Backlinks fetch per competitor from the Schedules page.',
+			},
 			lostOpportunity: {
 				title: 'Lost Opportunity Score',
 				hint: 'Top 5 keywords by projected click gain at top-3.',
@@ -644,6 +651,30 @@ const en = {
 				totalLostHint: 'Aggregate over the window',
 				queries: 'Queries',
 				queriesHint: 'With actionable Δ-CTR',
+			},
+		},
+		competitorActivityPage: {
+			title: 'Competitor Activity Radar',
+			subtitle: 'Wayback snapshot frequency + backlinks delta per registered competitor.',
+			tableTitle: 'Competitor activity',
+			tableHint:
+				'Activity score is a 0-100 normalised composite of Wayback snapshot delta and backlinks delta — higher means the competitor is shipping more.',
+			competitor: 'Competitor',
+			wayback: 'Wayback snapshots (Δ)',
+			backlinks: 'Backlinks (Δ)',
+			referringDomains: 'Ref. domains (Δ)',
+			activityScore: 'Activity score',
+			noData: 'No data yet',
+			empty: 'No competitor activity captured yet',
+			emptyDescription:
+				'Schedule a Wayback CDX or DataForSEO Backlinks fetch per competitor from the Schedules page to populate this view.',
+			kpi: {
+				tracked: 'Competitors tracked',
+				trackedHint: 'Registered in this project',
+				active: 'Active in window',
+				activeHint: 'With non-zero activity score',
+				maxScore: 'Top score',
+				maxScoreHint: 'Most active competitor',
 			},
 		},
 	},
@@ -1260,6 +1291,13 @@ const es = {
 				hint: 'Pares de páginas compitiendo por la misma keyword.',
 				description: 'Ve dónde varias páginas posicionan para la misma query y se reparten clicks.',
 			},
+			competitorActivity: {
+				title: 'Competitor Activity Radar',
+				hint: 'Delta de snapshots Wayback + delta de backlinks por competidor registrado.',
+				empty: 'Aún no hay actividad de competidores',
+				emptyDescription:
+					'Programa un fetch de Wayback CDX o DataForSEO Backlinks por competidor desde Schedules.',
+			},
 			lostOpportunity: {
 				title: 'Lost Opportunity Score',
 				hint: 'Top 5 keywords por ganancia proyectada de clicks al top-3.',
@@ -1343,6 +1381,30 @@ const es = {
 				totalLostHint: 'Agregado en la ventana',
 				queries: 'Queries',
 				queriesHint: 'Con Δ-CTR accionable',
+			},
+		},
+		competitorActivityPage: {
+			title: 'Competitor Activity Radar',
+			subtitle: 'Frecuencia de snapshots de Wayback + delta de backlinks por competidor registrado.',
+			tableTitle: 'Actividad de competidores',
+			tableHint:
+				'Activity score es un compuesto normalizado 0-100 entre delta de snapshots Wayback y delta de backlinks — más alto = el competidor está moviéndose más.',
+			competitor: 'Competidor',
+			wayback: 'Snapshots Wayback (Δ)',
+			backlinks: 'Backlinks (Δ)',
+			referringDomains: 'Dominios ref. (Δ)',
+			activityScore: 'Activity score',
+			noData: 'Sin datos aún',
+			empty: 'Aún no se ha capturado actividad de competidores',
+			emptyDescription:
+				'Programa un fetch de Wayback CDX o DataForSEO Backlinks por competidor desde Schedules para poblar esta vista.',
+			kpi: {
+				tracked: 'Competidores trackeados',
+				trackedHint: 'Registrados en este proyecto',
+				active: 'Activos en ventana',
+				activeHint: 'Con activity score > 0',
+				maxScore: 'Score máximo',
+				maxScoreHint: 'Competidor más activo',
 			},
 		},
 	},

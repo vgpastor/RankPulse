@@ -1,6 +1,9 @@
 import { Controller, Get, Inject, Param, Query } from '@nestjs/common';
-import type { SearchConsoleInsights as SCIUseCases } from '@rankpulse/application';
-import { SearchConsoleInsightsContracts } from '@rankpulse/contracts';
+import type {
+	ProjectManagement as PMUseCases,
+	SearchConsoleInsights as SCIUseCases,
+} from '@rankpulse/application';
+import { ProjectManagementContracts, SearchConsoleInsightsContracts } from '@rankpulse/contracts';
 import type { IdentityAccess, ProjectManagement } from '@rankpulse/domain';
 import { NotFoundError } from '@rankpulse/shared';
 import type { AuthPrincipal } from '../../common/auth/jwt.service.js';
@@ -33,6 +36,8 @@ export class CockpitController {
 		private readonly queryQuickWinRoi: SCIUseCases.QueryQuickWinRoiUseCase,
 		@Inject(Tokens.QueryBrandDecay)
 		private readonly queryBrandDecay: SCIUseCases.QueryBrandDecayUseCase,
+		@Inject(Tokens.QueryCompetitorActivity)
+		private readonly queryCompetitorActivity: PMUseCases.QueryCompetitorActivityUseCase,
 		@Inject(Tokens.ProjectRepository)
 		private readonly projects: ProjectManagement.ProjectRepository,
 		@Inject(Tokens.MembershipRepository) memberships: IdentityAccess.MembershipRepository,
@@ -100,6 +105,20 @@ export class CockpitController {
 			projectId,
 			windowDays: q.windowDays,
 			dropAlertPct: q.dropAlertPct,
+		});
+	}
+
+	@Get('competitor-activity')
+	async competitorActivity(
+		@Principal() principal: AuthPrincipal,
+		@Param('projectId') projectId: string,
+		@Query(new ZodValidationPipe(ProjectManagementContracts.CompetitorActivityQuery))
+		q: ProjectManagementContracts.CompetitorActivityQuery,
+	): Promise<ProjectManagementContracts.CompetitorActivityResponse> {
+		await this.requireMembership(principal, projectId);
+		return this.queryCompetitorActivity.execute({
+			projectId,
+			windowDays: q.windowDays,
 		});
 	}
 
