@@ -90,10 +90,13 @@ export const Tokens = {
 
 	// Competitor-Intelligence ports
 	CompetitorKeywordGapRepository: Symbol('CompetitorKeywordGapRepository'),
+	CompetitorPageAuditRepository: Symbol('CompetitorPageAuditRepository'),
 
 	// Competitor-Intelligence use cases
 	IngestDomainIntersection: Symbol('IngestDomainIntersectionUseCase'),
 	QueryKeywordGaps: Symbol('QueryKeywordGapsUseCase'),
+	IngestCompetitorPageAudit: Symbol('IngestCompetitorPageAuditUseCase'),
+	QueryCompetitorPageAudits: Symbol('QueryCompetitorPageAuditsUseCase'),
 
 	// Search-Console-Insights ports
 	GscPropertyRepository: Symbol('GscPropertyRepository'),

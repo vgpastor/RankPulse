@@ -16,6 +16,8 @@ export class CompetitorIntelligenceController {
 	constructor(
 		@Inject(Tokens.QueryKeywordGaps)
 		private readonly queryKeywordGaps: CIUseCases.QueryKeywordGapsUseCase,
+		@Inject(Tokens.QueryCompetitorPageAudits)
+		private readonly queryCompetitorPageAudits: CIUseCases.QueryCompetitorPageAuditsUseCase,
 		@Inject(Tokens.ProjectRepository) private readonly projects: ProjectManagement.ProjectRepository,
 		@Inject(Tokens.MembershipRepository) memberships: IdentityAccess.MembershipRepository,
 	) {
@@ -40,6 +42,26 @@ export class CompetitorIntelligenceController {
 			competitorDomain: q.competitorDomain,
 			limit: q.limit,
 			minVolume: q.minVolume,
+		});
+	}
+
+	@Get('projects/:projectId/competitor-page-audits')
+	async competitorPageAudits(
+		@Principal() principal: AuthPrincipal,
+		@Param('projectId') projectId: string,
+		@Query(new ZodValidationPipe(CompetitorIntelligenceContracts.CompetitorPageAuditsQuery))
+		q: CompetitorIntelligenceContracts.CompetitorPageAuditsQuery,
+	): Promise<CompetitorIntelligenceContracts.CompetitorPageAuditsResponse> {
+		const project = await this.projects.findById(projectId as ProjectManagement.ProjectId);
+		if (!project) {
+			throw new NotFoundError(`Project ${projectId} not found`);
+		}
+		await this.orgMembership.require(principal, project.organizationId);
+		return this.queryCompetitorPageAudits.execute({
+			projectId,
+			competitorDomain: q.competitorDomain,
+			url: q.url,
+			limit: q.limit,
 		});
 	}
 }

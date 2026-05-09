@@ -604,6 +604,29 @@ export function buildOpenApiDocument(): unknown {
 
 	registry.registerPath({
 		method: 'get',
+		path: '/api/v1/projects/{projectId}/competitor-page-audits',
+		summary: 'Latest on-page audits for a competitor (issue #131)',
+		description:
+			'Returns competitor URL audits sourced from DataForSEO `on_page/instant_pages`. The endpoint manifest carries an ACL polymorphic on `systemParams.scope`: when a `JobDefinition` is registered with `scope: "competitor"`, the ACL emits ONE row per fetch into the `competitor_page_audits` hypertable; other scopes (`"own"`, absent) are ignored by this BC and a future web-performance binding can attach for own-domain audits without restructuring the manifest entry.\n\nThe table is "fat" by design — every metric column is nullable so partial fetches still produce a row, and the `raw_payloads` row holds the full DataForSEO response so the ACL is re-runnable for backfills if columns are added later.\n\n- Without `url`: returns one row per audited URL within the competitor (the latest audit for each), ordered by `observedAt` DESC.\n- With `url`: returns the single most recent audit for that exact URL.\n\nAuto-registration of competitor URLs from `ranked_keywords` top-N is OUT OF SCOPE today; an operator schedules each URL manually with `systemParams: { scope: "competitor", competitorDomain, projectId, url }`.',
+		tags: ['competitor-intelligence'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid() }),
+			query: CompetitorIntelligenceContracts.CompetitorPageAuditsQuery,
+		},
+		responses: {
+			200: {
+				description: 'Latest on-page audit snapshot(s) for the competitor',
+				content: {
+					'application/json': { schema: CompetitorIntelligenceContracts.CompetitorPageAuditsResponse },
+				},
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
 		path: '/api/v1/projects/{projectId}/serp-map/suggestions',
 		summary: 'SERP-derived competitor suggestions (external domains in top-10)',
 		description:

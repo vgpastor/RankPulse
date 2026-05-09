@@ -8,6 +8,7 @@ export * from './in-memory/fake-password-hasher.js';
 export * from './in-memory/in-memory-api-token-repository.js';
 export * from './in-memory/in-memory-brand-prompt-repository.js';
 export * from './in-memory/in-memory-competitor-keyword-gap-repository.js';
+export * from './in-memory/in-memory-competitor-page-audit-repository.js';
 export * from './in-memory/in-memory-competitor-repository.js';
 export * from './in-memory/in-memory-gsc-performance-observation-repository.js';
 export * from './in-memory/in-memory-keyword-list-repository.js';

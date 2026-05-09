@@ -1,5 +1,6 @@
 export * from './acl/backlinks-summary.acl.js';
 export * from './acl/domain-intersection-to-domain.acl.js';
+export * from './acl/on-page-instant-to-competitor-audit.acl.js';
 export * from './acl/ranked-keywords-to-domain.acl.js';
 export * from './acl/serp-to-ranking.acl.js';
 export * from './credential.js';

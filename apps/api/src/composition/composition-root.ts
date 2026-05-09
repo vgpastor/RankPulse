@@ -132,6 +132,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		drizzle.db,
 	);
 	const competitorKeywordGapRepo = new DrizzlePersistence.DrizzleCompetitorKeywordGapRepository(drizzle.db);
+	const competitorPageAuditRepo = new DrizzlePersistence.DrizzleCompetitorPageAuditRepository(drizzle.db);
 	const gscPropertyRepo = new DrizzlePersistence.DrizzleGscPropertyRepository(drizzle.db);
 	const gscObservationRepo = new DrizzlePersistence.DrizzleGscPerformanceObservationRepository(drizzle.db);
 	const gscCockpitReadModel = new DrizzlePersistence.DrizzleGscCockpitReadModel(drizzle.db);
@@ -330,6 +331,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		events: eventPublisher,
 		projectRepo,
 		competitorKeywordGapRepo,
+		competitorPageAuditRepo,
 		competitorIntelligenceSchemaTables: DrizzlePersistence.schema.competitorIntelligenceSchemaTables,
 	} satisfies CIUseCases.CompetitorIntelligenceDeps as unknown as SharedDeps);
 
@@ -573,8 +575,11 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 
 		// competitor-intelligence
 		value(Tokens.CompetitorKeywordGapRepository, competitorKeywordGapRepo),
+		value(Tokens.CompetitorPageAuditRepository, competitorPageAuditRepo),
 		value(Tokens.IngestDomainIntersection, ci.IngestDomainIntersection),
 		value(Tokens.QueryKeywordGaps, ci.QueryKeywordGaps),
+		value(Tokens.IngestCompetitorPageAudit, ci.IngestCompetitorPageAudit),
+		value(Tokens.QueryCompetitorPageAudits, ci.QueryCompetitorPageAudits),
 
 		// search-console-insights
 		value(Tokens.GscPropertyRepository, gscPropertyRepo),

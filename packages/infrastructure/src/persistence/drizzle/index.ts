@@ -6,6 +6,7 @@ export { ProjectBrandWatchlistResolver } from './repositories/ai-search-insights
 export { DrizzleBingPropertyRepository } from './repositories/bing-webmaster-insights/bing-property.repository.js';
 export { DrizzleBingTrafficObservationRepository } from './repositories/bing-webmaster-insights/bing-traffic-observation.repository.js';
 export { DrizzleCompetitorKeywordGapRepository } from './repositories/competitor-intelligence/competitor-keyword-gap.repository.js';
+export { DrizzleCompetitorPageAuditRepository } from './repositories/competitor-intelligence/competitor-page-audit.repository.js';
 export { DrizzleWikipediaArticleRepository } from './repositories/entity-awareness/wikipedia-article.repository.js';
 export { DrizzleWikipediaPageviewObservationRepository } from './repositories/entity-awareness/wikipedia-pageview-observation.repository.js';
 export { DrizzleClarityProjectRepository } from './repositories/experience-analytics/clarity-project.repository.js';

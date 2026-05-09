@@ -17,4 +17,17 @@ export class CompetitorIntelligenceResource {
 			},
 		});
 	}
+
+	getCompetitorPageAudits(
+		projectId: string,
+		query: CompetitorIntelligenceContracts.CompetitorPageAuditsQuery,
+	): Promise<CompetitorIntelligenceContracts.CompetitorPageAuditsResponse> {
+		return this.http.get(`/projects/${encodeURIComponent(projectId)}/competitor-page-audits`, {
+			query: {
+				competitorDomain: query.competitorDomain,
+				url: query.url ?? null,
+				limit: query.limit ? String(query.limit) : null,
+			},
+		});
+	}
 }
