@@ -3,6 +3,7 @@ import {
 	AiSearchInsights as AISIUseCases,
 	type Core as ApplicationCore,
 	BingWebmasterInsights as BWIUseCases,
+	CompetitorIntelligence as CIUseCases,
 	EntityAwareness as EAUseCases,
 	ExperienceAnalytics as EXAUseCases,
 	IdentityAccess as IAUseCases,
@@ -126,6 +127,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const rankedKeywordObservationRepo = new DrizzlePersistence.DrizzleRankedKeywordObservationRepository(
 		drizzle.db,
 	);
+	const competitorKeywordGapRepo = new DrizzlePersistence.DrizzleCompetitorKeywordGapRepository(drizzle.db);
 	const gscPropertyRepo = new DrizzlePersistence.DrizzleGscPropertyRepository(drizzle.db);
 	const gscObservationRepo = new DrizzlePersistence.DrizzleGscPerformanceObservationRepository(drizzle.db);
 	const gscCockpitReadModel = new DrizzlePersistence.DrizzleGscCockpitReadModel(drizzle.db);
@@ -316,6 +318,15 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		rankTrackingSchemaTables: DrizzlePersistence.schema.rankTrackingSchemaTables,
 	} satisfies RTUseCases.RankTrackingDeps as unknown as SharedDeps);
 
+	const competitorIntelligence = CIUseCases.competitorIntelligenceModule.compose({
+		clock: SystemClock,
+		ids: SystemIdGenerator,
+		events: eventPublisher,
+		projectRepo,
+		competitorKeywordGapRepo,
+		competitorIntelligenceSchemaTables: DrizzlePersistence.schema.competitorIntelligenceSchemaTables,
+	} satisfies CIUseCases.CompetitorIntelligenceDeps as unknown as SharedDeps);
+
 	// Per-context deps with auto-schedule include `scheduleEndpointFetch` and
 	// `logger` so the module's `buildAutoScheduleHandlers` call has what it
 	// needs. AI search additionally needs `projects` and `credentials` for
@@ -437,6 +448,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		...projectManagement.eventHandlers,
 		...providerConnectivity.eventHandlers,
 		...rankTracking.eventHandlers,
+		...competitorIntelligence.eventHandlers,
 		...searchConsoleInsights.eventHandlers,
 		...webPerformance.eventHandlers,
 		...entityAwareness.eventHandlers,
@@ -460,6 +472,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const pm = u(projectManagement);
 	const pc = u(providerConnectivity);
 	const rt = u(rankTracking);
+	const ci = u(competitorIntelligence);
 	const sci = u(searchConsoleInsights);
 	const wp = u(webPerformance);
 	const ea = u(entityAwareness);
@@ -547,6 +560,11 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.QuerySerpCompetitorSuggestions, rt.QuerySerpCompetitorSuggestions),
 		value(Tokens.IngestRankedKeywords, rt.IngestRankedKeywords),
 		value(Tokens.QueryRankedKeywords, rt.QueryRankedKeywords),
+
+		// competitor-intelligence
+		value(Tokens.CompetitorKeywordGapRepository, competitorKeywordGapRepo),
+		value(Tokens.IngestDomainIntersection, ci.IngestDomainIntersection),
+		value(Tokens.QueryKeywordGaps, ci.QueryKeywordGaps),
 
 		// search-console-insights
 		value(Tokens.GscPropertyRepository, gscPropertyRepo),

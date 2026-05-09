@@ -5,9 +5,15 @@ import type {
 	ProviderManifest,
 } from '@rankpulse/provider-core';
 import { InvalidInputError } from '@rankpulse/shared';
+import { normaliseDomainIntersectionResponse } from './acl/domain-intersection-to-domain.acl.js';
 import { normaliseRankedKeywordsResponse } from './acl/ranked-keywords-to-domain.acl.js';
 import { parseCredential } from './credential.js';
 import { competitorsDomainDescriptor, fetchCompetitorsDomain } from './endpoints/competitors-domain.js';
+import {
+	type DomainIntersectionResponse,
+	domainIntersectionDescriptor,
+	fetchDomainIntersection,
+} from './endpoints/domain-intersection.js';
 import {
 	domainWhoisOverviewDescriptor,
 	fetchDomainWhoisOverview,
@@ -96,6 +102,23 @@ const rankTrackingRankedKeywordsIngest: IngestBinding<RankedKeywordsResponse> = 
 	acl: normaliseRankedKeywordsResponse,
 };
 
+/**
+ * Issue #128: typed ingest binding for the Labs `domain_intersection/live`
+ * endpoint. The router pumps each row through
+ * `IngestDomainIntersectionUseCase`, which persists into the
+ * `competitor_keyword_gaps` hypertable.
+ *
+ * `IngestBinding` only supports a single `systemParamKey`, so we declare
+ * `ourDomain` (the precondition the router asserts before dispatch). The ACL
+ * additionally reads `competitorDomain` directly from `ctx.systemParams` —
+ * both are required for the row mapping to be meaningful.
+ */
+const competitorIntelligenceDomainIntersectionIngest: IngestBinding<DomainIntersectionResponse> = {
+	useCaseKey: 'competitor-intelligence:ingest-domain-intersection',
+	systemParamKey: 'ourDomain',
+	acl: normaliseDomainIntersectionResponse,
+};
+
 const endpoints: readonly EndpointManifest[] = [
 	{
 		descriptor: serpGoogleOrganicLiveDescriptor,
@@ -148,6 +171,15 @@ const endpoints: readonly EndpointManifest[] = [
 		descriptor: competitorsDomainDescriptor,
 		fetch: adapt(fetchCompetitorsDomain),
 		ingest: null,
+	},
+	{
+		descriptor: domainIntersectionDescriptor,
+		fetch: adapt(fetchDomainIntersection),
+		// Issue #128: typed ingest path. The auto-schedule (or manual
+		// scheduler call) stamps `ourDomain` + `competitorDomain` into
+		// systemParams so the ACL can validate them and the ingest use case
+		// can persist them once per batch.
+		ingest: competitorIntelligenceDomainIntersectionIngest as IngestBinding,
 	},
 	{
 		descriptor: rankedKeywordsDescriptor,
