@@ -10,7 +10,7 @@ import {
 	Sparkline,
 	Spinner,
 } from '@rankpulse/ui';
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import {
 	Activity,
@@ -20,6 +20,7 @@ import {
 	CheckCircle2,
 	ChevronRight,
 	Compass,
+	Gauge,
 	Layers,
 	Map as MapIcon,
 	MousePointerClick,
@@ -87,6 +88,14 @@ export const CockpitPage = () => {
 		queryKey: ['project', projectId, 'cockpit', 'competitor-activity'],
 		queryFn: () => api.cockpit.competitorActivity(projectId),
 	});
+	const pagesListQuery = useQuery({
+		queryKey: ['project', projectId, 'page-speed', 'pages'],
+		queryFn: () => api.pageSpeed.listForProject(projectId),
+	});
+	const contentGapCompetitorsQuery = useQuery({
+		queryKey: ['project', projectId, 'competitors'],
+		queryFn: () => api.projects.listCompetitors(projectId),
+	});
 
 	const cockpitMetrics = useMemo(() => {
 		const rows = serpMapQuery.data?.rows ?? [];
@@ -108,6 +117,40 @@ export const CockpitPage = () => {
 		}
 		return { tracked: trackedKeywords.size, ownInTop10, ownInTop3, competitorMoatLosses };
 	}, [serpMapQuery.data]);
+
+	const trackedPages = pagesListQuery.data ?? [];
+	const pageSpeedHistoryQueries = useQueries({
+		queries: trackedPages.map((page) => ({
+			queryKey: ['page-speed', 'history', page.id, 'cockpit-7d'],
+			queryFn: () =>
+				api.pageSpeed.history(page.id, {
+					from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+					to: new Date().toISOString(),
+				}),
+			staleTime: 5 * 60 * 1000,
+		})),
+	});
+
+	const contentGapCompetitors = contentGapCompetitorsQuery.data ?? [];
+	const contentGapDefaultCompetitor = contentGapCompetitors[0]?.domain ?? null;
+	const contentGapDefaultOurDomain = projectQuery.data?.primaryDomain ?? null;
+	const contentGapQuery = useQuery({
+		queryKey: [
+			'project',
+			projectId,
+			'cockpit',
+			'content-gap',
+			contentGapDefaultOurDomain,
+			contentGapDefaultCompetitor,
+		],
+		queryFn: () =>
+			api.competitorIntelligence.getKeywordGaps(projectId, {
+				ourDomain: contentGapDefaultOurDomain ?? '',
+				competitorDomain: contentGapDefaultCompetitor ?? '',
+				limit: 10,
+			}),
+		enabled: Boolean(contentGapDefaultOurDomain) && Boolean(contentGapDefaultCompetitor),
+	});
 
 	if (projectQuery.isLoading) {
 		return (
@@ -134,6 +177,21 @@ export const CockpitPage = () => {
 	const sovValues = sovDailyPoints.map((p) => p.mentionRate * 100);
 	const latestSovPct = sovValues.length === 0 ? null : (sovValues[sovValues.length - 1] ?? null);
 	const competitorActivity = competitorActivityQuery.data;
+
+	const latestPageScores = pageSpeedHistoryQueries
+		.map((q) => {
+			const snapshots = q.data ?? [];
+			const last = snapshots.length === 0 ? null : (snapshots[snapshots.length - 1] ?? null);
+			return last?.performanceScore ?? null;
+		})
+		.filter((v): v is number => v !== null);
+	const pageExperienceAvg =
+		latestPageScores.length === 0
+			? null
+			: latestPageScores.reduce((acc, s) => acc + s, 0) / latestPageScores.length;
+	const pagesWithIssues = latestPageScores.filter((s) => s < 0.5).length;
+
+	const contentGapData = contentGapQuery.data;
 
 	return (
 		<AppShell>
@@ -470,6 +528,73 @@ export const CockpitPage = () => {
 							</ul>
 						)}
 					</WidgetCard>
+
+					<WidgetCard
+						title={t('cockpit:widgets.pageExperience.title')}
+						hint={t('cockpit:widgets.pageExperience.hint')}
+						icon={<Gauge size={14} className="text-emerald-600" />}
+						href={{ to: '/projects/$id/page-experience', params: { id: projectId } }}
+						cta={t('cockpit:openDetail')}
+					>
+						{pagesListQuery.isLoading ? (
+							<Spinner size="sm" />
+						) : trackedPages.length === 0 ? (
+							<EmptyState
+								title={t('cockpit:widgets.pageExperience.empty')}
+								description={t('cockpit:widgets.pageExperience.emptyDescription')}
+							/>
+						) : (
+							<div className="flex flex-col gap-2 text-sm">
+								<div className="flex items-baseline gap-2">
+									<span className="font-mono text-2xl font-semibold">
+										{pageExperienceAvg === null ? '—' : Math.round(pageExperienceAvg * 100)}
+									</span>
+									<span className="text-xs text-muted-foreground">
+										{t('cockpit:widgets.pageExperience.avgScore')}
+									</span>
+								</div>
+								<p className="text-xs text-muted-foreground">
+									{t('cockpit:widgets.pageExperience.summary', {
+										total: trackedPages.length,
+										issues: pagesWithIssues,
+									})}
+								</p>
+							</div>
+						)}
+					</WidgetCard>
+
+					<WidgetCard
+						title={t('cockpit:widgets.contentGap.title')}
+						hint={t('cockpit:widgets.contentGap.hint')}
+						icon={<MapIcon size={14} className="text-cyan-600" />}
+						href={{ to: '/projects/$id/content-gap', params: { id: projectId } }}
+						cta={t('cockpit:openDetail')}
+					>
+						{contentGapCompetitorsQuery.isLoading || contentGapQuery.isLoading ? (
+							<Spinner size="sm" />
+						) : contentGapCompetitors.length === 0 ? (
+							<EmptyState
+								title={t('cockpit:widgets.contentGap.emptyNoCompetitors')}
+								description={t('cockpit:widgets.contentGap.emptyNoCompetitorsDescription')}
+							/>
+						) : !contentGapData || contentGapData.rows.length === 0 ? (
+							<EmptyState
+								title={t('cockpit:widgets.contentGap.empty')}
+								description={t('cockpit:widgets.contentGap.emptyDescription')}
+							/>
+						) : (
+							<ul className="flex flex-col gap-1.5 text-sm">
+								{contentGapData.rows.slice(0, 5).map((row) => (
+									<li key={row.keyword} className="flex items-center justify-between gap-2">
+										<span className="min-w-0 break-words font-medium">{row.keyword}</span>
+										<span className="font-mono text-xs text-muted-foreground">
+											{row.searchVolume === null ? '—' : `${row.searchVolume}`}
+										</span>
+									</li>
+								))}
+							</ul>
+						)}
+					</WidgetCard>
 				</div>
 
 				<Card>
@@ -517,8 +642,6 @@ export const CockpitPage = () => {
 					<CardContent>
 						<ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
 							{[
-								{ icon: <Compass size={14} />, label: t('cockpit:upcoming.items.pageExperience') },
-								{ icon: <BarChart3 size={14} />, label: t('cockpit:upcoming.items.contentGap') },
 								{ icon: <TrendingUp size={14} />, label: t('cockpit:upcoming.items.searchDemand') },
 								{ icon: <TrendingUp size={14} />, label: t('cockpit:upcoming.items.forecast90d') },
 							].map((item) => (
