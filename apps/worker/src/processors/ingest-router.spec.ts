@@ -94,6 +94,113 @@ describe('IngestRouter.dispatch', () => {
 		).rejects.toBeInstanceOf(NotFoundError);
 	});
 
+	// ===== #150: validate ALL required systemParams in one pass =====
+
+	it('lists every missing systemParam in a single error (additionalSystemParamKeys, #150)', async () => {
+		const { acl, ingest } = buildEntry();
+		const entries = new Map<RouterKey, IngestRouterEntry>([
+			[
+				'dataforseo|dataforseo-labs-domain-intersection',
+				{
+					systemParamKey: 'ourDomain',
+					additionalSystemParamKeys: ['competitorDomain'],
+					acl,
+					ingest,
+				},
+			],
+		]);
+		const router = new IngestRouter(entries);
+
+		await expect(
+			router.dispatch({
+				providerId: 'dataforseo',
+				endpointId: 'dataforseo-labs-domain-intersection',
+				fetchResult: {},
+				rawPayloadId: 'rp-1',
+				// Both keys missing — pre-#150 the operator saw `ourDomain`,
+				// fixed it, hit `competitorDomain` on the next run.
+				definition: { params: {}, projectId: 'p-1' } as never,
+				dateBucket: '2026-05-06',
+			}),
+		).rejects.toThrow(/systemParams: ourDomain, competitorDomain/);
+	});
+
+	it('still throws when only an additionalSystemParamKey is missing', async () => {
+		const { acl, ingest } = buildEntry();
+		const entries = new Map<RouterKey, IngestRouterEntry>([
+			[
+				'dataforseo|dataforseo-labs-domain-intersection',
+				{
+					systemParamKey: 'ourDomain',
+					additionalSystemParamKeys: ['competitorDomain'],
+					acl,
+					ingest,
+				},
+			],
+		]);
+		const router = new IngestRouter(entries);
+
+		await expect(
+			router.dispatch({
+				providerId: 'dataforseo',
+				endpointId: 'dataforseo-labs-domain-intersection',
+				fetchResult: {},
+				rawPayloadId: 'rp-1',
+				definition: { params: { ourDomain: 'patroltech.online' }, projectId: 'p-1' } as never,
+				dateBucket: '2026-05-06',
+			}),
+		).rejects.toThrow(/systemParams: competitorDomain/);
+	});
+
+	it('passes when both primary and additional systemParams are present', async () => {
+		const { acl, execute, ingest } = buildEntry();
+		const entries = new Map<RouterKey, IngestRouterEntry>([
+			[
+				'dataforseo|dataforseo-labs-domain-intersection',
+				{
+					systemParamKey: 'ourDomain',
+					additionalSystemParamKeys: ['competitorDomain'],
+					acl,
+					ingest,
+				},
+			],
+		]);
+		const router = new IngestRouter(entries);
+
+		await router.dispatch({
+			providerId: 'dataforseo',
+			endpointId: 'dataforseo-labs-domain-intersection',
+			fetchResult: { ok: true },
+			rawPayloadId: 'rp-1',
+			definition: {
+				params: { ourDomain: 'patroltech.online', competitorDomain: 'silvertraconline.com' },
+				projectId: 'p-1',
+			} as never,
+			dateBucket: '2026-05-06',
+		});
+
+		expect(execute).toHaveBeenCalledTimes(1);
+	});
+
+	it('treats empty-string systemParam values as missing', async () => {
+		const { acl, ingest } = buildEntry();
+		const entries = new Map<RouterKey, IngestRouterEntry>([
+			['fake|fake-endpoint', { systemParamKey: 'fakeId', acl, ingest }],
+		]);
+		const router = new IngestRouter(entries);
+
+		await expect(
+			router.dispatch({
+				providerId: 'fake',
+				endpointId: 'fake-endpoint',
+				fetchResult: {},
+				rawPayloadId: 'rp-1',
+				definition: { params: { fakeId: '   ' }, projectId: 'p-1' } as never,
+				dateBucket: '2026-05-06',
+			}),
+		).rejects.toThrow(/systemParams: fakeId/);
+	});
+
 	it('preserves params.projectId when already present (does not overwrite with definition.projectId)', async () => {
 		const { acl, execute, ingest } = buildEntry();
 		const entries = new Map<RouterKey, IngestRouterEntry>([

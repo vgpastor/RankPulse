@@ -27,10 +27,11 @@ export interface DomainIntersectionRow {
  * ready for the competitor-intelligence ingest use case.
  *
  * Both `ourDomain` and `competitorDomain` come from `ctx.systemParams`. The
- * `IngestBinding` schema only models a single `systemParamKey`, so we pin
- * `ourDomain` as the binding's declared key (used by the router's
- * precondition guard) and read `competitorDomain` directly here — both are
- * required for the ACL to project rows correctly.
+ * binding pins `ourDomain` as the primary `systemParamKey` and lists
+ * `competitorDomain` under `additionalSystemParamKeys` so the IngestRouter
+ * surfaces both in a single precondition error (#150). The throws below
+ * are defence-in-depth — they catch ACL invocations from a code path that
+ * bypasses the router (none today, but cheaper than reasoning about it).
  *
  * Mapping convention (consistent with the endpoint's targets-order swap, see
  * `buildDomainIntersectionBody`):

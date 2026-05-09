@@ -94,6 +94,21 @@ export interface EndpointManifest<TParams = unknown, TResponse = unknown> {
 export interface IngestBinding<TResponse = unknown> {
 	readonly useCaseKey: string;
 	readonly systemParamKey: string;
+	/**
+	 * Extra systemParams the ACL/handler reads beyond the primary
+	 * `systemParamKey`. The IngestRouter validates ALL listed keys at
+	 * dispatch time and surfaces the missing set in a single
+	 * `INGEST_PRECONDITION_FAILED` error so the operator can fix the
+	 * schedule in one trip instead of discovering each missing key
+	 * across separate runs (#150).
+	 *
+	 * Use this for unconditional requirements (e.g. domain-intersection
+	 * always needs both `ourDomain` and `competitorDomain`). Bindings
+	 * whose ACL is polymorphic on a systemParam (e.g. needs
+	 * `competitorDomain` only when `scope === 'competitor'`) should NOT
+	 * declare those keys here — the ACL keeps its conditional check.
+	 */
+	readonly additionalSystemParamKeys?: readonly string[];
 	readonly acl: (response: TResponse, ctx: AclContext) => unknown[];
 }
 
