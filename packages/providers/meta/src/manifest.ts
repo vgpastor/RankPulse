@@ -9,7 +9,6 @@ import type {
 } from '@rankpulse/provider-core';
 import { ProviderApiError } from '@rankpulse/provider-core';
 import { extractAdsInsightRows } from './acl/ads-insights-to-rows.acl.js';
-import { extractPixelEventRows } from './acl/pixel-events-to-rows.acl.js';
 import { validateMetaAccessToken } from './credential.js';
 import {
 	type AdsInsightsParams,
@@ -144,25 +143,11 @@ const adsInsightsAcl = (response: AdsInsightsResponse, ctx: AclContext): unknown
  * Mirrors the worker's existing logic at
  * apps/worker/src/processors/provider-fetch.processor.ts:623-627.
  */
-const pixelEventsAcl = (response: PixelEventsStatsResponse, ctx: AclContext): unknown[] => {
-	const params = ctx.endpointParams as { endDate?: string };
-	const fallbackDate =
-		typeof params.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(params.endDate)
-			? params.endDate
-			: ctx.dateBucket;
-	return extractPixelEventRows(response, fallbackDate);
-};
 
 const adsInsightsIngest: IngestBinding<AdsInsightsResponse> = {
 	useCaseKey: 'meta-ads-attribution:ingest-meta-ads-insights',
 	systemParamKey: 'metaAdAccountId',
 	acl: adsInsightsAcl,
-};
-
-const pixelEventsIngest: IngestBinding<PixelEventsStatsResponse> = {
-	useCaseKey: 'meta-ads-attribution:ingest-meta-pixel-events',
-	systemParamKey: 'metaPixelId',
-	acl: pixelEventsAcl,
 };
 
 const endpoints: readonly EndpointManifest[] = [
