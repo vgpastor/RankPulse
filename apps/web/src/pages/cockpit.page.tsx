@@ -1,5 +1,4 @@
 import {
-	Badge,
 	Button,
 	Card,
 	CardContent,
@@ -16,7 +15,6 @@ import {
 	Activity,
 	AlertTriangle,
 	ArrowLeft,
-	BarChart3,
 	CheckCircle2,
 	ChevronRight,
 	Compass,

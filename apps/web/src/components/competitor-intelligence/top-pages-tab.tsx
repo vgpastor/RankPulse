@@ -105,7 +105,6 @@ export const TopPagesTab = ({ projectId, competitors }: TopPagesTabProps) => {
 		// queries reference is stable per render but `data` is what matters.
 		// Stringify the data fingerprint to avoid stale memos when one query
 		// finishes after another. Length+last-update is enough.
-		// biome-ignore lint/correctness/useExhaustiveDependencies: see comment above
 	}, [
 		competitors,
 		queries.map((q) => q.dataUpdatedAt).join(','),

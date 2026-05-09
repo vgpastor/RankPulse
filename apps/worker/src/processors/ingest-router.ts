@@ -57,16 +57,26 @@ export class IngestRouter {
 			);
 		}
 
+		// Defence-in-depth for #147: even if the schedule path forgot to stamp
+		// `projectId` (legacy defs created before the schedule use case fix),
+		// inject it here from the entity column. Worker ingest handlers like
+		// `rank-tracking:ingest-ranked-keywords` short-circuit silently when
+		// `systemParams.projectId` is missing, so the row would be lost.
+		const systemParamsWithEntityScope: Record<string, unknown> = {
+			...params,
+			projectId: (params.projectId as string | undefined) ?? input.definition.projectId,
+		};
+
 		const rows = entry.acl(input.fetchResult, {
 			dateBucket: input.dateBucket,
-			systemParams: params,
+			systemParams: systemParamsWithEntityScope,
 			endpointParams: params,
 		});
 
 		await entry.ingest.execute({
 			rawPayloadId: input.rawPayloadId,
 			rows,
-			systemParams: params,
+			systemParams: systemParamsWithEntityScope,
 		});
 		return true;
 	}

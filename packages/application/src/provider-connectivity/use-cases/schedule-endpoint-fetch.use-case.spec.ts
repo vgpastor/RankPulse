@@ -129,6 +129,9 @@ describe('ScheduleEndpointFetchUseCase', () => {
 			keyword: 'k',
 			organizationId: ORG_ID,
 			trackedKeywordId: TRACKED_KW_ID,
+			// #147: projectId is unconditionally stamped so the worker IngestRouter
+			// can scope persisted rows even when the caller did not pass it.
+			projectId: PROJECT_ID,
 		});
 	});
 

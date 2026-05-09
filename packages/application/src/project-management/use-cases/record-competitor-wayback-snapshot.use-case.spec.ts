@@ -1,10 +1,9 @@
-import { type IdentityAccess, ProjectManagement } from '@rankpulse/domain';
+import { ProjectManagement } from '@rankpulse/domain';
 import { FakeClock, FixedIdGenerator, NotFoundError, type Uuid } from '@rankpulse/shared';
 import { InMemoryCompetitorRepository } from '@rankpulse/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RecordCompetitorWaybackSnapshotUseCase } from './record-competitor-wayback-snapshot.use-case.js';
 
-const ORG_ID = 'cccccccc-cccc-cccc-cccc-cccccccccccc' as Uuid as IdentityAccess.OrganizationId;
 const PROJECT_ID = '11111111-1111-1111-1111-111111111111' as Uuid as ProjectManagement.ProjectId;
 const COMP_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' as Uuid as ProjectManagement.CompetitorId;
 const OBS_ID = 'dddddddd-dddd-dddd-dddd-dddddddddddd' as Uuid;

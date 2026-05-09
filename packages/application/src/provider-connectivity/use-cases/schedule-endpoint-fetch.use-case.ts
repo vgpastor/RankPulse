@@ -77,7 +77,17 @@ export class ScheduleEndpointFetchUseCase {
 			if (existing) return { definitionId: existing.id };
 		}
 
-		const finalParams: Record<string, unknown> = { ...validatedParams, ...(cmd.systemParams ?? {}) };
+		// `projectId` is stamped here unconditionally so the worker IngestRouter
+		// path can scope persisted rows to the right project even when the
+		// caller (auto-schedule handler or direct API) did not include it in
+		// `cmd.systemParams`. Centralising this avoids the silent skip
+		// (`logger.warn + return`) the worker handlers do when the systemParam
+		// is missing — see #147.
+		const finalParams: Record<string, unknown> = {
+			...validatedParams,
+			...(cmd.systemParams ?? {}),
+			projectId: projectId as unknown as string,
+		};
 
 		const id = this.ids.generate() as ProviderConnectivity.ProviderJobDefinitionId;
 		const definition = ProviderConnectivity.ProviderJobDefinition.schedule({
