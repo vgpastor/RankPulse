@@ -200,6 +200,26 @@ export class InMemoryLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRea
 			.map(([day, v]) => ({ day, totalAnswers: v.total, answersWithOwnMention: v.withOwn }));
 	}
 
+	async sovDailyForProject(
+		projectId: ProjectManagement.ProjectId,
+		filter: AiSearchInsights.AiSearchReadModelFilter,
+	): Promise<readonly AiSearchInsights.AiSearchSovDailyPoint[]> {
+		const within = this.rows.filter(
+			(r) => r.projectId === projectId && r.capturedAt >= filter.from && r.capturedAt <= filter.to,
+		);
+		const buckets = new Map<string, { total: number; withOwn: number }>();
+		for (const r of within) {
+			const day = r.capturedAt.toISOString().slice(0, 10);
+			const cell = buckets.get(day) ?? { total: 0, withOwn: 0 };
+			cell.total += 1;
+			if (r.mentions.some((m) => m.isOwnBrand)) cell.withOwn += 1;
+			buckets.set(day, cell);
+		}
+		return [...buckets.entries()]
+			.sort(([a], [b]) => a.localeCompare(b))
+			.map(([day, v]) => ({ day, totalAnswers: v.total, answersWithOwnMention: v.withOwn }));
+	}
+
 	async competitiveMatrixForProject(
 		projectId: ProjectManagement.ProjectId,
 		filter: AiSearchInsights.AiSearchReadModelFilter,

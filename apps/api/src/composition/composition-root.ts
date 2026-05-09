@@ -622,6 +622,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.QueryAiSearchSov, aisi.QueryAiSearchSov),
 		value(Tokens.QueryAiSearchCitations, aisi.QueryAiSearchCitations),
 		value(Tokens.QueryPromptSovDaily, aisi.QueryPromptSovDaily),
+		value(Tokens.QueryProjectSovDaily, aisi.QueryProjectSovDaily),
 		value(Tokens.QueryCompetitiveMatrix, aisi.QueryCompetitiveMatrix),
 		value(Tokens.QueryAiSearchAlerts, aisi.QueryAiSearchAlerts),
 	];

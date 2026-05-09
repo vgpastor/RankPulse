@@ -41,6 +41,8 @@ export class AiSearchInsightsController {
 		private readonly queryCitations: AiUseCases.QueryAiSearchCitationsUseCase,
 		@Inject(Tokens.QueryPromptSovDaily)
 		private readonly querySovDaily: AiUseCases.QueryPromptSovDailyUseCase,
+		@Inject(Tokens.QueryProjectSovDaily)
+		private readonly queryProjectSovDaily: AiUseCases.QueryProjectSovDailyUseCase,
 		@Inject(Tokens.QueryCompetitiveMatrix)
 		private readonly queryMatrix: AiUseCases.QueryCompetitiveMatrixUseCase,
 		@Inject(Tokens.QueryAiSearchAlerts)
@@ -224,6 +226,22 @@ export class AiSearchInsightsController {
 		await this.requireProjectAccess(principal, projectId);
 		const items = await this.queryAlerts.execute({ projectId });
 		return { items: items.map((i) => ({ ...i, details: { ...i.details } })) };
+	}
+
+	@Get('projects/:projectId/ai-search/sov-daily')
+	async projectSovDaily(
+		@Principal() principal: AuthPrincipal,
+		@Param('projectId') projectId: string,
+		@Query(new ZodValidationPipe(AiSearchInsightsContracts.AiSearchSovDailyQuery))
+		query: AiSearchInsightsContracts.AiSearchSovDailyQuery,
+	): Promise<AiSearchInsightsContracts.AiSearchSovDailyResponse> {
+		await this.requireProjectAccess(principal, projectId);
+		const items = await this.queryProjectSovDaily.execute({
+			projectId,
+			from: query.from ? new Date(query.from) : undefined,
+			to: query.to ? new Date(query.to) : undefined,
+		});
+		return { items: items.map((i) => ({ ...i })) };
 	}
 
 	@Get('projects/:projectId/brand-prompts/:promptId/sov-daily')

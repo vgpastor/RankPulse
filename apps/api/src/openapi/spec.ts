@@ -967,6 +967,29 @@ export function buildOpenApiDocument(): unknown {
 
 	registry.registerPath({
 		method: 'get',
+		path: '/api/v1/projects/{projectId}/ai-search/sov-daily',
+		summary: 'AI Brand Radar — project-wide daily SoV curve (cockpit sparkline)',
+		description:
+			'Aggregates own-brand mention rate across every BrandPrompt and capture in the window, returning one point per day. Powers the Decision Cockpit AI SoV sparkline (issue #117 Sprint 2).',
+		tags: ['ai-search-insights'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid() }),
+			query: AiSearchInsightsContracts.AiSearchSovDailyQuery,
+		},
+		responses: {
+			200: {
+				description: 'Daily points (one per day in the window)',
+				content: {
+					'application/json': { schema: AiSearchInsightsContracts.AiSearchSovDailyResponse },
+				},
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
 		path: '/api/v1/projects/{projectId}/brand-prompts/{promptId}/sov-daily',
 		summary: 'AI Brand Radar — daily SoV curve for a single BrandPrompt (sparkline data)',
 		tags: ['ai-search-insights'],

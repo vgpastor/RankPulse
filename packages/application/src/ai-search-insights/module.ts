@@ -15,6 +15,7 @@ import { QueryAiSearchPresenceUseCase } from './use-cases/query-ai-search-presen
 import { QueryAiSearchSovUseCase } from './use-cases/query-ai-search-sov.use-case.js';
 import { QueryCompetitiveMatrixUseCase } from './use-cases/query-competitive-matrix.use-case.js';
 import { QueryLlmAnswersUseCase } from './use-cases/query-llm-answers.use-case.js';
+import { QueryProjectSovDailyUseCase } from './use-cases/query-project-sov-daily.use-case.js';
 import { QueryPromptSovDailyUseCase } from './use-cases/query-prompt-sov-daily.use-case.js';
 import { RecordLlmAnswerUseCase } from './use-cases/record-llm-answer.use-case.js';
 import { RegisterBrandPromptUseCase } from './use-cases/register-brand-prompt.use-case.js';
@@ -57,6 +58,7 @@ export const aiSearchInsightsModule: ContextModule = {
 				QueryAiSearchSov: new QueryAiSearchSovUseCase(d.llmAnswerReadModel),
 				QueryAiSearchCitations: new QueryAiSearchCitationsUseCase(d.llmAnswerReadModel),
 				QueryPromptSovDaily: new QueryPromptSovDailyUseCase(d.llmAnswerReadModel),
+				QueryProjectSovDaily: new QueryProjectSovDailyUseCase(d.llmAnswerReadModel),
 				QueryCompetitiveMatrix: new QueryCompetitiveMatrixUseCase(d.llmAnswerReadModel),
 				QueryAiSearchAlerts: new QueryAiSearchAlertsUseCase(d.llmAnswerReadModel),
 			},

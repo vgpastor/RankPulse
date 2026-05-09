@@ -90,6 +90,15 @@ export class AiSearchResource {
 		);
 	}
 
+	projectSovDaily(
+		projectId: string,
+		query?: AiSearchInsightsContracts.AiSearchSovDailyQuery,
+	): Promise<AiSearchInsightsContracts.AiSearchSovDailyResponse> {
+		return this.http.get(`/projects/${encodeURIComponent(projectId)}/ai-search/sov-daily`, {
+			query: query ?? {},
+		});
+	}
+
 	competitiveMatrix(
 		projectId: string,
 		query?: AiSearchInsightsContracts.CompetitiveMatrixQuery,

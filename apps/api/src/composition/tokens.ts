@@ -182,6 +182,7 @@ export const Tokens = {
 	QueryAiSearchSov: Symbol('QueryAiSearchSovUseCase'),
 	QueryAiSearchCitations: Symbol('QueryAiSearchCitationsUseCase'),
 	QueryPromptSovDaily: Symbol('QueryPromptSovDailyUseCase'),
+	QueryProjectSovDaily: Symbol('QueryProjectSovDailyUseCase'),
 	QueryCompetitiveMatrix: Symbol('QueryCompetitiveMatrixUseCase'),
 	QueryAiSearchAlerts: Symbol('QueryAiSearchAlertsUseCase'),
 
