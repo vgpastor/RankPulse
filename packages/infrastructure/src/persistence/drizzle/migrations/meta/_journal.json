@@ -127,6 +127,13 @@
 			"when": 1778900000000,
 			"tag": "0017_ranked_keywords_observations",
 			"breakpoints": true
+		},
+		{
+			"idx": 18,
+			"version": "7",
+			"when": 1779000000000,
+			"tag": "0018_competitor_keyword_gaps",
+			"breakpoints": true
 		}
 	]
 }

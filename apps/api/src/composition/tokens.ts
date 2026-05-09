@@ -84,6 +84,13 @@ export const Tokens = {
 	IngestRankedKeywords: Symbol('IngestRankedKeywordsUseCase'),
 	QueryRankedKeywords: Symbol('QueryRankedKeywordsUseCase'),
 
+	// Competitor-Intelligence ports
+	CompetitorKeywordGapRepository: Symbol('CompetitorKeywordGapRepository'),
+
+	// Competitor-Intelligence use cases
+	IngestDomainIntersection: Symbol('IngestDomainIntersectionUseCase'),
+	QueryKeywordGaps: Symbol('QueryKeywordGapsUseCase'),
+
 	// Search-Console-Insights ports
 	GscPropertyRepository: Symbol('GscPropertyRepository'),
 	GscPerformanceObservationRepository: Symbol('GscPerformanceObservationRepository'),

@@ -1,6 +1,7 @@
 import { extendZodWithOpenApi, OpenAPIRegistry, OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi';
 import {
 	AiSearchInsightsContracts,
+	CompetitorIntelligenceContracts,
 	IdentityAccessContracts,
 	ProjectManagementContracts,
 	ProviderConnectivityContracts,
@@ -573,6 +574,29 @@ export function buildOpenApiDocument(): unknown {
 			200: {
 				description: 'Ranked keywords for the target domain',
 				content: { 'application/json': { schema: RankTrackingContracts.RankedKeywordsResponse } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/projects/{projectId}/keyword-gaps',
+		summary: 'Competitor keyword gaps — keywords competitor ranks for that we do not',
+		description:
+			'Returns the latest snapshot of keyword gaps between `ourDomain` and `competitorDomain` — keywords where the competitor ranks in Google top-100 and we either do not, or rank worse. Sourced from DataForSEO Labs `domain_intersection/live` (issue #128). Output is sorted by ROI score `(volume × cpc) / (kd + 1)` DESC so the highest-leverage "fagocitar" candidates surface first. Optional filters: `minVolume` to drop the long tail, `limit` to cap row count.',
+		tags: ['competitor-intelligence'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid() }),
+			query: CompetitorIntelligenceContracts.KeywordGapsQuery,
+		},
+		responses: {
+			200: {
+				description: 'Keyword gaps for the (ourDomain, competitorDomain) pair',
+				content: {
+					'application/json': { schema: CompetitorIntelligenceContracts.KeywordGapsResponse },
+				},
 			},
 			...errorResponses([401, 403, 404]),
 		},

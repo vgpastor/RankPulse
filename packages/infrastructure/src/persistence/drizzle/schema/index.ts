@@ -10,6 +10,7 @@
 
 export * from './ai-search-insights.js';
 export * from './bing-webmaster-insights.js';
+export * from './competitor-intelligence.js';
 export * from './engagement.js';
 export * from './entity-awareness.js';
 export * from './experience-analytics.js';

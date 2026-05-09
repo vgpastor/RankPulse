@@ -4,6 +4,7 @@ import { AuthResource } from './resources/auth.js';
 import { BingResource } from './resources/bing.js';
 import { ClarityResource } from './resources/clarity.js';
 import { CockpitResource } from './resources/cockpit.js';
+import { CompetitorIntelligenceResource } from './resources/competitor-intelligence.js';
 import { Ga4Resource } from './resources/ga4.js';
 import { GscResource } from './resources/gsc.js';
 import { PageSpeedResource } from './resources/page-speed.js';
@@ -33,6 +34,7 @@ export class RankPulseClient {
 	readonly radar: RadarResource;
 	readonly clarity: ClarityResource;
 	readonly cockpit: CockpitResource;
+	readonly competitorIntelligence: CompetitorIntelligenceResource;
 
 	constructor(options: RankPulseClientOptions) {
 		const prefix = options.apiPrefix ?? DEFAULT_PREFIX;
@@ -51,5 +53,6 @@ export class RankPulseClient {
 		this.radar = new RadarResource(http);
 		this.clarity = new ClarityResource(http);
 		this.cockpit = new CockpitResource(http);
+		this.competitorIntelligence = new CompetitorIntelligenceResource(http);
 	}
 }

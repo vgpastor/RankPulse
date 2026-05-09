@@ -2,6 +2,7 @@ import {
 	AiSearchInsights as AiSearchInsightsUseCases,
 	type Core as ApplicationCore,
 	BingWebmasterInsights as BingWebmasterInsightsUseCases,
+	CompetitorIntelligence as CompetitorIntelligenceUseCases,
 	EntityAwareness as EntityAwarenessUseCases,
 	ExperienceAnalytics as ExperienceAnalyticsUseCases,
 	MacroContext as MacroContextUseCases,
@@ -48,6 +49,7 @@ async function bootstrap(): Promise<void> {
 	const rankedKeywordObservationRepo = new DrizzlePersistence.DrizzleRankedKeywordObservationRepository(
 		drizzle.db,
 	);
+	const competitorKeywordGapRepo = new DrizzlePersistence.DrizzleCompetitorKeywordGapRepository(drizzle.db);
 	const projectRepo = new DrizzlePersistence.DrizzleProjectRepository(drizzle.db);
 	const competitorRepo = new DrizzlePersistence.DrizzleCompetitorRepository(drizzle.db);
 	const competitorSuggestionRepo = new DrizzlePersistence.DrizzleCompetitorSuggestionRepository(drizzle.db);
@@ -128,6 +130,11 @@ async function bootstrap(): Promise<void> {
 	const ingestRankedKeywordsUseCase = new RankTrackingUseCases.IngestRankedKeywordsUseCase(
 		projectRepo,
 		rankedKeywordObservationRepo,
+		SystemIdGenerator,
+	);
+	const ingestDomainIntersectionUseCase = new CompetitorIntelligenceUseCases.IngestDomainIntersectionUseCase(
+		projectRepo,
+		competitorKeywordGapRepo,
 		SystemIdGenerator,
 	);
 	const ingestGscRowsUseCase = new SearchConsoleInsightsUseCases.IngestGscRowsUseCase(
@@ -364,6 +371,31 @@ async function bootstrap(): Promise<void> {
 					language,
 					rawPayloadId,
 					rows: rows as Parameters<typeof ingestRankedKeywordsUseCase.execute>[0]['rows'],
+				});
+			},
+		},
+		'competitor-intelligence:ingest-domain-intersection': {
+			async execute({ rawPayloadId, rows, systemParams }) {
+				const projectId = systemParams.projectId as string | undefined;
+				const ourDomain = systemParams.ourDomain as string | undefined;
+				const competitorDomain = systemParams.competitorDomain as string | undefined;
+				const country = (systemParams.country as string | undefined) ?? '';
+				const language = (systemParams.language as string | undefined) ?? '';
+				if (!projectId || !ourDomain || !competitorDomain) {
+					logger.warn(
+						{ systemParams },
+						'competitor-intelligence:ingest-domain-intersection skipped: missing projectId, ourDomain, or competitorDomain in systemParams',
+					);
+					return;
+				}
+				await ingestDomainIntersectionUseCase.execute({
+					projectId,
+					ourDomain,
+					competitorDomain,
+					country,
+					language,
+					rawPayloadId,
+					rows: rows as Parameters<typeof ingestDomainIntersectionUseCase.execute>[0]['rows'],
 				});
 			},
 		},

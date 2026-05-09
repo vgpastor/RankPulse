@@ -9,6 +9,7 @@ import { Tokens } from './composition/tokens.js';
 import type { AppEnv } from './config/env.js';
 import { AiSearchInsightsModule } from './modules/ai-search-insights/ai-search-insights.module.js';
 import { BingWebmasterInsightsModule } from './modules/bing-webmaster-insights/bing-webmaster-insights.module.js';
+import { CompetitorIntelligenceModule } from './modules/competitor-intelligence/competitor-intelligence.module.js';
 import { EntityAwarenessModule } from './modules/entity-awareness/entity-awareness.module.js';
 import { ExperienceAnalyticsModule } from './modules/experience-analytics/experience-analytics.module.js';
 import { HealthModule } from './modules/health/health.module.js';
@@ -49,6 +50,7 @@ export class AppModule {
 			ProjectManagementModule,
 			ProviderConnectivityModule,
 			RankTrackingModule,
+			CompetitorIntelligenceModule,
 			SearchConsoleInsightsModule,
 			EntityAwarenessModule,
 			WebPerformanceModule,
