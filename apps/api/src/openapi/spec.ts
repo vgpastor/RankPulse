@@ -753,6 +753,27 @@ export function buildOpenApiDocument(): unknown {
 
 	registry.registerPath({
 		method: 'get',
+		path: '/api/v1/projects/{projectId}/cockpit/competitor-activity',
+		summary: 'Competitor Activity Radar — Wayback CDX + Backlinks deltas per competitor',
+		description:
+			'For each registered competitor, returns the latest Wayback snapshot count and Backlinks summary plus week-over-week deltas. Activity score is normalised 0-100 across the project so the cockpit can render a comparable bar (issue #117 Sprint 2).',
+		tags: ['decision-cockpit'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid() }),
+			query: ProjectManagementContracts.CompetitorActivityQuery,
+		},
+		responses: {
+			200: {
+				description: 'Competitor activity rows sorted by activity score',
+				content: { 'application/json': { schema: ProjectManagementContracts.CompetitorActivityResponse } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
 		path: '/api/v1/projects/{projectId}/cockpit/brand-decay',
 		summary: 'Brand vs No-Brand decay — WoW comparison + alert flag',
 		description:

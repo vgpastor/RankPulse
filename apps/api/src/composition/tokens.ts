@@ -30,6 +30,7 @@ export const Tokens = {
 	KeywordListRepository: Symbol('KeywordListRepository'),
 	CompetitorRepository: Symbol('CompetitorRepository'),
 	CompetitorSuggestionRepository: Symbol('CompetitorSuggestionRepository'),
+	CompetitorActivityObservationRepository: Symbol('CompetitorActivityObservationRepository'),
 
 	// Project-Management use cases
 	CreateProject: Symbol('CreateProjectUseCase'),
@@ -45,6 +46,9 @@ export const Tokens = {
 	ListCompetitorSuggestions: Symbol('ListCompetitorSuggestionsUseCase'),
 	PromoteCompetitorSuggestion: Symbol('PromoteCompetitorSuggestionUseCase'),
 	DismissCompetitorSuggestion: Symbol('DismissCompetitorSuggestionUseCase'),
+	RecordCompetitorWaybackSnapshot: Symbol('RecordCompetitorWaybackSnapshotUseCase'),
+	RecordCompetitorBacklinksProfile: Symbol('RecordCompetitorBacklinksProfileUseCase'),
+	QueryCompetitorActivity: Symbol('QueryCompetitorActivityUseCase'),
 
 	// Provider-Connectivity ports
 	CredentialRepository: Symbol('CredentialRepository'),

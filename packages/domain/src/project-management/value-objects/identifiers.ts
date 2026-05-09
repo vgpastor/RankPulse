@@ -6,3 +6,6 @@ export type CompetitorId = Uuid & { readonly __ctx?: 'CompetitorId' };
 export type CompetitorSuggestionId = Uuid & { readonly __ctx?: 'CompetitorSuggestionId' };
 export type KeywordListId = Uuid & { readonly __ctx?: 'KeywordListId' };
 export type KeywordId = Uuid & { readonly __ctx?: 'KeywordId' };
+export type CompetitorActivityObservationId = Uuid & {
+	readonly __ctx?: 'CompetitorActivityObservationId';
+};

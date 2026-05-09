@@ -110,3 +110,42 @@ export const PromoteCompetitorSuggestionRequest = z.object({
 	label: z.string().min(1).max(80).optional(),
 });
 export type PromoteCompetitorSuggestionRequest = z.infer<typeof PromoteCompetitorSuggestionRequest>;
+
+// --- Competitor Activity Radar (issue #117 Sprint 2) ---
+
+export const CompetitorActivityQuery = z.object({
+	windowDays: z.coerce.number().int().min(7).max(365).optional(),
+});
+export type CompetitorActivityQuery = z.infer<typeof CompetitorActivityQuery>;
+
+const CompetitorActivityWaybackDto = z.object({
+	snapshotCount: z.number().int().nonnegative(),
+	latestSnapshotAt: z.string().datetime().nullable(),
+	observedAt: z.string().datetime(),
+	deltaSnapshots: z.number().int().nullable(),
+});
+
+const CompetitorActivityBacklinksDto = z.object({
+	totalBacklinks: z.number().int().nonnegative(),
+	referringDomains: z.number().int().nonnegative(),
+	observedAt: z.string().datetime(),
+	deltaBacklinks: z.number().int().nullable(),
+	deltaReferringDomains: z.number().int().nullable(),
+});
+
+export const CompetitorActivityRowDto = z.object({
+	competitorId: z.string().uuid(),
+	domain: z.string(),
+	label: z.string(),
+	latestObservedAt: z.string().datetime().nullable(),
+	wayback: CompetitorActivityWaybackDto.nullable(),
+	backlinks: CompetitorActivityBacklinksDto.nullable(),
+	activityScore: z.number().int().min(0).max(100),
+});
+export type CompetitorActivityRowDto = z.infer<typeof CompetitorActivityRowDto>;
+
+export const CompetitorActivityResponse = z.object({
+	rows: z.array(CompetitorActivityRowDto),
+	maxScore: z.number().int().min(0).max(100),
+});
+export type CompetitorActivityResponse = z.infer<typeof CompetitorActivityResponse>;

@@ -6,3 +6,6 @@ export * from './use-cases/competitor-suggestions.use-cases.js';
 export * from './use-cases/create-project.use-case.js';
 export * from './use-cases/import-keywords.use-case.js';
 export * from './use-cases/manage-portfolios.use-cases.js';
+export * from './use-cases/query-competitor-activity.use-case.js';
+export * from './use-cases/record-competitor-backlinks-profile.use-case.js';
+export * from './use-cases/record-competitor-wayback-snapshot.use-case.js';

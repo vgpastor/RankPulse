@@ -13,6 +13,7 @@ import { AiSearchMatrixPage } from './pages/ai-search-matrix.page.js';
 import { BrandPromptsPage } from './pages/brand-prompts.page.js';
 import { CannibalizationPage } from './pages/cannibalization.page.js';
 import { CockpitPage } from './pages/cockpit.page.js';
+import { CompetitorActivityPage } from './pages/competitor-activity.page.js';
 import { CompetitorsPage } from './pages/competitors.page.js';
 import { CredentialsPage } from './pages/credentials.page.js';
 import { CtrAnomaliesPage } from './pages/ctr-anomalies.page.js';
@@ -130,6 +131,12 @@ const projectLostOpportunityRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/projects/$id/lost-opportunity',
 	component: LostOpportunityPage,
+});
+
+const projectCompetitorActivityRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/competitor-activity',
+	component: CompetitorActivityPage,
 });
 
 const projectSchedulesRoute = createRoute({
@@ -252,6 +259,7 @@ const routeTree = rootRoute.addChildren([
 	projectCockpitRoute,
 	projectCtrAnomaliesRoute,
 	projectLostOpportunityRoute,
+	projectCompetitorActivityRoute,
 	projectSchedulesRoute,
 	projectGscPropertiesRoute,
 	projectGscPerformanceRoute,

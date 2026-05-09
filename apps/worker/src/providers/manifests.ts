@@ -12,6 +12,7 @@ import { microsoftClarityProviderManifest } from '@rankpulse/provider-microsoft-
 import { openaiProviderManifest } from '@rankpulse/provider-openai';
 import { pagespeedProviderManifest } from '@rankpulse/provider-pagespeed';
 import { perplexityProviderManifest } from '@rankpulse/provider-perplexity';
+import { waybackProviderManifest } from '@rankpulse/provider-wayback';
 import { wikipediaProviderManifest } from '@rankpulse/provider-wikipedia';
 
 /**
@@ -39,4 +40,5 @@ export const ALL_PROVIDER_MANIFESTS: readonly ProviderManifest[] = [
 	anthropicProviderManifest,
 	perplexityProviderManifest,
 	googleAiStudioProviderManifest,
+	waybackProviderManifest,
 ];
