@@ -7,6 +7,7 @@ import {
 	CardTitle,
 	EmptyState,
 	KpiCard,
+	Sparkline,
 	Spinner,
 } from '@rankpulse/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -18,6 +19,7 @@ import {
 	CheckCircle2,
 	ChevronRight,
 	Compass,
+	Layers,
 	Map as MapIcon,
 	MousePointerClick,
 	Sparkles,
@@ -76,6 +78,10 @@ export const CockpitPage = () => {
 		queryKey: ['project', projectId, 'cockpit', 'brand-decay'],
 		queryFn: () => api.cockpit.brandDecay(projectId),
 	});
+	const aiSovDailyQuery = useQuery({
+		queryKey: ['project', projectId, 'ai-search', 'sov-daily'],
+		queryFn: () => api.aiSearch.projectSovDaily(projectId),
+	});
 
 	const cockpitMetrics = useMemo(() => {
 		const rows = serpMapQuery.data?.rows ?? [];
@@ -119,6 +125,9 @@ export const CockpitPage = () => {
 	const totalLostClicks = lostOpportunity?.totalLostClicks ?? 0;
 	const ctrAnomalyCount = ctrAnomalies?.anomalies.length ?? 0;
 	const noBrandDelta = brandDecay?.nonBranded.deltaPct ?? null;
+	const sovDailyPoints = aiSovDailyQuery.data?.items ?? [];
+	const sovValues = sovDailyPoints.map((p) => p.mentionRate * 100);
+	const latestSovPct = sovValues.length === 0 ? null : (sovValues[sovValues.length - 1] ?? null);
 
 	return (
 		<AppShell>
@@ -383,7 +392,44 @@ export const CockpitPage = () => {
 						href={{ to: '/projects/$id/ai-radar', params: { id: projectId } }}
 						cta={t('cockpit:openDetail')}
 					>
-						<p className="text-sm text-muted-foreground">{t('cockpit:widgets.aiRadar.description')}</p>
+						{aiSovDailyQuery.isLoading ? (
+							<Spinner size="sm" />
+						) : sovValues.length === 0 ? (
+							<EmptyState
+								title={t('cockpit:widgets.aiRadar.empty')}
+								description={t('cockpit:widgets.aiRadar.emptyDescription')}
+							/>
+						) : (
+							<div className="flex flex-col gap-2">
+								<div className="flex items-baseline justify-between gap-2">
+									<span className="font-mono text-2xl font-semibold">
+										{latestSovPct === null ? '—' : `${latestSovPct.toFixed(0)}%`}
+									</span>
+									<span className="text-xs text-muted-foreground">
+										{t('cockpit:widgets.aiRadar.windowHint', { days: sovValues.length })}
+									</span>
+								</div>
+								<Sparkline
+									values={sovValues}
+									stroke="#a855f7"
+									fill="#a855f7"
+									aria-label={t('cockpit:widgets.aiRadar.sparklineAria')}
+								/>
+								<p className="text-xs text-muted-foreground">{t('cockpit:widgets.aiRadar.description')}</p>
+							</div>
+						)}
+					</WidgetCard>
+
+					<WidgetCard
+						title={t('cockpit:widgets.cannibalization.title')}
+						hint={t('cockpit:widgets.cannibalization.hint')}
+						icon={<Layers size={14} className="text-cyan-600" />}
+						href={{ to: '/projects/$id/cannibalization', params: { id: projectId } }}
+						cta={t('cockpit:openDetail')}
+					>
+						<p className="text-sm text-muted-foreground">
+							{t('cockpit:widgets.cannibalization.description')}
+						</p>
 					</WidgetCard>
 				</div>
 
@@ -432,10 +478,11 @@ export const CockpitPage = () => {
 					<CardContent>
 						<ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
 							{[
-								{ icon: <Compass size={14} />, label: t('cockpit:upcoming.items.pageExperience') },
-								{ icon: <TrendingUp size={14} />, label: t('cockpit:upcoming.items.forecast90d') },
 								{ icon: <Users size={14} />, label: t('cockpit:upcoming.items.competitorActivity') },
+								{ icon: <Compass size={14} />, label: t('cockpit:upcoming.items.pageExperience') },
 								{ icon: <BarChart3 size={14} />, label: t('cockpit:upcoming.items.contentGap') },
+								{ icon: <TrendingUp size={14} />, label: t('cockpit:upcoming.items.searchDemand') },
+								{ icon: <TrendingUp size={14} />, label: t('cockpit:upcoming.items.forecast90d') },
 							].map((item) => (
 								<li
 									key={item.label}

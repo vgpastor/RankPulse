@@ -9,6 +9,7 @@ export * from './use-cases/query-ai-search-presence.use-case.js';
 export * from './use-cases/query-ai-search-sov.use-case.js';
 export * from './use-cases/query-competitive-matrix.use-case.js';
 export * from './use-cases/query-llm-answers.use-case.js';
+export * from './use-cases/query-project-sov-daily.use-case.js';
 export * from './use-cases/query-prompt-sov-daily.use-case.js';
 export * from './use-cases/record-llm-answer.use-case.js';
 export * from './use-cases/register-brand-prompt.use-case.js';

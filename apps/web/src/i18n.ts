@@ -550,8 +550,17 @@ const en = {
 			},
 			aiRadar: {
 				title: 'AI Brand Radar SoV',
-				hint: 'Share of voice across ChatGPT / Claude / Perplexity / Gemini.',
+				hint: 'Project-wide own-brand mention rate over the last 28 days.',
 				description: 'See LLM mentions, citations, and competitor SoV trends.',
+				windowHint: 'last {{days}} days',
+				sparklineAria: 'Daily own-brand mention rate sparkline',
+				empty: 'No AI captures yet',
+				emptyDescription: 'Add a brand prompt and connect an LLM provider to start capturing.',
+			},
+			cannibalization: {
+				title: 'Cannibalization',
+				hint: 'Pairs of pages competing for the same keyword.',
+				description: 'See where multiple pages rank for the same query and split clicks.',
 			},
 			lostOpportunity: {
 				title: 'Lost Opportunity Score',
@@ -595,6 +604,7 @@ const en = {
 				forecast90d: 'Forecast 90 days organic traffic',
 				competitorActivity: 'Competitor Activity Radar (Wayback CDX + backlinks)',
 				contentGap: 'Content Gap Map (keywords-for-site without tracked URL)',
+				searchDemand: 'Search Demand Trend (DataForSEO history + Google Trends)',
 			},
 		},
 		ctrAnomaliesPage: {
@@ -1238,8 +1248,17 @@ const es = {
 			},
 			aiRadar: {
 				title: 'AI Brand Radar SoV',
-				hint: 'Share of voice en ChatGPT / Claude / Perplexity / Gemini.',
+				hint: 'Mention rate propio del proyecto en los últimos 28 días.',
 				description: 'Ve menciones de LLM, citas y tendencias SoV de competidores.',
+				windowHint: 'últimos {{days}} días',
+				sparklineAria: 'Sparkline diaria del mention rate de marca propia',
+				empty: 'Aún no hay capturas de AI',
+				emptyDescription: 'Añade un brand prompt y conecta un proveedor LLM para empezar a capturar.',
+			},
+			cannibalization: {
+				title: 'Canibalización',
+				hint: 'Pares de páginas compitiendo por la misma keyword.',
+				description: 'Ve dónde varias páginas posicionan para la misma query y se reparten clicks.',
 			},
 			lostOpportunity: {
 				title: 'Lost Opportunity Score',
@@ -1284,6 +1303,7 @@ const es = {
 				forecast90d: 'Forecast 90 días tráfico orgánico',
 				competitorActivity: 'Competitor Activity Radar (Wayback CDX + backlinks)',
 				contentGap: 'Content Gap Map (keywords-for-site sin URL trackeada)',
+				searchDemand: 'Search Demand Trend (DataForSEO history + Google Trends)',
 			},
 		},
 		ctrAnomaliesPage: {

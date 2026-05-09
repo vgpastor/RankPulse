@@ -109,6 +109,16 @@ export interface LlmAnswerReadModel {
 		brandPromptId: BrandPromptId,
 		filter: AiSearchReadModelFilter,
 	): Promise<readonly AiSearchSovDailyPoint[]>;
+	/**
+	 * Project-wide own-brand mention rate per day, aggregating across every
+	 * BrandPrompt and capture in the window. Powers the Decision Cockpit
+	 * SoV sparkline (issue #117 Sprint 2) — same shape as `sovDailyForPrompt`
+	 * so the SPA can reuse the same series renderer.
+	 */
+	sovDailyForProject(
+		projectId: ProjectId,
+		filter: AiSearchReadModelFilter,
+	): Promise<readonly AiSearchSovDailyPoint[]>;
 	competitiveMatrixForProject(
 		projectId: ProjectId,
 		filter: AiSearchReadModelFilter,

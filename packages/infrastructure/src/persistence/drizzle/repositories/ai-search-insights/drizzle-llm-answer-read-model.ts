@@ -298,6 +298,47 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 		}));
 	}
 
+	async sovDailyForProject(
+		projectId: ProjectManagement.ProjectId,
+		filter: AiSearchInsights.AiSearchReadModelFilter,
+	): Promise<readonly AiSearchInsights.AiSearchSovDailyPoint[]> {
+		const fromIso = filter.from.toISOString();
+		const toIso = filter.to.toISOString();
+		const rows = await this.db.execute(sql<{
+			day: string;
+			total_answers: number;
+			answers_with_own_mention: number;
+		}>`
+			WITH base AS (
+				SELECT
+					captured_at,
+					CASE WHEN jsonb_typeof(mentions) = 'array' THEN mentions ELSE '[]'::jsonb END AS mentions
+				FROM llm_answers
+				WHERE project_id = ${projectId}
+				  AND captured_at BETWEEN ${fromIso} AND ${toIso}
+			)
+			SELECT
+				to_char(captured_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day,
+				COUNT(*)::int AS total_answers,
+				COUNT(*) FILTER (
+					WHERE jsonb_path_exists(mentions, '$[*] ? (@.isOwnBrand == true)')
+				)::int AS answers_with_own_mention
+			FROM base
+			GROUP BY day
+			ORDER BY day
+		`);
+		const list = unwrap<{
+			day: string;
+			total_answers: number;
+			answers_with_own_mention: number;
+		}>(rows);
+		return list.map((r) => ({
+			day: r.day,
+			totalAnswers: Number(r.total_answers ?? 0),
+			answersWithOwnMention: Number(r.answers_with_own_mention ?? 0),
+		}));
+	}
+
 	async competitiveMatrixForProject(
 		projectId: ProjectManagement.ProjectId,
 		filter: AiSearchInsights.AiSearchReadModelFilter,
