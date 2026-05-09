@@ -15,6 +15,7 @@ import { CannibalizationPage } from './pages/cannibalization.page.js';
 import { CockpitPage } from './pages/cockpit.page.js';
 import { CompetitorsPage } from './pages/competitors.page.js';
 import { CredentialsPage } from './pages/credentials.page.js';
+import { CtrAnomaliesPage } from './pages/ctr-anomalies.page.js';
 import { DailyActionsPage } from './pages/daily-actions.page.js';
 import { Ga4PropertiesPage } from './pages/ga4-properties.page.js';
 import { Ga4TrafficPage } from './pages/ga4-traffic.page.js';
@@ -22,6 +23,7 @@ import { GapAnalysisPage } from './pages/gap-analysis.page.js';
 import { GscPerformancePage } from './pages/gsc-performance.page.js';
 import { GscPropertiesPage } from './pages/gsc-properties.page.js';
 import { LoginPage } from './pages/login.page.js';
+import { LostOpportunityPage } from './pages/lost-opportunity.page.js';
 import { OnboardingPage } from './pages/onboarding.page.js';
 import { OpportunitiesPage } from './pages/opportunities.page.js';
 import { PortfolioComparePage } from './pages/portfolio-compare.page.js';
@@ -116,6 +118,18 @@ const projectCockpitRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/projects/$id/cockpit',
 	component: CockpitPage,
+});
+
+const projectCtrAnomaliesRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/ctr-anomalies',
+	component: CtrAnomaliesPage,
+});
+
+const projectLostOpportunityRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/lost-opportunity',
+	component: LostOpportunityPage,
 });
 
 const projectSchedulesRoute = createRoute({
@@ -236,6 +250,8 @@ const routeTree = rootRoute.addChildren([
 	projectRankingsRoute,
 	projectSerpMapRoute,
 	projectCockpitRoute,
+	projectCtrAnomaliesRoute,
+	projectLostOpportunityRoute,
 	projectSchedulesRoute,
 	projectGscPropertiesRoute,
 	projectGscPerformanceRoute,

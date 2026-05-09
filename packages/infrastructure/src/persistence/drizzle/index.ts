@@ -35,6 +35,7 @@ export { DrizzleRawPayloadRepository } from './repositories/provider-connectivit
 export { DrizzleRankingObservationRepository } from './repositories/rank-tracking/ranking-observation.repository.js';
 export { DrizzleSerpObservationRepository } from './repositories/rank-tracking/serp-observation.repository.js';
 export { DrizzleTrackedKeywordRepository } from './repositories/rank-tracking/tracked-keyword.repository.js';
+export { DrizzleGscCockpitReadModel } from './repositories/search-console-insights/gsc-cockpit-read-model.js';
 export { DrizzleGscPerformanceObservationRepository } from './repositories/search-console-insights/gsc-performance-observation.repository.js';
 export { DrizzleGscPropertyRepository } from './repositories/search-console-insights/gsc-property.repository.js';
 export { DrizzleGa4DailyMetricRepository } from './repositories/traffic-analytics/ga4-daily-metric.repository.js';

@@ -641,6 +641,92 @@ export function buildOpenApiDocument(): unknown {
 		},
 	});
 
+	// ---- decision-cockpit (issue #117 Sprint 1) ----
+
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/projects/{projectId}/cockpit/ctr-anomalies',
+		summary: 'CTR Anomaly Detector — keywords with ≥N impressions, 0 clicks, position ≤ 30',
+		description:
+			'Surface keywords ranking but not earning clicks (broken snippet, AI Overviews capture, canonical drift). MVP threshold: ≥50 impressions, position ≤ 30 over the rolling window (default 28d).',
+		tags: ['decision-cockpit'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid() }),
+			query: SearchConsoleInsightsContracts.CtrAnomaliesQuery,
+		},
+		responses: {
+			200: {
+				description: 'Anomaly rows sorted by impression volume',
+				content: { 'application/json': { schema: SearchConsoleInsightsContracts.CtrAnomaliesResponse } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/projects/{projectId}/cockpit/lost-opportunity',
+		summary: 'Lost Opportunity Score — projected click gain per keyword if it reached top-3',
+		description:
+			'Score per keyword: `lostClicks = impressions × (CTR_target - CTR_current)`. CPC factor (issue #117) deferred until DataForSEO keyword-volume table lands as a sub-issue; MVP returns clicks.',
+		tags: ['decision-cockpit'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid() }),
+			query: SearchConsoleInsightsContracts.LostOpportunityQuery,
+		},
+		responses: {
+			200: {
+				description: 'Top opportunities sorted by lost clicks',
+				content: { 'application/json': { schema: SearchConsoleInsightsContracts.LostOpportunityResponse } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/projects/{projectId}/cockpit/quick-win-roi',
+		summary: 'Quick-Win ROI — keywords #11-#30 sorted by projected gain × proximity to first page',
+		description:
+			'For each keyword currently in positions 11-30, projects click gain at #10 and weights by inverse position. CR factor (issue #117) deferred until GA4 conversion-per-keyword join lands.',
+		tags: ['decision-cockpit'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid() }),
+			query: SearchConsoleInsightsContracts.QuickWinRoiQuery,
+		},
+		responses: {
+			200: {
+				description: 'Quick-win rows sorted by ROI score',
+				content: { 'application/json': { schema: SearchConsoleInsightsContracts.QuickWinRoiResponse } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/projects/{projectId}/cockpit/brand-decay',
+		summary: 'Brand vs No-Brand decay — WoW comparison + alert flag',
+		description:
+			'Splits GSC clicks into branded vs non-branded for the latest two ISO weeks. Branded classification is heuristic (project name + domain root tokens). Alert fires when non-branded clicks dropped ≥ dropAlertPct WoW (default 20%).',
+		tags: ['decision-cockpit'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid() }),
+			query: SearchConsoleInsightsContracts.BrandDecayQuery,
+		},
+		responses: {
+			200: {
+				description: 'Branded + non-branded buckets with WoW deltas',
+				content: { 'application/json': { schema: SearchConsoleInsightsContracts.BrandDecayResponse } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
 	// ---- ai-search-insights ----
 
 	registry.registerPath({

@@ -125,6 +125,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const serpObservationRepo = new DrizzlePersistence.DrizzleSerpObservationRepository(drizzle.db);
 	const gscPropertyRepo = new DrizzlePersistence.DrizzleGscPropertyRepository(drizzle.db);
 	const gscObservationRepo = new DrizzlePersistence.DrizzleGscPerformanceObservationRepository(drizzle.db);
+	const gscCockpitReadModel = new DrizzlePersistence.DrizzleGscCockpitReadModel(drizzle.db);
 	const wikipediaArticleRepo = new DrizzlePersistence.DrizzleWikipediaArticleRepository(drizzle.db);
 	const wikipediaPageviewRepo = new DrizzlePersistence.DrizzleWikipediaPageviewObservationRepository(
 		drizzle.db,
@@ -326,6 +327,8 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		events: eventPublisher,
 		gscPropertyRepo,
 		gscObservationRepo,
+		gscCockpitReadModel,
+		projectRepo,
 		searchConsoleInsightsSchemaTables: DrizzlePersistence.schema.searchConsoleInsightsSchemaTables,
 		...autoScheduleSurface,
 	} satisfies SCIUseCases.SearchConsoleInsightsDeps as unknown as SharedDeps);
@@ -541,9 +544,14 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		// search-console-insights
 		value(Tokens.GscPropertyRepository, gscPropertyRepo),
 		value(Tokens.GscPerformanceObservationRepository, gscObservationRepo),
+		value(Tokens.GscCockpitReadModel, gscCockpitReadModel),
 		value(Tokens.LinkGscProperty, sci.LinkGscProperty),
 		value(Tokens.IngestGscRows, sci.IngestGscRows),
 		value(Tokens.QueryGscPerformance, sci.QueryGscPerformance),
+		value(Tokens.QueryCtrAnomalies, sci.QueryCtrAnomalies),
+		value(Tokens.QueryLostOpportunity, sci.QueryLostOpportunity),
+		value(Tokens.QueryQuickWinRoi, sci.QueryQuickWinRoi),
+		value(Tokens.QueryBrandDecay, sci.QueryBrandDecay),
 
 		// web-performance + entity-awareness
 		value(Tokens.WikipediaArticleRepository, wikipediaArticleRepo),
