@@ -24,6 +24,7 @@ import {
 	domainWhoisOverviewDescriptor,
 	fetchDomainWhoisOverview,
 } from './endpoints/domain-whois-overview.js';
+import { fetchHistoricalSerps, historicalSerpsDescriptor } from './endpoints/historical-serps.js';
 import { fetchKeywordDifficulty, keywordDifficultyDescriptor } from './endpoints/keyword-difficulty.js';
 import {
 	fetchKeywordsDataSearchVolume,
@@ -31,6 +32,7 @@ import {
 } from './endpoints/keywords-data-search-volume.js';
 import { fetchKeywordsForSite, keywordsForSiteDescriptor } from './endpoints/keywords-for-site.js';
 import { fetchOnPageInstantPages, onPageInstantDescriptor } from './endpoints/on-page-instant.js';
+import { fetchPageIntersection, pageIntersectionDescriptor } from './endpoints/page-intersection.js';
 import {
 	fetchRankedKeywords,
 	type RankedKeywordsResponse,
@@ -219,6 +221,21 @@ const endpoints: readonly EndpointManifest[] = [
 			systemParamKey: 'competitorId',
 			acl: (response: BacklinksSummaryResponse) => [summariseBacklinksResponse(response)],
 		} as IngestBinding,
+	},
+	{
+		descriptor: pageIntersectionDescriptor,
+		fetch: adapt(fetchPageIntersection),
+		// Issue #129: raw-only today; consumed via `raw_payloads`. Phase 5+
+		// may add a typed ingest if a cluster-cannibalisation read model
+		// emerges.
+		ingest: null,
+	},
+	{
+		descriptor: historicalSerpsDescriptor,
+		fetch: adapt(fetchHistoricalSerps),
+		// Issue #130: raw-only today; consumed via `raw_payloads`. Phase 5+
+		// may add a typed ingest if a SERP-history read model emerges.
+		ingest: null,
 	},
 ];
 
