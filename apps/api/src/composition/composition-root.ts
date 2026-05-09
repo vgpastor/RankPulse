@@ -123,6 +123,9 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const trackedKeywordRepo = new DrizzlePersistence.DrizzleTrackedKeywordRepository(drizzle.db);
 	const observationRepo = new DrizzlePersistence.DrizzleRankingObservationRepository(drizzle.db);
 	const serpObservationRepo = new DrizzlePersistence.DrizzleSerpObservationRepository(drizzle.db);
+	const rankedKeywordObservationRepo = new DrizzlePersistence.DrizzleRankedKeywordObservationRepository(
+		drizzle.db,
+	);
 	const gscPropertyRepo = new DrizzlePersistence.DrizzleGscPropertyRepository(drizzle.db);
 	const gscObservationRepo = new DrizzlePersistence.DrizzleGscPerformanceObservationRepository(drizzle.db);
 	const gscCockpitReadModel = new DrizzlePersistence.DrizzleGscCockpitReadModel(drizzle.db);
@@ -307,6 +310,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		trackedKeywordRepo,
 		observationRepo,
 		serpObservationRepo,
+		rankedKeywordObservationRepo,
 		projectRepo,
 		competitorRepo,
 		rankTrackingSchemaTables: DrizzlePersistence.schema.rankTrackingSchemaTables,
@@ -534,12 +538,15 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.TrackedKeywordRepository, trackedKeywordRepo),
 		value(Tokens.RankingObservationRepository, observationRepo),
 		value(Tokens.SerpObservationRepository, serpObservationRepo),
+		value(Tokens.RankedKeywordObservationRepository, rankedKeywordObservationRepo),
 		value(Tokens.StartTrackingKeyword, rt.StartTrackingKeyword),
 		value(Tokens.RecordRankingObservation, rt.RecordRankingObservation),
 		value(Tokens.QueryRankingHistory, rt.QueryRankingHistory),
 		value(Tokens.RecordSerpObservation, rt.RecordSerpObservation),
 		value(Tokens.QuerySerpMap, rt.QuerySerpMap),
 		value(Tokens.QuerySerpCompetitorSuggestions, rt.QuerySerpCompetitorSuggestions),
+		value(Tokens.IngestRankedKeywords, rt.IngestRankedKeywords),
+		value(Tokens.QueryRankedKeywords, rt.QueryRankedKeywords),
 
 		// search-console-insights
 		value(Tokens.GscPropertyRepository, gscPropertyRepo),

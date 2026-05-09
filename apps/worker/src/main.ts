@@ -45,6 +45,10 @@ async function bootstrap(): Promise<void> {
 	const trackedKeywordRepo = new DrizzlePersistence.DrizzleTrackedKeywordRepository(drizzle.db);
 	const observationRepo = new DrizzlePersistence.DrizzleRankingObservationRepository(drizzle.db);
 	const serpObservationRepo = new DrizzlePersistence.DrizzleSerpObservationRepository(drizzle.db);
+	const rankedKeywordObservationRepo = new DrizzlePersistence.DrizzleRankedKeywordObservationRepository(
+		drizzle.db,
+	);
+	const projectRepo = new DrizzlePersistence.DrizzleProjectRepository(drizzle.db);
 	const competitorRepo = new DrizzlePersistence.DrizzleCompetitorRepository(drizzle.db);
 	const competitorSuggestionRepo = new DrizzlePersistence.DrizzleCompetitorSuggestionRepository(drizzle.db);
 	const gscPropertyRepo = new DrizzlePersistence.DrizzleGscPropertyRepository(drizzle.db);
@@ -119,6 +123,11 @@ async function bootstrap(): Promise<void> {
 	const recordSerpObservationUseCase = new RankTrackingUseCases.RecordSerpObservationUseCase(
 		serpObservationRepo,
 		SystemClock,
+		SystemIdGenerator,
+	);
+	const ingestRankedKeywordsUseCase = new RankTrackingUseCases.IngestRankedKeywordsUseCase(
+		projectRepo,
+		rankedKeywordObservationRepo,
 		SystemIdGenerator,
 	);
 	const ingestGscRowsUseCase = new SearchConsoleInsightsUseCases.IngestGscRowsUseCase(
@@ -332,6 +341,29 @@ async function bootstrap(): Promise<void> {
 					avgEngagementSeconds: snap.avgEngagementSeconds,
 					avgScrollDepth: snap.avgScrollDepth,
 					rawPayloadId,
+				});
+			},
+		},
+		'rank-tracking:ingest-ranked-keywords': {
+			async execute({ rawPayloadId, rows, systemParams }) {
+				const projectId = systemParams.projectId as string | undefined;
+				const targetDomain = systemParams.targetDomain as string | undefined;
+				const country = (systemParams.country as string | undefined) ?? '';
+				const language = (systemParams.language as string | undefined) ?? '';
+				if (!projectId || !targetDomain) {
+					logger.warn(
+						{ systemParams },
+						'rank-tracking:ingest-ranked-keywords skipped: missing projectId or targetDomain in systemParams',
+					);
+					return;
+				}
+				await ingestRankedKeywordsUseCase.execute({
+					projectId,
+					targetDomain,
+					country,
+					language,
+					rawPayloadId,
+					rows: rows as Parameters<typeof ingestRankedKeywordsUseCase.execute>[0]['rows'],
 				});
 			},
 		},

@@ -60,4 +60,17 @@ export class RankTrackingResource {
 			},
 		});
 	}
+
+	getRankedKeywords(
+		projectId: string,
+		query: RankTrackingContracts.RankedKeywordsQuery,
+	): Promise<RankTrackingContracts.RankedKeywordsResponse> {
+		return this.http.get(`/projects/${encodeURIComponent(projectId)}/ranked-keywords`, {
+			query: {
+				targetDomain: query.targetDomain,
+				limit: query.limit ? String(query.limit) : null,
+				minVolume: query.minVolume != null ? String(query.minVolume) : null,
+			},
+		});
+	}
 }

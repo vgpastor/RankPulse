@@ -559,6 +559,27 @@ export function buildOpenApiDocument(): unknown {
 
 	registry.registerPath({
 		method: 'get',
+		path: '/api/v1/projects/{projectId}/ranked-keywords',
+		summary: 'Ranked keywords — keyword universe of a target domain',
+		description:
+			'Returns the most recent snapshot of all keywords for which the given target domain ranks on Google, sourced from DataForSEO Labs `ranked_keywords/live` (issue #127). Optional filters: `minVolume` to drop low-volume tail; `limit` to cap row count. Snapshots are typically refreshed monthly via the auto-schedule, so the same response is served between snapshots.',
+		tags: ['rank-tracking'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid() }),
+			query: RankTrackingContracts.RankedKeywordsQuery,
+		},
+		responses: {
+			200: {
+				description: 'Ranked keywords for the target domain',
+				content: { 'application/json': { schema: RankTrackingContracts.RankedKeywordsResponse } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
 		path: '/api/v1/projects/{projectId}/serp-map/suggestions',
 		summary: 'SERP-derived competitor suggestions (external domains in top-10)',
 		description:
