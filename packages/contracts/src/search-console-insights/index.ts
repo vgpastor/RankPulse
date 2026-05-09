@@ -140,3 +140,29 @@ export const BrandDecayResponse = z.object({
 	alertReason: z.enum(['no-brand-decay']).nullable(),
 });
 export type BrandDecayResponse = z.infer<typeof BrandDecayResponse>;
+
+// --- Forecast 90d (issue #117 Sprint 4) ---
+
+export const ClicksForecastQuery = z.object({
+	historyDays: z.coerce.number().int().min(14).max(365).optional(),
+	forecastDays: z.coerce.number().int().min(7).max(180).optional(),
+});
+export type ClicksForecastQuery = z.infer<typeof ClicksForecastQuery>;
+
+export const ForecastPointDto = z.object({
+	day: z.string().datetime(),
+	clicks: z.number().int().nonnegative(),
+	impressions: z.number().int().nonnegative(),
+	type: z.enum(['observed', 'forecast']),
+});
+export type ForecastPointDto = z.infer<typeof ForecastPointDto>;
+
+export const ClicksForecastResponse = z.object({
+	points: z.array(ForecastPointDto),
+	historyDays: z.number().int(),
+	forecastDays: z.number().int(),
+	historyClicksTotal: z.number().int().nonnegative(),
+	forecastClicksTotal: z.number().int().nonnegative(),
+	deltaPct: z.number().nullable(),
+});
+export type ClicksForecastResponse = z.infer<typeof ClicksForecastResponse>;

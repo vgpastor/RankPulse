@@ -36,4 +36,45 @@ export class InMemoryRankedKeywordObservationRepository
 			.sort((a, b) => (b.trafficEstimate ?? 0) - (a.trafficEstimate ?? 0))
 			.slice(0, opts.limit ?? 500);
 	}
+
+	async aggregateMonthlyVolumeForProject(
+		projectId: ProjectManagement.ProjectId,
+		opts: RankTracking.AggregateMonthlyVolumeOptions,
+	): Promise<readonly RankTracking.MonthlyVolumeBucket[]> {
+		const cutoff = new Date(Date.now() - opts.months * 30 * 24 * 60 * 60 * 1000);
+		const candidates = this.rows.filter((r) => {
+			if (r.projectId !== projectId) return false;
+			if (r.observedAt < cutoff) return false;
+			if (opts.targetDomain && r.targetDomain !== opts.targetDomain) return false;
+			return true;
+		});
+		// Per (month, target_domain, keyword), keep the latest snapshot.
+		const latestPerKey = new Map<string, RankTracking.RankedKeywordObservation>();
+		for (const r of candidates) {
+			const month = startOfUtcMonth(r.observedAt).toISOString();
+			const key = `${month}::${r.targetDomain}::${r.keyword}`;
+			const existing = latestPerKey.get(key);
+			if (!existing || r.observedAt > existing.observedAt) {
+				latestPerKey.set(key, r);
+			}
+		}
+		// Group by month → sum.
+		const byMonth = new Map<string, { totalVolume: number; keywords: Set<string> }>();
+		for (const r of latestPerKey.values()) {
+			const monthKey = startOfUtcMonth(r.observedAt).toISOString();
+			const acc = byMonth.get(monthKey) ?? { totalVolume: 0, keywords: new Set<string>() };
+			acc.totalVolume += r.searchVolume ?? 0;
+			acc.keywords.add(r.keyword);
+			byMonth.set(monthKey, acc);
+		}
+		return [...byMonth.entries()]
+			.sort((a, b) => a[0].localeCompare(b[0]))
+			.map(([month, v]) => ({
+				month: new Date(month),
+				totalVolume: v.totalVolume,
+				distinctKeywords: v.keywords.size,
+			}));
+	}
 }
+
+const startOfUtcMonth = (d: Date): Date => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));

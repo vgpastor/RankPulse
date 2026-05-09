@@ -570,6 +570,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.QuerySerpCompetitorSuggestions, rt.QuerySerpCompetitorSuggestions),
 		value(Tokens.IngestRankedKeywords, rt.IngestRankedKeywords),
 		value(Tokens.QueryRankedKeywords, rt.QueryRankedKeywords),
+		value(Tokens.QuerySearchDemandTrend, rt.QuerySearchDemandTrend),
 
 		// competitor-intelligence
 		value(Tokens.CompetitorKeywordGapRepository, competitorKeywordGapRepo),
@@ -587,6 +588,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.QueryLostOpportunity, sci.QueryLostOpportunity),
 		value(Tokens.QueryQuickWinRoi, sci.QueryQuickWinRoi),
 		value(Tokens.QueryBrandDecay, sci.QueryBrandDecay),
+		value(Tokens.QueryClicksForecast, sci.QueryClicksForecast),
 
 		// web-performance + entity-awareness
 		value(Tokens.WikipediaArticleRepository, wikipediaArticleRepo),

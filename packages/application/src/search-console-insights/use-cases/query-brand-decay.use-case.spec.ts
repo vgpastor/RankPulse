@@ -18,6 +18,9 @@ class FakeCockpit implements SearchConsoleInsights.GscCockpitReadModel {
 	async weeklyClicksByQuery(): Promise<readonly SearchConsoleInsights.WeeklyClicksByQueryRow[]> {
 		return this.weekly;
 	}
+	async dailyTotalsForProject(): Promise<readonly SearchConsoleInsights.DailyClicksImpressionsRow[]> {
+		return [];
+	}
 }
 
 describe('QueryBrandDecayUseCase', () => {

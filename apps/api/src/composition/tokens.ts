@@ -87,6 +87,7 @@ export const Tokens = {
 	QuerySerpCompetitorSuggestions: Symbol('QuerySerpCompetitorSuggestionsUseCase'),
 	IngestRankedKeywords: Symbol('IngestRankedKeywordsUseCase'),
 	QueryRankedKeywords: Symbol('QueryRankedKeywordsUseCase'),
+	QuerySearchDemandTrend: Symbol('QuerySearchDemandTrendUseCase'),
 
 	// Competitor-Intelligence ports
 	CompetitorKeywordGapRepository: Symbol('CompetitorKeywordGapRepository'),
@@ -108,6 +109,7 @@ export const Tokens = {
 	QueryLostOpportunity: Symbol('QueryLostOpportunityUseCase'),
 	QueryQuickWinRoi: Symbol('QueryQuickWinRoiUseCase'),
 	QueryBrandDecay: Symbol('QueryBrandDecayUseCase'),
+	QueryClicksForecast: Symbol('QueryClicksForecastUseCase'),
 
 	// Entity-Awareness ports
 	WikipediaArticleRepository: Symbol('WikipediaArticleRepository'),

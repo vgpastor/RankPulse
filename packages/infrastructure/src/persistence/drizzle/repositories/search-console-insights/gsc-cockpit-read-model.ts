@@ -103,4 +103,36 @@ export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCock
 			impressions: Number(r.impressions),
 		}));
 	}
+
+	async dailyTotalsForProject(
+		projectId: ProjectManagement.ProjectId,
+		windowDays: number,
+	): Promise<readonly SearchConsoleInsights.DailyClicksImpressionsRow[]> {
+		// One row per UTC day, summed across every dimension (query, page,
+		// country, device, GSC property). We DON'T filter `query <> ''` here
+		// because the forecast wants TOTAL traffic — including discover-only
+		// / opaque rows GSC returns without a query value.
+		const result = await this.db.execute(sql<{
+			day: Date;
+			clicks: number;
+			impressions: number;
+		}>`
+			SELECT
+				date_trunc('day', observed_at)::timestamptz AS day,
+				SUM(clicks)::bigint AS clicks,
+				SUM(impressions)::bigint AS impressions
+			FROM gsc_observations
+			WHERE project_id = ${projectId}
+				AND observed_at >= now() - (${windowDays}::int * interval '1 day')
+			GROUP BY day
+			ORDER BY day ASC
+		`);
+		type Row = { day: Date; clicks: number | string | null; impressions: number | string | null };
+		const rows = unwrap<Row>(result);
+		return rows.map((r) => ({
+			day: r.day,
+			clicks: Number(r.clicks ?? 0),
+			impressions: Number(r.impressions ?? 0),
+		}));
+	}
 }

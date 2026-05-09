@@ -33,6 +33,18 @@ export interface GscCockpitReadModel {
 	 * branded or not, sums weekly, and compares week-over-week.
 	 */
 	weeklyClicksByQuery(projectId: ProjectId, windowDays: number): Promise<readonly WeeklyClicksByQueryRow[]>;
+
+	/**
+	 * Project-level daily totals (clicks + impressions) over the trailing
+	 * window. One row per UTC day, summed across every dimension (query,
+	 * page, country, device, GSC property). Used by the Forecast 90d widget
+	 * to fit a Holt-Winters smoother on a single time series at the cockpit
+	 * granularity (issue #117 Sprint 4).
+	 */
+	dailyTotalsForProject(
+		projectId: ProjectId,
+		windowDays: number,
+	): Promise<readonly DailyClicksImpressionsRow[]>;
 }
 
 export interface QueryAggregateRow {
@@ -47,6 +59,13 @@ export interface WeeklyClicksByQueryRow {
 	/** First day of the ISO-week (Monday, UTC) for this row. */
 	readonly weekStart: Date;
 	readonly query: string;
+	readonly clicks: number;
+	readonly impressions: number;
+}
+
+export interface DailyClicksImpressionsRow {
+	/** UTC start-of-day for this row. */
+	readonly day: Date;
 	readonly clicks: number;
 	readonly impressions: number;
 }
