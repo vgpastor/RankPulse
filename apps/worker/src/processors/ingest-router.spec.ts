@@ -106,7 +106,10 @@ describe('IngestRouter.dispatch', () => {
 			endpointId: 'fake-endpoint',
 			fetchResult: {},
 			rawPayloadId: 'rp-1',
-			definition: { params: { fakeId: 'x', projectId: 'param-project' }, projectId: 'entity-project' } as never,
+			definition: {
+				params: { fakeId: 'x', projectId: 'param-project' },
+				projectId: 'entity-project',
+			} as never,
 			dateBucket: '2026-05-06',
 		});
 
