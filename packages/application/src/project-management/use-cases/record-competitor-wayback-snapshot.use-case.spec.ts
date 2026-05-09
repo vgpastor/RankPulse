@@ -1,4 +1,4 @@
-import { type IdentityAccess, ProjectManagement } from '@rankpulse/domain';
+import { ProjectManagement } from '@rankpulse/domain';
 import { FakeClock, FixedIdGenerator, NotFoundError, type Uuid } from '@rankpulse/shared';
 import { InMemoryCompetitorRepository } from '@rankpulse/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
