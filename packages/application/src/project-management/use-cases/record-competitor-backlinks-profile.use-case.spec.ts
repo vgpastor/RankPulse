@@ -4,7 +4,6 @@ import { InMemoryCompetitorRepository } from '@rankpulse/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RecordCompetitorBacklinksProfileUseCase } from './record-competitor-backlinks-profile.use-case.js';
 
-const ORG_ID = 'cccccccc-cccc-cccc-cccc-cccccccccccc' as Uuid as IdentityAccess.OrganizationId;
 const PROJECT_ID = '11111111-1111-1111-1111-111111111111' as Uuid as ProjectManagement.ProjectId;
 const COMP_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' as Uuid as ProjectManagement.CompetitorId;
 const OBS_ID = 'dddddddd-dddd-dddd-dddd-dddddddddddd' as Uuid;
