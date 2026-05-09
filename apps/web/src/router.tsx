@@ -15,6 +15,7 @@ import { CannibalizationPage } from './pages/cannibalization.page.js';
 import { CockpitPage } from './pages/cockpit.page.js';
 import { CompetitorActivityPage } from './pages/competitor-activity.page.js';
 import { CompetitorsPage } from './pages/competitors.page.js';
+import { ContentGapPage } from './pages/content-gap.page.js';
 import { CredentialsPage } from './pages/credentials.page.js';
 import { CtrAnomaliesPage } from './pages/ctr-anomalies.page.js';
 import { DailyActionsPage } from './pages/daily-actions.page.js';
@@ -27,6 +28,7 @@ import { LoginPage } from './pages/login.page.js';
 import { LostOpportunityPage } from './pages/lost-opportunity.page.js';
 import { OnboardingPage } from './pages/onboarding.page.js';
 import { OpportunitiesPage } from './pages/opportunities.page.js';
+import { PageExperiencePage } from './pages/page-experience.page.js';
 import { PortfolioComparePage } from './pages/portfolio-compare.page.js';
 import { PortfoliosPage } from './pages/portfolios.page.js';
 import { ProjectDetailPage } from './pages/project-detail.page.js';
@@ -137,6 +139,18 @@ const projectCompetitorActivityRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/projects/$id/competitor-activity',
 	component: CompetitorActivityPage,
+});
+
+const projectPageExperienceRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/page-experience',
+	component: PageExperiencePage,
+});
+
+const projectContentGapRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/content-gap',
+	component: ContentGapPage,
 });
 
 const projectSchedulesRoute = createRoute({
@@ -260,6 +274,8 @@ const routeTree = rootRoute.addChildren([
 	projectCtrAnomaliesRoute,
 	projectLostOpportunityRoute,
 	projectCompetitorActivityRoute,
+	projectPageExperienceRoute,
+	projectContentGapRoute,
 	projectSchedulesRoute,
 	projectGscPropertiesRoute,
 	projectGscPerformanceRoute,
