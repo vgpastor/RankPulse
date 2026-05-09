@@ -84,11 +84,16 @@ export const Tokens = {
 	// Search-Console-Insights ports
 	GscPropertyRepository: Symbol('GscPropertyRepository'),
 	GscPerformanceObservationRepository: Symbol('GscPerformanceObservationRepository'),
+	GscCockpitReadModel: Symbol('GscCockpitReadModel'),
 
 	// Search-Console-Insights use cases
 	LinkGscProperty: Symbol('LinkGscPropertyUseCase'),
 	IngestGscRows: Symbol('IngestGscRowsUseCase'),
 	QueryGscPerformance: Symbol('QueryGscPerformanceUseCase'),
+	QueryCtrAnomalies: Symbol('QueryCtrAnomaliesUseCase'),
+	QueryLostOpportunity: Symbol('QueryLostOpportunityUseCase'),
+	QueryQuickWinRoi: Symbol('QueryQuickWinRoiUseCase'),
+	QueryBrandDecay: Symbol('QueryBrandDecayUseCase'),
 
 	// Entity-Awareness ports
 	WikipediaArticleRepository: Symbol('WikipediaArticleRepository'),

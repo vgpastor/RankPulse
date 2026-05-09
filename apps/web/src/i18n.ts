@@ -508,6 +508,7 @@ const en = {
 		title: 'Decision Cockpit',
 		subtitle: 'What to do today, where you are losing money, and what to ship next.',
 		backToProject: 'Back to project',
+		backToCockpit: 'Back to Cockpit',
 		openDetail: 'Open detail',
 		notRanked: 'Not ranked',
 		kpi: {
@@ -519,6 +520,15 @@ const en = {
 			top3Hint: 'of {{total}}',
 			behindCompetitor: 'Behind competitor',
 			behindCompetitorHint: 'Keywords where a competitor outranks you',
+			lostClicks: 'Lost clicks/month',
+			lostClicksHint: 'Projected gain if you reached top-3 across all queries',
+			ctrAnomalies: 'CTR anomalies',
+			ctrAnomaliesHint: 'Keywords with impressions but zero clicks',
+		},
+		brandDecay: {
+			alertTitle: 'Non-branded clicks dropped week-over-week',
+			alertBody:
+				'Non-branded organic clicks fell {{pct}}% ({{thisWeek}} vs {{lastWeek}}). Investigate before it compounds.',
 		},
 		widgets: {
 			dailyActions: {
@@ -543,6 +553,32 @@ const en = {
 				hint: 'Share of voice across ChatGPT / Claude / Perplexity / Gemini.',
 				description: 'See LLM mentions, citations, and competitor SoV trends.',
 			},
+			lostOpportunity: {
+				title: 'Lost Opportunity Score',
+				hint: 'Top 5 keywords by projected click gain at top-3.',
+				empty: 'No GSC data yet',
+				emptyDescription: 'Link a GSC property and let the worker fetch search-analytics rows.',
+			},
+			quickWinRoi: {
+				title: 'Quick-Win ROI',
+				hint: 'Pos #11-#30 keywords ranked by ROI score.',
+				empty: 'No quick wins yet',
+				emptyDescription: 'No keywords currently sit in #11-#30 with material impressions.',
+			},
+			ctrAnomaly: {
+				title: 'CTR Anomaly Detector',
+				hint: 'Ranked but zero-click keywords — likely broken snippet or AI Overview takeover.',
+				empty: 'No CTR anomalies',
+				emptyDescription: 'Every keyword with material impressions is earning clicks. Nice.',
+			},
+			brandDecay: {
+				title: 'Brand vs No-Brand',
+				hint: 'WoW comparison of branded vs non-branded clicks.',
+				branded: 'Branded',
+				nonBranded: 'Non-branded',
+				empty: 'No GSC data yet',
+				emptyDescription: 'Link a GSC property to compare branded vs non-branded traffic week-over-week.',
+			},
 		},
 		suggestions: {
 			title: 'Top competitor suggestions',
@@ -555,12 +591,49 @@ const en = {
 			hint: 'Sub-issues of the Decision Cockpit epic. Track at github.com/vgpastor/RankPulse/issues/117.',
 			soonBadge: 'soon',
 			items: {
-				lostOpportunity: 'Lost Opportunity Score (vol × Δ-CTR × CPC)',
-				quickWinRoi: 'Quick-Win ROI scoring',
-				ctrAnomaly: 'CTR Anomaly Detector',
-				brandDecay: 'Brand vs No-Brand decay alert',
-				pageExperience: 'Page Experience scorecard',
+				pageExperience: 'Page Experience scorecard (PSI + SSL Labs + Mozilla Obs + Schema.org)',
 				forecast90d: 'Forecast 90 days organic traffic',
+				competitorActivity: 'Competitor Activity Radar (Wayback CDX + backlinks)',
+				contentGap: 'Content Gap Map (keywords-for-site without tracked URL)',
+			},
+		},
+		ctrAnomaliesPage: {
+			title: 'CTR Anomalies',
+			subtitle:
+				'Keywords ranking but earning zero clicks — likely broken snippet, AI Overviews takeover, or canonical drift.',
+			tableTitle: 'Anomalies sorted by impression volume',
+			tableHint:
+				'Each row is a search query that returned ≥ 50 impressions and 0 clicks at position ≤ 30 in the last 28 days.',
+			query: 'Query',
+			page: 'Page',
+			impressions: 'Impressions',
+			avgPosition: 'Avg position',
+			empty: 'No anomalies in the current window.',
+			kpi: {
+				count: 'Anomalies',
+				countHint: 'Queries with impressions but zero clicks',
+				impressionsLost: 'Impressions wasted',
+				impressionsLostHint: 'Sum of impressions that returned no click',
+			},
+		},
+		lostOpportunityPage: {
+			title: 'Lost Opportunity Score',
+			subtitle: 'Click volume left on the table per keyword if you reached the top-3.',
+			tableTitle: 'Top opportunities by lost clicks',
+			tableHint:
+				'Lost clicks ≈ impressions × (CTR_top3 - CTR_current) using the AWR-2024 position-CTR curve.',
+			query: 'Query',
+			page: 'Page',
+			impressions: 'Impressions',
+			currentPosition: 'Current pos',
+			ctrJump: 'CTR current → top-3',
+			lostClicks: 'Lost clicks',
+			empty: 'No opportunities — every tracked query is already at or above target position.',
+			kpi: {
+				totalLost: 'Total lost clicks',
+				totalLostHint: 'Aggregate over the window',
+				queries: 'Queries',
+				queriesHint: 'With actionable Δ-CTR',
 			},
 		},
 	},
@@ -1123,6 +1196,7 @@ const es = {
 		title: 'Decision Cockpit',
 		subtitle: 'Qué hacer hoy, dónde dejas dinero sobre la mesa, qué publicar después.',
 		backToProject: 'Volver al proyecto',
+		backToCockpit: 'Volver al Cockpit',
 		openDetail: 'Ver detalle',
 		notRanked: 'Sin posición',
 		kpi: {
@@ -1134,6 +1208,15 @@ const es = {
 			top3Hint: 'de {{total}}',
 			behindCompetitor: 'Por detrás de competidor',
 			behindCompetitorHint: 'Keywords donde un competidor te supera',
+			lostClicks: 'Clicks perdidos/mes',
+			lostClicksHint: 'Ganancia proyectada si llegaras al top-3 en todas las queries',
+			ctrAnomalies: 'Anomalías de CTR',
+			ctrAnomaliesHint: 'Keywords con impresiones pero sin clicks',
+		},
+		brandDecay: {
+			alertTitle: 'Los clicks no-brand cayeron semana a semana',
+			alertBody:
+				'Los clicks orgánicos no-brand bajaron {{pct}}% ({{thisWeek}} vs {{lastWeek}}). Investígalo antes de que se agrave.',
 		},
 		widgets: {
 			dailyActions: {
@@ -1158,6 +1241,33 @@ const es = {
 				hint: 'Share of voice en ChatGPT / Claude / Perplexity / Gemini.',
 				description: 'Ve menciones de LLM, citas y tendencias SoV de competidores.',
 			},
+			lostOpportunity: {
+				title: 'Lost Opportunity Score',
+				hint: 'Top 5 keywords por ganancia proyectada de clicks al top-3.',
+				empty: 'Aún no hay datos de GSC',
+				emptyDescription: 'Conecta una propiedad GSC y deja que el worker recoja filas de search-analytics.',
+			},
+			quickWinRoi: {
+				title: 'Quick-Win ROI',
+				hint: 'Keywords #11-#30 ordenadas por score de ROI.',
+				empty: 'Aún no hay quick wins',
+				emptyDescription: 'Ninguna keyword está actualmente en #11-#30 con impresiones materiales.',
+			},
+			ctrAnomaly: {
+				title: 'Detector de anomalías de CTR',
+				hint: 'Keywords posicionadas con cero clicks — snippet roto o AI Overview robando clic.',
+				empty: 'Sin anomalías de CTR',
+				emptyDescription: 'Toda keyword con impresiones materiales obtiene clicks. Bien.',
+			},
+			brandDecay: {
+				title: 'Brand vs No-Brand',
+				hint: 'Comparativa semana a semana de clicks branded vs no-branded.',
+				branded: 'Branded',
+				nonBranded: 'No-branded',
+				empty: 'Aún no hay datos de GSC',
+				emptyDescription:
+					'Conecta una propiedad GSC para comparar tráfico branded vs no-branded semana a semana.',
+			},
 		},
 		suggestions: {
 			title: 'Mejores sugerencias de competidor',
@@ -1170,12 +1280,49 @@ const es = {
 			hint: 'Sub-issues del épico Decision Cockpit. Sigue el progreso en github.com/vgpastor/RankPulse/issues/117.',
 			soonBadge: 'pronto',
 			items: {
-				lostOpportunity: 'Lost Opportunity Score (vol × Δ-CTR × CPC)',
-				quickWinRoi: 'Scoring de ROI Quick-Win',
-				ctrAnomaly: 'Detector de anomalías de CTR',
-				brandDecay: 'Alerta de decay Brand vs No-Brand',
-				pageExperience: 'Scorecard de Page Experience',
+				pageExperience: 'Scorecard de Page Experience (PSI + SSL Labs + Mozilla Obs + Schema.org)',
 				forecast90d: 'Forecast 90 días tráfico orgánico',
+				competitorActivity: 'Competitor Activity Radar (Wayback CDX + backlinks)',
+				contentGap: 'Content Gap Map (keywords-for-site sin URL trackeada)',
+			},
+		},
+		ctrAnomaliesPage: {
+			title: 'Anomalías de CTR',
+			subtitle:
+				'Keywords posicionadas pero sin clicks — probablemente snippet roto, AI Overviews o canonical drift.',
+			tableTitle: 'Anomalías ordenadas por volumen de impresiones',
+			tableHint:
+				'Cada fila es una query con ≥ 50 impresiones y 0 clicks en posición ≤ 30 los últimos 28 días.',
+			query: 'Query',
+			page: 'Página',
+			impressions: 'Impresiones',
+			avgPosition: 'Pos. media',
+			empty: 'Sin anomalías en la ventana actual.',
+			kpi: {
+				count: 'Anomalías',
+				countHint: 'Queries con impresiones pero cero clicks',
+				impressionsLost: 'Impresiones desperdiciadas',
+				impressionsLostHint: 'Suma de impresiones que no produjeron clic',
+			},
+		},
+		lostOpportunityPage: {
+			title: 'Lost Opportunity Score',
+			subtitle: 'Volumen de clicks que dejas sobre la mesa por keyword si llegaras al top-3.',
+			tableTitle: 'Top oportunidades por clicks perdidos',
+			tableHint:
+				'Lost clicks ≈ impresiones × (CTR_top3 - CTR_actual) usando la curva AWR-2024 de CTR por posición.',
+			query: 'Query',
+			page: 'Página',
+			impressions: 'Impresiones',
+			currentPosition: 'Pos. actual',
+			ctrJump: 'CTR actual → top-3',
+			lostClicks: 'Clicks perdidos',
+			empty: 'Sin oportunidades — todas las queries están en o por encima de la posición objetivo.',
+			kpi: {
+				totalLost: 'Total clicks perdidos',
+				totalLostHint: 'Agregado en la ventana',
+				queries: 'Queries',
+				queriesHint: 'Con Δ-CTR accionable',
 			},
 		},
 	},

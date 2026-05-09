@@ -12,18 +12,20 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import {
+	AlertTriangle,
 	ArrowLeft,
-	ArrowUpRight,
 	BarChart3,
 	CheckCircle2,
 	ChevronRight,
 	Compass,
 	Map as MapIcon,
+	MousePointerClick,
 	Sparkles,
 	Target,
 	TrendingDown,
 	TrendingUp,
 	Users,
+	Zap,
 } from 'lucide-react';
 import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -33,13 +35,14 @@ import { api } from '../lib/api.js';
 /**
  * Issue #117 — Decision Cockpit landing.
  *
- * MVP scaffold composing the widgets that already have read-models behind
- * them (SERP Map, Competitor Moat, AI Brand Radar SoV, daily actions).
- * The remaining 7 widgets in the epic (Lost Opportunity, Quick-Win ROI,
- * CTR Anomaly Detector, Brand-vs-No-Brand decay, Page Experience scorecard,
- * Search Demand Trend, Forecast 90d) are tracked as sub-issues and surfaced
- * here as "soon" placeholders so the cockpit is the canonical landing page
- * the operator opens each morning.
+ * Sprint 1 widgets (live): SERP Map summary, Competitor Moat KPI, AI Brand
+ * Radar deep-link, Daily Action Digest deep-link, Lost Opportunity Score,
+ * Quick-Win ROI, CTR Anomaly Detector, Brand vs No-Brand decay.
+ *
+ * Remaining widgets in the epic (Page Experience scorecard, Search Demand
+ * Trend, Forecast 90d, Competitor Activity Radar, Cannibalization,
+ * Content Gap Map) are listed below as sub-issue trackers and will replace
+ * the placeholders as they land.
  */
 export const CockpitPage = () => {
 	const { id: projectId } = useParams({ from: '/projects/$id/cockpit' });
@@ -56,6 +59,22 @@ export const CockpitPage = () => {
 	const suggestionsQuery = useQuery({
 		queryKey: ['project', projectId, 'serp-map-suggestions'],
 		queryFn: () => api.rankTracking.serpCompetitorSuggestions(projectId, { minDistinctKeywords: 2 }),
+	});
+	const lostOpportunityQuery = useQuery({
+		queryKey: ['project', projectId, 'cockpit', 'lost-opportunity'],
+		queryFn: () => api.cockpit.lostOpportunity(projectId, { limit: 10 }),
+	});
+	const quickWinQuery = useQuery({
+		queryKey: ['project', projectId, 'cockpit', 'quick-win-roi'],
+		queryFn: () => api.cockpit.quickWinRoi(projectId, { limit: 10 }),
+	});
+	const ctrAnomaliesQuery = useQuery({
+		queryKey: ['project', projectId, 'cockpit', 'ctr-anomalies'],
+		queryFn: () => api.cockpit.ctrAnomalies(projectId),
+	});
+	const brandDecayQuery = useQuery({
+		queryKey: ['project', projectId, 'cockpit', 'brand-decay'],
+		queryFn: () => api.cockpit.brandDecay(projectId),
 	});
 
 	const cockpitMetrics = useMemo(() => {
@@ -76,12 +95,7 @@ export const CockpitPage = () => {
 			if (ownTop !== null && ownTop <= 3) ownInTop3 += 1;
 			if (compTop !== null && (ownTop === null || compTop < ownTop)) competitorMoatLosses += 1;
 		}
-		return {
-			tracked: trackedKeywords.size,
-			ownInTop10,
-			ownInTop3,
-			competitorMoatLosses,
-		};
+		return { tracked: trackedKeywords.size, ownInTop10, ownInTop3, competitorMoatLosses };
 	}, [serpMapQuery.data]);
 
 	if (projectQuery.isLoading) {
@@ -97,6 +111,14 @@ export const CockpitPage = () => {
 	const project = projectQuery.data;
 	const suggestions = suggestionsQuery.data?.suggestions ?? [];
 	const serpRows = serpMapQuery.data?.rows ?? [];
+	const lostOpportunity = lostOpportunityQuery.data;
+	const quickWins = quickWinQuery.data;
+	const ctrAnomalies = ctrAnomaliesQuery.data;
+	const brandDecay = brandDecayQuery.data;
+
+	const totalLostClicks = lostOpportunity?.totalLostClicks ?? 0;
+	const ctrAnomalyCount = ctrAnomalies?.anomalies.length ?? 0;
+	const noBrandDelta = brandDecay?.nonBranded.deltaPct ?? null;
 
 	return (
 		<AppShell>
@@ -121,6 +143,24 @@ export const CockpitPage = () => {
 					</div>
 				</header>
 
+				{brandDecay?.alert ? (
+					<Card>
+						<CardContent className="flex items-start gap-3 py-3">
+							<AlertTriangle size={20} className="shrink-0 text-destructive" />
+							<div className="flex-1 text-sm">
+								<p className="font-semibold">{t('cockpit:brandDecay.alertTitle')}</p>
+								<p className="text-muted-foreground">
+									{t('cockpit:brandDecay.alertBody', {
+										pct: noBrandDelta?.toFixed(1) ?? '0',
+										thisWeek: brandDecay.nonBranded.clicksThisWeek,
+										lastWeek: brandDecay.nonBranded.clicksLastWeek,
+									})}
+								</p>
+							</div>
+						</CardContent>
+					</Card>
+				) : null}
+
 				<div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
 					<KpiCard
 						label={t('cockpit:kpi.tracked')}
@@ -128,14 +168,14 @@ export const CockpitPage = () => {
 						hint={t('cockpit:kpi.trackedHint')}
 					/>
 					<KpiCard
-						label={t('cockpit:kpi.top10')}
-						value={cockpitMetrics.ownInTop10.toString()}
-						hint={t('cockpit:kpi.top10Hint', { total: cockpitMetrics.tracked })}
+						label={t('cockpit:kpi.lostClicks')}
+						value={formatNumber(totalLostClicks)}
+						hint={t('cockpit:kpi.lostClicksHint')}
 					/>
 					<KpiCard
-						label={t('cockpit:kpi.top3')}
-						value={cockpitMetrics.ownInTop3.toString()}
-						hint={t('cockpit:kpi.top3Hint', { total: cockpitMetrics.tracked })}
+						label={t('cockpit:kpi.ctrAnomalies')}
+						value={ctrAnomalyCount.toString()}
+						hint={t('cockpit:kpi.ctrAnomaliesHint')}
 					/>
 					<KpiCard
 						label={t('cockpit:kpi.behindCompetitor')}
@@ -145,6 +185,136 @@ export const CockpitPage = () => {
 				</div>
 
 				<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+					<WidgetCard
+						title={t('cockpit:widgets.lostOpportunity.title')}
+						hint={t('cockpit:widgets.lostOpportunity.hint')}
+						icon={<TrendingDown size={14} className="text-rose-600" />}
+						href={{ to: '/projects/$id/lost-opportunity', params: { id: projectId } }}
+						cta={t('cockpit:openDetail')}
+					>
+						{lostOpportunityQuery.isLoading ? (
+							<Spinner size="sm" />
+						) : !lostOpportunity || lostOpportunity.rows.length === 0 ? (
+							<EmptyState
+								title={t('cockpit:widgets.lostOpportunity.empty')}
+								description={t('cockpit:widgets.lostOpportunity.emptyDescription')}
+							/>
+						) : (
+							<ul className="flex flex-col gap-1.5 text-sm">
+								{lostOpportunity.rows.slice(0, 5).map((row) => (
+									<li
+										key={`${row.query}-${row.page ?? ''}`}
+										className="flex items-center justify-between gap-2"
+									>
+										<span className="min-w-0 break-words">
+											<span className="font-medium">{row.query}</span>{' '}
+											<span className="text-xs text-muted-foreground">#{row.currentPosition.toFixed(1)}</span>
+										</span>
+										<span className="font-mono text-xs text-rose-600">+{formatNumber(row.lostClicks)}</span>
+									</li>
+								))}
+							</ul>
+						)}
+					</WidgetCard>
+
+					<WidgetCard
+						title={t('cockpit:widgets.quickWinRoi.title')}
+						hint={t('cockpit:widgets.quickWinRoi.hint')}
+						icon={<Zap size={14} className="text-amber-600" />}
+						href={{ to: '/projects/$id/opportunities', params: { id: projectId } }}
+						cta={t('cockpit:openDetail')}
+					>
+						{quickWinQuery.isLoading ? (
+							<Spinner size="sm" />
+						) : !quickWins || quickWins.rows.length === 0 ? (
+							<EmptyState
+								title={t('cockpit:widgets.quickWinRoi.empty')}
+								description={t('cockpit:widgets.quickWinRoi.emptyDescription')}
+							/>
+						) : (
+							<ul className="flex flex-col gap-1.5 text-sm">
+								{quickWins.rows.slice(0, 5).map((row) => (
+									<li
+										key={`${row.query}-${row.page ?? ''}`}
+										className="flex items-center justify-between gap-2"
+									>
+										<span className="min-w-0 break-words">
+											<span className="font-medium">{row.query}</span>{' '}
+											<span className="text-xs text-muted-foreground">#{row.currentPosition.toFixed(1)}</span>
+										</span>
+										<span className="font-mono text-xs text-amber-700">
+											+{formatNumber(row.projectedClickGain)}
+										</span>
+									</li>
+								))}
+							</ul>
+						)}
+					</WidgetCard>
+
+					<WidgetCard
+						title={t('cockpit:widgets.ctrAnomaly.title')}
+						hint={t('cockpit:widgets.ctrAnomaly.hint')}
+						icon={<MousePointerClick size={14} className="text-rose-600" />}
+						href={{ to: '/projects/$id/ctr-anomalies', params: { id: projectId } }}
+						cta={t('cockpit:openDetail')}
+					>
+						{ctrAnomaliesQuery.isLoading ? (
+							<Spinner size="sm" />
+						) : !ctrAnomalies || ctrAnomalies.anomalies.length === 0 ? (
+							<EmptyState
+								title={t('cockpit:widgets.ctrAnomaly.empty')}
+								description={t('cockpit:widgets.ctrAnomaly.emptyDescription')}
+							/>
+						) : (
+							<ul className="flex flex-col gap-1.5 text-sm">
+								{ctrAnomalies.anomalies.slice(0, 5).map((row) => (
+									<li key={row.query} className="flex items-center justify-between gap-2">
+										<span className="min-w-0 break-words">
+											<span className="font-medium">{row.query}</span>{' '}
+											<span className="text-xs text-muted-foreground">#{row.avgPosition.toFixed(1)}</span>
+										</span>
+										<span className="font-mono text-xs text-rose-600">
+											{formatNumber(row.impressions)} impr · 0 clicks
+										</span>
+									</li>
+								))}
+							</ul>
+						)}
+					</WidgetCard>
+
+					<WidgetCard
+						title={t('cockpit:widgets.brandDecay.title')}
+						hint={t('cockpit:widgets.brandDecay.hint')}
+						icon={<TrendingDown size={14} className="text-purple-600" />}
+						href={{ to: '/projects/$id/scorecard', params: { id: projectId } }}
+						cta={t('cockpit:openDetail')}
+					>
+						{brandDecayQuery.isLoading ? (
+							<Spinner size="sm" />
+						) : !brandDecay ? (
+							<EmptyState
+								title={t('cockpit:widgets.brandDecay.empty')}
+								description={t('cockpit:widgets.brandDecay.emptyDescription')}
+							/>
+						) : (
+							<div className="grid grid-cols-2 gap-2 text-sm">
+								<BrandDecayBucket
+									label={t('cockpit:widgets.brandDecay.branded')}
+									thisWeek={brandDecay.branded.clicksThisWeek}
+									lastWeek={brandDecay.branded.clicksLastWeek}
+									deltaPct={brandDecay.branded.deltaPct}
+								/>
+								<BrandDecayBucket
+									label={t('cockpit:widgets.brandDecay.nonBranded')}
+									thisWeek={brandDecay.nonBranded.clicksThisWeek}
+									lastWeek={brandDecay.nonBranded.clicksLastWeek}
+									deltaPct={brandDecay.nonBranded.deltaPct}
+									warn={brandDecay.alert}
+								/>
+							</div>
+						)}
+					</WidgetCard>
+
 					<WidgetCard
 						title={t('cockpit:widgets.dailyActions.title')}
 						hint={t('cockpit:widgets.dailyActions.hint')}
@@ -262,12 +432,10 @@ export const CockpitPage = () => {
 					<CardContent>
 						<ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
 							{[
-								{ icon: <TrendingDown size={14} />, label: t('cockpit:upcoming.items.lostOpportunity') },
-								{ icon: <TrendingUp size={14} />, label: t('cockpit:upcoming.items.quickWinRoi') },
-								{ icon: <ArrowUpRight size={14} />, label: t('cockpit:upcoming.items.ctrAnomaly') },
-								{ icon: <BarChart3 size={14} />, label: t('cockpit:upcoming.items.brandDecay') },
 								{ icon: <Compass size={14} />, label: t('cockpit:upcoming.items.pageExperience') },
 								{ icon: <TrendingUp size={14} />, label: t('cockpit:upcoming.items.forecast90d') },
+								{ icon: <Users size={14} />, label: t('cockpit:upcoming.items.competitorActivity') },
+								{ icon: <BarChart3 size={14} />, label: t('cockpit:upcoming.items.contentGap') },
 							].map((item) => (
 								<li
 									key={item.label}
@@ -317,3 +485,42 @@ const WidgetCard = ({ title, hint, icon, href, cta, children }: WidgetCardProps)
 		<CardContent>{children}</CardContent>
 	</Card>
 );
+
+const BrandDecayBucket = ({
+	label,
+	thisWeek,
+	lastWeek,
+	deltaPct,
+	warn,
+}: {
+	label: string;
+	thisWeek: number;
+	lastWeek: number;
+	deltaPct: number | null;
+	warn?: boolean;
+}) => {
+	const deltaText = deltaPct === null ? '—' : `${deltaPct > 0 ? '+' : ''}${deltaPct.toFixed(1)}%`;
+	const deltaColor =
+		deltaPct === null
+			? 'text-muted-foreground'
+			: deltaPct >= 0
+				? 'text-emerald-600'
+				: warn
+					? 'text-destructive'
+					: 'text-amber-600';
+	return (
+		<div className="rounded border border-border p-2">
+			<p className="text-xs text-muted-foreground">{label}</p>
+			<p className="font-mono text-sm font-semibold">{formatNumber(thisWeek)}</p>
+			<p className={`text-xs ${deltaColor}`}>
+				{deltaText} <span className="text-muted-foreground">vs {formatNumber(lastWeek)}</span>
+			</p>
+		</div>
+	);
+};
+
+const formatNumber = (n: number): string => {
+	if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+	if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+	return n.toString();
+};

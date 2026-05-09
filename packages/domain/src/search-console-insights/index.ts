@@ -7,6 +7,7 @@ export * from './entities/gsc-property.js';
 export * from './events/gsc-performance-batch-ingested.js';
 export * from './events/gsc-performance-ingested.js';
 export * from './events/gsc-property-linked.js';
+export * from './ports/gsc-cockpit-read-model.js';
 export * from './ports/gsc-performance-observation-repository.js';
 // Ports
 export * from './ports/gsc-property-repository.js';
