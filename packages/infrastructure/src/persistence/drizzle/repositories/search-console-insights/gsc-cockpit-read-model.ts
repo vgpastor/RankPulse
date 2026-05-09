@@ -77,7 +77,7 @@ export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCock
 		windowDays: number,
 	): Promise<readonly SearchConsoleInsights.WeeklyClicksByQueryRow[]> {
 		const result = await this.db.execute(sql<{
-			week_start: Date;
+			week_start: string;
 			query: string;
 			clicks: number;
 			impressions: number;
@@ -94,10 +94,15 @@ export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCock
 			GROUP BY week_start, query
 			ORDER BY week_start ASC, clicks DESC
 		`);
-		type Row = { week_start: Date; query: string; clicks: number; impressions: number };
+		// postgres-js (3.4.x) returns timestamptz from raw `db.execute()` as
+		// the original ISO string (e.g. `"2026-04-27 00:00:00+00"`), NOT a
+		// Date object — its built-in type parsers only kick in for the
+		// schema-typed query builder. The use case calls `.toISOString()`
+		// on `weekStart`, so we coerce here at the repo boundary.
+		type Row = { week_start: string | Date; query: string; clicks: number; impressions: number };
 		const rows = unwrap<Row>(result);
 		return rows.map((r) => ({
-			weekStart: r.week_start,
+			weekStart: toDate(r.week_start),
 			query: r.query,
 			clicks: Number(r.clicks),
 			impressions: Number(r.impressions),
@@ -113,7 +118,7 @@ export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCock
 		// because the forecast wants TOTAL traffic — including discover-only
 		// / opaque rows GSC returns without a query value.
 		const result = await this.db.execute(sql<{
-			day: Date;
+			day: string;
 			clicks: number;
 			impressions: number;
 		}>`
@@ -127,12 +132,17 @@ export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCock
 			GROUP BY day
 			ORDER BY day ASC
 		`);
-		type Row = { day: Date; clicks: number | string | null; impressions: number | string | null };
+		// See `weeklyClicksByQuery` — postgres-js returns timestamptz as a
+		// raw string for `db.execute()` queries; the forecast use case calls
+		// `.getTime()` on `day` so we coerce here.
+		type Row = { day: string | Date; clicks: number | string | null; impressions: number | string | null };
 		const rows = unwrap<Row>(result);
 		return rows.map((r) => ({
-			day: r.day,
+			day: toDate(r.day),
 			clicks: Number(r.clicks ?? 0),
 			impressions: Number(r.impressions ?? 0),
 		}));
 	}
 }
+
+const toDate = (v: string | Date): Date => (v instanceof Date ? v : new Date(v));
