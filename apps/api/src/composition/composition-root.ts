@@ -325,6 +325,17 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		rankTrackingSchemaTables: DrizzlePersistence.schema.rankTrackingSchemaTables,
 	} satisfies RTUseCases.RankTrackingDeps as unknown as SharedDeps);
 
+	// Per-context deps with auto-schedule include `scheduleEndpointFetch` and
+	// `logger` so the module's `buildAutoScheduleHandlers` call has what it
+	// needs. AI search additionally needs `projects` and `credentials` for
+	// its `dynamicSchedules` resolver. Defined here (before the
+	// `competitor-intelligence` compose) because that module also wires
+	// auto-schedule (#142).
+	const autoScheduleSurface = {
+		scheduleEndpointFetch,
+		logger: autoScheduleLogger,
+	};
+
 	const competitorIntelligence = CIUseCases.competitorIntelligenceModule.compose({
 		clock: SystemClock,
 		ids: SystemIdGenerator,
@@ -333,16 +344,8 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		competitorKeywordGapRepo,
 		competitorPageAuditRepo,
 		competitorIntelligenceSchemaTables: DrizzlePersistence.schema.competitorIntelligenceSchemaTables,
-	} satisfies CIUseCases.CompetitorIntelligenceDeps as unknown as SharedDeps);
-
-	// Per-context deps with auto-schedule include `scheduleEndpointFetch` and
-	// `logger` so the module's `buildAutoScheduleHandlers` call has what it
-	// needs. AI search additionally needs `projects` and `credentials` for
-	// its `dynamicSchedules` resolver.
-	const autoScheduleSurface = {
-		scheduleEndpointFetch,
-		logger: autoScheduleLogger,
-	};
+		...autoScheduleSurface,
+	} as CIUseCases.CompetitorIntelligenceDeps as unknown as SharedDeps);
 
 	const searchConsoleInsights = SCIUseCases.searchConsoleInsightsModule.compose({
 		clock: SystemClock,
