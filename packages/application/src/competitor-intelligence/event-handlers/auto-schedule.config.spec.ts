@@ -89,9 +89,7 @@ describe('CompetitorAdded → schedules', () => {
 		// Composite idempotency key — guarantees per-locale uniqueness so
 		// the second locale of a multi-market project isn't dropped by
 		// ScheduleEndpointFetchUseCase's idempotency check.
-		expect(diSys?.intersectionScheduleKey).toBe(
-			'patroltech.online|silvertraconline.com|ES|es',
-		);
+		expect(diSys?.intersectionScheduleKey).toBe('patroltech.online|silvertraconline.com|ES|es');
 	});
 
 	it('fans out per locale on multi-market projects (US + GB)', async () => {
