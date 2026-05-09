@@ -247,7 +247,29 @@ export class ProviderFetchProcessor {
 		);
 		const existing = await this.deps.rawPayloadRepo.findByRequestHash(requestHash);
 		if (existing) {
-			runLog.info({ requestHash }, 'idempotent skip');
+			// Idempotent fetch skip — but the ingest pipeline still has to run.
+			// Without this, a prior run that silently dropped its rows (e.g.
+			// systemParams missing — see #147) leaves the read-model empty and
+			// every subsequent run-now hits this branch and never re-ingests
+			// because the requestHash already exists. Replaying the cached
+			// payload through the IngestRouter heals that case at zero cost
+			// (no upstream API call). #151
+			try {
+				await this.deps.ingestRouter.dispatch({
+					providerId: definition.providerId.value,
+					endpointId: definition.endpointId.value,
+					fetchResult: existing.payload,
+					rawPayloadId: existing.id,
+					definition,
+					dateBucket,
+				});
+				runLog.info({ requestHash }, 'idempotent skip — replayed ingest from cached payload');
+			} catch (err) {
+				runLog.warn(
+					{ requestHash, err: err instanceof Error ? err.message : String(err) },
+					'idempotent skip — ingest replay failed (raw payload preserved)',
+				);
+			}
 			run.complete(existing.id, this.deps.clock.now());
 			await this.deps.jobRunRepo.save(run);
 			return;
