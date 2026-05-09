@@ -29,22 +29,24 @@ describe('IngestRouter.dispatch', () => {
 			endpointId: 'fake-endpoint',
 			fetchResult: { ok: true },
 			rawPayloadId: 'rp-1',
-			definition: { params: { fakeId: 'entity-1', siteUrl: 'x' } } as never,
+			definition: { params: { fakeId: 'entity-1', siteUrl: 'x' }, projectId: 'project-77' } as never,
 			dateBucket: '2026-05-06',
 		});
 
 		expect(handled).toBe(true);
+		// Router stamps `projectId` from the JobDefinition entity into the
+		// systemParams passed to ACL + ingest (defence-in-depth for #147).
 		expect(acl).toHaveBeenCalledWith(
 			{ ok: true },
 			expect.objectContaining({
 				dateBucket: '2026-05-06',
-				systemParams: { fakeId: 'entity-1', siteUrl: 'x' },
+				systemParams: { fakeId: 'entity-1', siteUrl: 'x', projectId: 'project-77' },
 			}),
 		);
 		expect(execute).toHaveBeenCalledWith({
 			rawPayloadId: 'rp-1',
 			rows: [{ row: 1 }],
-			systemParams: { fakeId: 'entity-1', siteUrl: 'x' },
+			systemParams: { fakeId: 'entity-1', siteUrl: 'x', projectId: 'project-77' },
 		});
 	});
 
@@ -90,6 +92,29 @@ describe('IngestRouter.dispatch', () => {
 				dateBucket: '2026-05-06',
 			}),
 		).rejects.toBeInstanceOf(NotFoundError);
+	});
+
+	it('preserves params.projectId when already present (does not overwrite with definition.projectId)', async () => {
+		const { acl, execute, ingest } = buildEntry();
+		const entries = new Map<RouterKey, IngestRouterEntry>([
+			['fake|fake-endpoint', { systemParamKey: 'fakeId', acl, ingest }],
+		]);
+		const router = new IngestRouter(entries);
+
+		await router.dispatch({
+			providerId: 'fake',
+			endpointId: 'fake-endpoint',
+			fetchResult: {},
+			rawPayloadId: 'rp-1',
+			definition: { params: { fakeId: 'x', projectId: 'param-project' }, projectId: 'entity-project' } as never,
+			dateBucket: '2026-05-06',
+		});
+
+		expect(execute).toHaveBeenCalledWith(
+			expect.objectContaining({
+				systemParams: expect.objectContaining({ projectId: 'param-project' }),
+			}),
+		);
 	});
 });
 
