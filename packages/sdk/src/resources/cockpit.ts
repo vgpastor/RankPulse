@@ -1,4 +1,8 @@
-import type { ProjectManagementContracts, SearchConsoleInsightsContracts } from '@rankpulse/contracts';
+import type {
+	ProjectManagementContracts,
+	RankTrackingContracts,
+	SearchConsoleInsightsContracts,
+} from '@rankpulse/contracts';
 import type { HttpClient } from '../http.js';
 
 const buildQuery = (input: Record<string, number | string | undefined>): Record<string, string | null> => {
@@ -74,6 +78,30 @@ export class CockpitResource {
 	): Promise<ProjectManagementContracts.CompetitorActivityResponse> {
 		return this.http.get(`/projects/${encodeURIComponent(projectId)}/cockpit/competitor-activity`, {
 			query: buildQuery({ windowDays: query?.windowDays }),
+		});
+	}
+
+	searchDemandTrend(
+		projectId: string,
+		query?: RankTrackingContracts.SearchDemandTrendQuery,
+	): Promise<RankTrackingContracts.SearchDemandTrendResponse> {
+		return this.http.get(`/projects/${encodeURIComponent(projectId)}/cockpit/search-demand-trend`, {
+			query: buildQuery({
+				months: query?.months,
+				targetDomain: query?.targetDomain,
+			}),
+		});
+	}
+
+	forecast90d(
+		projectId: string,
+		query?: SearchConsoleInsightsContracts.ClicksForecastQuery,
+	): Promise<SearchConsoleInsightsContracts.ClicksForecastResponse> {
+		return this.http.get(`/projects/${encodeURIComponent(projectId)}/cockpit/forecast-90d`, {
+			query: buildQuery({
+				historyDays: query?.historyDays,
+				forecastDays: query?.forecastDays,
+			}),
 		});
 	}
 }

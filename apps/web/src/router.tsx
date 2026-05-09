@@ -19,6 +19,7 @@ import { ContentGapPage } from './pages/content-gap.page.js';
 import { CredentialsPage } from './pages/credentials.page.js';
 import { CtrAnomaliesPage } from './pages/ctr-anomalies.page.js';
 import { DailyActionsPage } from './pages/daily-actions.page.js';
+import { Forecast90dPage } from './pages/forecast-90d.page.js';
 import { Ga4PropertiesPage } from './pages/ga4-properties.page.js';
 import { Ga4TrafficPage } from './pages/ga4-traffic.page.js';
 import { GapAnalysisPage } from './pages/gap-analysis.page.js';
@@ -36,6 +37,7 @@ import { ProjectsPage } from './pages/projects.page.js';
 import { RankingsPage } from './pages/rankings.page.js';
 import { RegisterPage } from './pages/register.page.js';
 import { SchedulesPage } from './pages/schedules.page.js';
+import { SearchDemandTrendPage } from './pages/search-demand-trend.page.js';
 import { SerpMapPage } from './pages/serp-map.page.js';
 import { WeeklyScorecardPage } from './pages/weekly-scorecard.page.js';
 
@@ -151,6 +153,18 @@ const projectContentGapRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/projects/$id/content-gap',
 	component: ContentGapPage,
+});
+
+const projectSearchDemandTrendRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/search-demand-trend',
+	component: SearchDemandTrendPage,
+});
+
+const projectForecast90dRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/forecast-90d',
+	component: Forecast90dPage,
 });
 
 const projectSchedulesRoute = createRoute({
@@ -276,6 +290,8 @@ const routeTree = rootRoute.addChildren([
 	projectCompetitorActivityRoute,
 	projectPageExperienceRoute,
 	projectContentGapRoute,
+	projectSearchDemandTrendRoute,
+	projectForecast90dRoute,
 	projectSchedulesRoute,
 	projectGscPropertiesRoute,
 	projectGscPerformanceRoute,

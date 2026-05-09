@@ -8,6 +8,7 @@ import type { ContextModule, ContextRegistrations, SharedDeps } from '../_core/m
 import { IngestRankedKeywordsUseCase } from './use-cases/ingest-ranked-keywords.use-case.js';
 import { QueryRankedKeywordsUseCase } from './use-cases/query-ranked-keywords.use-case.js';
 import { QueryRankingHistoryUseCase } from './use-cases/query-ranking-history.use-case.js';
+import { QuerySearchDemandTrendUseCase } from './use-cases/query-search-demand-trend.use-case.js';
 import { QuerySerpCompetitorSuggestionsUseCase } from './use-cases/query-serp-competitor-suggestions.use-case.js';
 import { QuerySerpMapUseCase } from './use-cases/query-serp-map.use-case.js';
 import { RecordRankingObservationUseCase } from './use-cases/record-ranking-observation.use-case.js';
@@ -56,6 +57,10 @@ export const rankTrackingModule: ContextModule = {
 				),
 				IngestRankedKeywords: ingestRankedKeywords,
 				QueryRankedKeywords: new QueryRankedKeywordsUseCase(d.projectRepo, d.rankedKeywordObservationRepo),
+				QuerySearchDemandTrend: new QuerySearchDemandTrendUseCase(
+					d.projectRepo,
+					d.rankedKeywordObservationRepo,
+				),
 			},
 			ingestUseCases: {
 				// Issue #127: typed ingest path. The router's generic

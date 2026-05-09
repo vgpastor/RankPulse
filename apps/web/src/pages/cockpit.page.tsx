@@ -96,6 +96,14 @@ export const CockpitPage = () => {
 		queryKey: ['project', projectId, 'competitors'],
 		queryFn: () => api.projects.listCompetitors(projectId),
 	});
+	const searchDemandQuery = useQuery({
+		queryKey: ['project', projectId, 'cockpit', 'search-demand-trend'],
+		queryFn: () => api.cockpit.searchDemandTrend(projectId, { months: 13 }),
+	});
+	const forecast90dQuery = useQuery({
+		queryKey: ['project', projectId, 'cockpit', 'forecast-90d'],
+		queryFn: () => api.cockpit.forecast90d(projectId),
+	});
 
 	const cockpitMetrics = useMemo(() => {
 		const rows = serpMapQuery.data?.rows ?? [];
@@ -192,6 +200,14 @@ export const CockpitPage = () => {
 	const pagesWithIssues = latestPageScores.filter((s) => s < 0.5).length;
 
 	const contentGapData = contentGapQuery.data;
+	const searchDemand = searchDemandQuery.data;
+	const searchDemandDeltaPct = searchDemand?.deltaPct ?? null;
+	const forecast = forecast90dQuery.data;
+	const forecastDeltaPct = forecast?.deltaPct ?? null;
+	const forecastObservedSpark = (forecast?.points ?? [])
+		.filter((p) => p.type === 'observed')
+		.map((p) => p.clicks);
+	const forecastSpark = (forecast?.points ?? []).filter((p) => p.type === 'forecast').map((p) => p.clicks);
 
 	return (
 		<AppShell>
@@ -595,6 +611,117 @@ export const CockpitPage = () => {
 							</ul>
 						)}
 					</WidgetCard>
+
+					<WidgetCard
+						title={t('cockpit:widgets.searchDemandTrend.title')}
+						hint={t('cockpit:widgets.searchDemandTrend.hint')}
+						icon={
+							searchDemandDeltaPct !== null && searchDemandDeltaPct < 0 ? (
+								<TrendingDown size={14} className="text-red-600" />
+							) : (
+								<TrendingUp size={14} className="text-emerald-600" />
+							)
+						}
+						href={{ to: '/projects/$id/search-demand-trend', params: { id: projectId } }}
+						cta={t('cockpit:openDetail')}
+					>
+						{searchDemandQuery.isLoading ? (
+							<Spinner size="sm" />
+						) : !searchDemand || searchDemand.points.length === 0 ? (
+							<EmptyState
+								title={t('cockpit:widgets.searchDemandTrend.empty')}
+								description={t('cockpit:widgets.searchDemandTrend.emptyDescription')}
+							/>
+						) : (
+							<div className="flex flex-col gap-2">
+								<div className="flex items-baseline gap-2">
+									<span className="font-mono text-2xl font-semibold">
+										{searchDemand.latestVolume >= 1_000_000
+											? `${(searchDemand.latestVolume / 1_000_000).toFixed(1)}M`
+											: searchDemand.latestVolume >= 1_000
+												? `${(searchDemand.latestVolume / 1_000).toFixed(1)}k`
+												: searchDemand.latestVolume.toString()}
+									</span>
+									{searchDemandDeltaPct !== null ? (
+										<span
+											className={`font-mono text-xs ${searchDemandDeltaPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}
+										>
+											{searchDemandDeltaPct > 0 ? '+' : ''}
+											{searchDemandDeltaPct}%
+										</span>
+									) : null}
+								</div>
+								<Sparkline
+									values={searchDemand.points.map((p) => p.totalVolume)}
+									height={32}
+									stroke={
+										searchDemandDeltaPct !== null && searchDemandDeltaPct < 0
+											? 'rgb(220, 38, 38)'
+											: 'rgb(5, 150, 105)'
+									}
+									className="text-primary"
+								/>
+							</div>
+						)}
+					</WidgetCard>
+
+					<WidgetCard
+						title={t('cockpit:widgets.forecast90d.title')}
+						hint={t('cockpit:widgets.forecast90d.hint')}
+						icon={
+							forecastDeltaPct !== null && forecastDeltaPct < 0 ? (
+								<TrendingDown size={14} className="text-red-600" />
+							) : (
+								<TrendingUp size={14} className="text-emerald-600" />
+							)
+						}
+						href={{ to: '/projects/$id/forecast-90d', params: { id: projectId } }}
+						cta={t('cockpit:openDetail')}
+					>
+						{forecast90dQuery.isLoading ? (
+							<Spinner size="sm" />
+						) : !forecast || forecast.points.length === 0 ? (
+							<EmptyState
+								title={t('cockpit:widgets.forecast90d.empty')}
+								description={t('cockpit:widgets.forecast90d.emptyDescription')}
+							/>
+						) : (
+							<div className="flex flex-col gap-2">
+								<div className="flex items-baseline gap-2">
+									<span className="font-mono text-2xl font-semibold">
+										{forecastDeltaPct === null
+											? '—'
+											: `${forecastDeltaPct > 0 ? '+' : ''}${forecastDeltaPct}%`}
+									</span>
+									<span className="text-xs text-muted-foreground">
+										{t('cockpit:widgets.forecast90d.vsHistory')}
+									</span>
+								</div>
+								<div className="grid grid-cols-2 gap-2">
+									<div>
+										<p className="text-[10px] uppercase text-muted-foreground">
+											{t('cockpit:widgets.forecast90d.observed')}
+										</p>
+										<Sparkline values={forecastObservedSpark} height={28} stroke="rgb(99, 102, 241)" />
+									</div>
+									<div>
+										<p className="text-[10px] uppercase text-muted-foreground">
+											{t('cockpit:widgets.forecast90d.forecast')}
+										</p>
+										<Sparkline
+											values={forecastSpark}
+											height={28}
+											stroke={
+												forecastDeltaPct !== null && forecastDeltaPct < 0
+													? 'rgb(220, 38, 38)'
+													: 'rgb(5, 150, 105)'
+											}
+										/>
+									</div>
+								</div>
+							</div>
+						)}
+					</WidgetCard>
 				</div>
 
 				<Card>
@@ -628,35 +755,6 @@ export const CockpitPage = () => {
 								</Button>
 							</Link>
 						</div>
-					</CardContent>
-				</Card>
-
-				<Card>
-					<CardHeader>
-						<CardTitle className="flex items-center gap-2 text-base">
-							<BarChart3 size={14} />
-							{t('cockpit:upcoming.title')}
-						</CardTitle>
-						<p className="text-xs text-muted-foreground">{t('cockpit:upcoming.hint')}</p>
-					</CardHeader>
-					<CardContent>
-						<ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-							{[
-								{ icon: <TrendingUp size={14} />, label: t('cockpit:upcoming.items.searchDemand') },
-								{ icon: <TrendingUp size={14} />, label: t('cockpit:upcoming.items.forecast90d') },
-							].map((item) => (
-								<li
-									key={item.label}
-									className="flex items-center gap-2 rounded border border-dashed border-border p-2 text-sm"
-								>
-									<span className="text-muted-foreground">{item.icon}</span>
-									<span>{item.label}</span>
-									<Badge variant="secondary" className="ml-auto">
-										{t('cockpit:upcoming.soonBadge')}
-									</Badge>
-								</li>
-							))}
-						</ul>
 					</CardContent>
 				</Card>
 			</div>

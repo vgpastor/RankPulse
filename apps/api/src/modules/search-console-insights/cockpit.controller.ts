@@ -1,9 +1,14 @@
 import { Controller, Get, Inject, Param, Query } from '@nestjs/common';
 import type {
 	ProjectManagement as PMUseCases,
+	RankTracking as RTUseCases,
 	SearchConsoleInsights as SCIUseCases,
 } from '@rankpulse/application';
-import { ProjectManagementContracts, SearchConsoleInsightsContracts } from '@rankpulse/contracts';
+import {
+	ProjectManagementContracts,
+	RankTrackingContracts,
+	SearchConsoleInsightsContracts,
+} from '@rankpulse/contracts';
 import type { IdentityAccess, ProjectManagement } from '@rankpulse/domain';
 import { NotFoundError } from '@rankpulse/shared';
 import type { AuthPrincipal } from '../../common/auth/jwt.service.js';
@@ -38,6 +43,10 @@ export class CockpitController {
 		private readonly queryBrandDecay: SCIUseCases.QueryBrandDecayUseCase,
 		@Inject(Tokens.QueryCompetitorActivity)
 		private readonly queryCompetitorActivity: PMUseCases.QueryCompetitorActivityUseCase,
+		@Inject(Tokens.QuerySearchDemandTrend)
+		private readonly querySearchDemandTrend: RTUseCases.QuerySearchDemandTrendUseCase,
+		@Inject(Tokens.QueryClicksForecast)
+		private readonly queryClicksForecast: SCIUseCases.QueryClicksForecastUseCase,
 		@Inject(Tokens.ProjectRepository)
 		private readonly projects: ProjectManagement.ProjectRepository,
 		@Inject(Tokens.MembershipRepository) memberships: IdentityAccess.MembershipRepository,
@@ -119,6 +128,36 @@ export class CockpitController {
 		return this.queryCompetitorActivity.execute({
 			projectId,
 			windowDays: q.windowDays,
+		});
+	}
+
+	@Get('search-demand-trend')
+	async searchDemandTrend(
+		@Principal() principal: AuthPrincipal,
+		@Param('projectId') projectId: string,
+		@Query(new ZodValidationPipe(RankTrackingContracts.SearchDemandTrendQuery))
+		q: RankTrackingContracts.SearchDemandTrendQuery,
+	): Promise<RankTrackingContracts.SearchDemandTrendResponse> {
+		await this.requireMembership(principal, projectId);
+		return this.querySearchDemandTrend.execute({
+			projectId,
+			months: q.months,
+			targetDomain: q.targetDomain,
+		});
+	}
+
+	@Get('forecast-90d')
+	async forecast90d(
+		@Principal() principal: AuthPrincipal,
+		@Param('projectId') projectId: string,
+		@Query(new ZodValidationPipe(SearchConsoleInsightsContracts.ClicksForecastQuery))
+		q: SearchConsoleInsightsContracts.ClicksForecastQuery,
+	): Promise<SearchConsoleInsightsContracts.ClicksForecastResponse> {
+		await this.requireMembership(principal, projectId);
+		return this.queryClicksForecast.execute({
+			projectId,
+			historyDays: q.historyDays,
+			forecastDays: q.forecastDays,
 		});
 	}
 

@@ -138,3 +138,26 @@ export const RankedKeywordsResponse = z.object({
 	rows: z.array(RankedKeywordsResponseEntry),
 });
 export type RankedKeywordsResponse = z.infer<typeof RankedKeywordsResponse>;
+
+// --- Search Demand Trend (issue #117 Sprint 4) ---
+
+export const SearchDemandTrendQuery = z.object({
+	months: z.coerce.number().int().min(2).max(36).optional(),
+	targetDomain: z.string().min(3).max(253).optional(),
+});
+export type SearchDemandTrendQuery = z.infer<typeof SearchDemandTrendQuery>;
+
+export const SearchDemandPointDto = z.object({
+	month: z.string().datetime(),
+	totalVolume: z.number().int().nonnegative(),
+	distinctKeywords: z.number().int().nonnegative(),
+});
+export type SearchDemandPointDto = z.infer<typeof SearchDemandPointDto>;
+
+export const SearchDemandTrendResponse = z.object({
+	points: z.array(SearchDemandPointDto),
+	latestVolume: z.number().int().nonnegative(),
+	previousVolume: z.number().int().nonnegative(),
+	deltaPct: z.number().nullable(),
+});
+export type SearchDemandTrendResponse = z.infer<typeof SearchDemandTrendResponse>;

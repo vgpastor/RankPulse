@@ -797,6 +797,48 @@ export function buildOpenApiDocument(): unknown {
 
 	registry.registerPath({
 		method: 'get',
+		path: '/api/v1/projects/{projectId}/cockpit/search-demand-trend',
+		summary: 'Search Demand Trend — monthly search volume across the project keyword universe',
+		description:
+			'One bucket per UTC month over the trailing window (default 13 months for YoY). Sums `search_volume` across the most recent snapshot of every (target_domain, keyword) pair in the bucket, so demand is not double-counted on weekly re-ingests. Used by the Decision Cockpit Search Demand Trend widget (issue #117 Sprint 4).',
+		tags: ['decision-cockpit'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid() }),
+			query: RankTrackingContracts.SearchDemandTrendQuery,
+		},
+		responses: {
+			200: {
+				description: 'Monthly demand series + latest/previous totals + WoW delta',
+				content: { 'application/json': { schema: RankTrackingContracts.SearchDemandTrendResponse } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/projects/{projectId}/cockpit/forecast-90d',
+		summary: 'Forecast 90d — Holt-Winters projection of GSC clicks/impressions',
+		description:
+			'Returns observed daily clicks/impressions for the trailing `historyDays` plus a `forecastDays`-long forward projection fitted with Holt-Winters double-exponential smoothing (additive trend, no seasonality). Each point is tagged `observed` or `forecast`. Issue #117 Sprint 4.',
+		tags: ['decision-cockpit'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid() }),
+			query: SearchConsoleInsightsContracts.ClicksForecastQuery,
+		},
+		responses: {
+			200: {
+				description: 'Observed history + Holt-Winters forward projection + summed deltas',
+				content: { 'application/json': { schema: SearchConsoleInsightsContracts.ClicksForecastResponse } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
 		path: '/api/v1/projects/{projectId}/cockpit/brand-decay',
 		summary: 'Brand vs No-Brand decay — WoW comparison + alert flag',
 		description:

@@ -10,6 +10,7 @@ import { searchConsoleInsightsAutoScheduleConfigs } from './event-handlers/auto-
 import { IngestGscRowsUseCase } from './use-cases/ingest-gsc-rows.use-case.js';
 import { LinkGscPropertyUseCase } from './use-cases/link-gsc-property.use-case.js';
 import { QueryBrandDecayUseCase } from './use-cases/query-brand-decay.use-case.js';
+import { QueryClicksForecastUseCase } from './use-cases/query-clicks-forecast.use-case.js';
 import { QueryCtrAnomaliesUseCase } from './use-cases/query-ctr-anomalies.use-case.js';
 import { QueryGscPerformanceUseCase } from './use-cases/query-gsc-performance.use-case.js';
 import { QueryLostOpportunityUseCase } from './use-cases/query-lost-opportunity.use-case.js';
@@ -46,6 +47,7 @@ export const searchConsoleInsightsModule: ContextModule = {
 				QueryLostOpportunity: new QueryLostOpportunityUseCase(d.projectRepo, d.gscCockpitReadModel),
 				QueryQuickWinRoi: new QueryQuickWinRoiUseCase(d.projectRepo, d.gscCockpitReadModel),
 				QueryBrandDecay: new QueryBrandDecayUseCase(d.projectRepo, d.gscCockpitReadModel),
+				QueryClicksForecast: new QueryClicksForecastUseCase(d.projectRepo, d.gscCockpitReadModel),
 			},
 			ingestUseCases: {
 				// Manifest key: see provider-google-search-console manifest.

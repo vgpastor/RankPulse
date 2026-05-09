@@ -1,4 +1,4 @@
-import type { ProjectManagementContracts } from '@rankpulse/contracts';
+import type { ProjectManagementContracts, SearchConsoleInsightsContracts } from '@rankpulse/contracts';
 import type { ProjectRankingItem } from '@rankpulse/sdk';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@rankpulse/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -9,7 +9,15 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api.js';
 
 export type ActionPriority = 'critical' | 'high' | 'medium' | 'low';
-export type ActionKind = 'serp-drop' | 'quick-win' | 'competitor-overtake' | 'gap-opportunity';
+export type ActionKind =
+	| 'serp-drop'
+	| 'quick-win'
+	| 'competitor-overtake'
+	| 'gap-opportunity'
+	| 'ctr-anomaly'
+	| 'brand-decay'
+	| 'lost-opportunity'
+	| 'competitor-active';
 
 export interface DailyAction {
 	id: string;
@@ -141,7 +149,89 @@ const buildActions = (
 		});
 	}
 
-	return out.sort((a, b) => PRIORITY_ORDER[b.priority] - PRIORITY_ORDER[a.priority]).slice(0, 3);
+	return out.sort((a, b) => PRIORITY_ORDER[b.priority] - PRIORITY_ORDER[a.priority]);
+};
+
+const buildCockpitActions = (
+	projectId: string,
+	signals: {
+		ctrAnomalies: SearchConsoleInsightsContracts.CtrAnomaliesResponse | undefined;
+		brandDecay: SearchConsoleInsightsContracts.BrandDecayResponse | undefined;
+		lostOpportunity: SearchConsoleInsightsContracts.LostOpportunityResponse | undefined;
+		competitorActivity: ProjectManagementContracts.CompetitorActivityResponse | undefined;
+	},
+): DailyAction[] => {
+	const out: DailyAction[] = [];
+
+	const topAnomaly = signals.ctrAnomalies?.anomalies[0];
+	if (topAnomaly) {
+		out.push({
+			id: `ctr-anomaly-${topAnomaly.query}`,
+			kind: 'ctr-anomaly',
+			priority: 'high',
+			emoji: '⚠️',
+			titleKey: 'actions.ctrAnomaly',
+			titleVars: { query: topAnomaly.query, impressions: topAnomaly.impressions },
+			cta: {
+				to: '/projects/$id/ctr-anomalies',
+				params: { id: projectId },
+				labelKey: 'actions.cta.investigate',
+			},
+		});
+	}
+
+	const decay = signals.brandDecay?.nonBranded.deltaPct ?? null;
+	if (decay !== null && decay < -10) {
+		out.push({
+			id: 'brand-decay',
+			kind: 'brand-decay',
+			priority: decay < -25 ? 'critical' : 'high',
+			emoji: '📉',
+			titleKey: 'actions.brandDecay',
+			titleVars: { deltaPct: Math.round(decay * 10) / 10 },
+			cta: {
+				to: '/projects/$id/cockpit',
+				params: { id: projectId },
+				labelKey: 'actions.cta.investigate',
+			},
+		});
+	}
+
+	const topLost = signals.lostOpportunity?.rows?.[0];
+	if (topLost && topLost.lostClicks > 0) {
+		out.push({
+			id: `lost-${topLost.query}`,
+			kind: 'lost-opportunity',
+			priority: topLost.lostClicks > 100 ? 'high' : 'medium',
+			emoji: '🎯',
+			titleKey: 'actions.lostOpportunity',
+			titleVars: { query: topLost.query, lostClicks: Math.round(topLost.lostClicks) },
+			cta: {
+				to: '/projects/$id/lost-opportunity',
+				params: { id: projectId },
+				labelKey: 'actions.cta.push',
+			},
+		});
+	}
+
+	const topCompetitor = signals.competitorActivity?.rows?.find((r) => r.activityScore >= 60);
+	if (topCompetitor) {
+		out.push({
+			id: `competitor-${topCompetitor.competitorId}`,
+			kind: 'competitor-active',
+			priority: 'medium',
+			emoji: '🥊',
+			titleKey: 'actions.competitorActive',
+			titleVars: { label: topCompetitor.label, score: topCompetitor.activityScore },
+			cta: {
+				to: '/projects/$id/competitor-activity',
+				params: { id: projectId },
+				labelKey: 'actions.cta.audit',
+			},
+		});
+	}
+
+	return out;
 };
 
 export interface DailyActionsCardProps {
@@ -154,11 +244,42 @@ export const DailyActionsCard = ({ project }: DailyActionsCardProps) => {
 		queryKey: ['project', project.id, 'rankings'],
 		queryFn: () => api.rankTracking.listProjectRankings(project.id),
 	});
+	const ctrAnomaliesQuery = useQuery({
+		queryKey: ['project', project.id, 'cockpit', 'ctr-anomalies'],
+		queryFn: () => api.cockpit.ctrAnomalies(project.id),
+	});
+	const brandDecayQuery = useQuery({
+		queryKey: ['project', project.id, 'cockpit', 'brand-decay'],
+		queryFn: () => api.cockpit.brandDecay(project.id),
+	});
+	const lostOpportunityQuery = useQuery({
+		queryKey: ['project', project.id, 'cockpit', 'lost-opportunity'],
+		queryFn: () => api.cockpit.lostOpportunity(project.id),
+	});
+	const competitorActivityQuery = useQuery({
+		queryKey: ['project', project.id, 'cockpit', 'competitor-activity'],
+		queryFn: () => api.cockpit.competitorActivity(project.id),
+	});
 
-	const actions = useMemo(
-		() => buildActions(rankingsQuery.data ?? [], project),
-		[rankingsQuery.data, project],
-	);
+	const actions = useMemo(() => {
+		const fromRankings = buildActions(rankingsQuery.data ?? [], project);
+		const fromCockpit = buildCockpitActions(project.id, {
+			ctrAnomalies: ctrAnomaliesQuery.data,
+			brandDecay: brandDecayQuery.data,
+			lostOpportunity: lostOpportunityQuery.data,
+			competitorActivity: competitorActivityQuery.data,
+		});
+		return [...fromRankings, ...fromCockpit]
+			.sort((a, b) => PRIORITY_ORDER[b.priority] - PRIORITY_ORDER[a.priority])
+			.slice(0, 5);
+	}, [
+		rankingsQuery.data,
+		ctrAnomaliesQuery.data,
+		brandDecayQuery.data,
+		lostOpportunityQuery.data,
+		competitorActivityQuery.data,
+		project,
+	]);
 
 	if (rankingsQuery.isLoading) return null;
 	if (actions.length === 0) {
