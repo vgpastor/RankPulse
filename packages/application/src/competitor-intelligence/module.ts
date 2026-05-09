@@ -4,7 +4,9 @@ import type {
 	SharedKernel,
 } from '@rankpulse/domain';
 import type { Clock, IdGenerator } from '@rankpulse/shared';
+import { buildAutoScheduleHandlers } from '../_core/auto-schedule.js';
 import type { ContextModule, ContextRegistrations, SharedDeps } from '../_core/module.js';
+import { competitorIntelligenceAutoScheduleConfigs } from './event-handlers/auto-schedule.config.js';
 import { IngestCompetitorPageAuditUseCase } from './use-cases/ingest-competitor-page-audit.use-case.js';
 import { IngestDomainIntersectionUseCase } from './use-cases/ingest-domain-intersection.use-case.js';
 import { QueryCompetitorPageAuditsUseCase } from './use-cases/query-competitor-page-audits.use-case.js';
@@ -82,7 +84,7 @@ export const competitorIntelligenceModule: ContextModule = {
 					},
 				},
 			},
-			eventHandlers: [],
+			eventHandlers: buildAutoScheduleHandlers(deps, competitorIntelligenceAutoScheduleConfigs),
 			schemaTables: d.competitorIntelligenceSchemaTables,
 		};
 	},
