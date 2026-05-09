@@ -1,4 +1,4 @@
-import { type ProjectManagement, type SharedKernel } from '@rankpulse/domain';
+import type { ProjectManagement, SharedKernel } from '@rankpulse/domain';
 import type { AutoScheduleConfig, AutoScheduleSpec } from '../../_core/auto-schedule.js';
 import type { SharedDeps } from '../../_core/module.js';
 
