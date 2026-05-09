@@ -271,6 +271,10 @@ export class ProviderFetchProcessor {
 				);
 			}
 			run.complete(existing.id, this.deps.clock.now());
+			// #160: lastRunAt must update even on cache-hit so the dashboard
+			// stops reporting these defs as "never run".
+			definition.markRan(this.deps.clock.now());
+			await this.deps.jobDefRepo.save(definition);
 			await this.deps.jobRunRepo.save(run);
 			return;
 		}
@@ -506,6 +510,7 @@ export class ProviderFetchProcessor {
 				// (the `if (!definition.enabled) skip` branch above). The
 				// operator must explicitly re-enable after topping up credit.
 				definition.disable();
+				definition.markRan(this.deps.clock.now());
 				await this.deps.jobDefRepo.save(definition);
 				run.fail({ code: 'QUOTA_EXCEEDED', message, retryable: false }, this.deps.clock.now());
 				await this.deps.jobRunRepo.save(run);
@@ -527,6 +532,8 @@ export class ProviderFetchProcessor {
 				// dashboard can separate it from real upstream fetch
 				// failures, and do NOT re-throw.
 				run.fail({ code: 'INGEST_PRECONDITION_FAILED', message, retryable: false }, this.deps.clock.now());
+				definition.markRan(this.deps.clock.now());
+				await this.deps.jobDefRepo.save(definition);
 				await this.deps.jobRunRepo.save(run);
 				runLog.error(
 					{ err: message },
@@ -536,6 +543,8 @@ export class ProviderFetchProcessor {
 			}
 
 			run.fail({ code: 'FETCH_FAILED', message, retryable: true }, this.deps.clock.now());
+			definition.markRan(this.deps.clock.now());
+			await this.deps.jobDefRepo.save(definition);
 			await this.deps.jobRunRepo.save(run);
 			throw err;
 		}
