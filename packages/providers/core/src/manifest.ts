@@ -114,3 +114,48 @@ export interface HttpClient {
 	put<T>(path: string, query: Record<string, string>, body: unknown, ctx: FetchContext): Promise<T>;
 	delete<T>(path: string, query: Record<string, string>, ctx: FetchContext): Promise<T>;
 }
+
+/**
+ * Computes the BullMQ-compatible rate-limit envelope (`{ max, duration }`)
+ * a Worker should apply when consuming this provider's queue. The provider
+ * declares per-endpoint `rateLimit` on each `EndpointDescriptor`, but BullMQ
+ * applies its limiter at the queue level (one queue per provider in this
+ * codebase — see `packages/infrastructure/src/queue/bullmq-job-scheduler.ts`).
+ * To stay below every endpoint's quota under any mix of jobs, we pick the
+ * MOST RESTRICTIVE policy across all endpoints (highest `durationMs / max`,
+ * i.e. the lowest tokens-per-second).
+ *
+ * Why min-effective-rate vs per-endpoint queues: BullMQ's repeatable jobs
+ * + the existing scheduler model `(provider, definition) -> queue:provider`.
+ * Splitting by `(provider, endpoint)` would multiply queues 3× without
+ * unblocking anything operationally useful — the same Redis connection
+ * still applies the limiter per name, and our run-now / cron mixing puts
+ * different endpoints under the same parent queue anyway. The conservative
+ * floor here is correct: PageSpeed declares 1/1s and we DO need to honour
+ * that; DataForSEO declares 2000/min on every endpoint so the floor is the
+ * same as picking any endpoint.
+ *
+ * Returns `null` when the manifest has zero endpoints (a degenerate case the
+ * type system permits but the registry never produces). Callers that get
+ * `null` should not configure a limiter at all (default: unlimited).
+ */
+export const effectiveQueueRateLimit = (
+	manifest: ProviderManifest,
+): { max: number; duration: number } | null => {
+	if (manifest.endpoints.length === 0) return null;
+	let chosen: { max: number; duration: number } | null = null;
+	for (const ep of manifest.endpoints) {
+		const candidate = { max: ep.descriptor.rateLimit.max, duration: ep.descriptor.rateLimit.durationMs };
+		if (chosen === null) {
+			chosen = candidate;
+			continue;
+		}
+		// Compare tokens-per-millisecond. The smaller rate wins (most restrictive).
+		const chosenRate = chosen.max / chosen.duration;
+		const candidateRate = candidate.max / candidate.duration;
+		if (candidateRate < chosenRate) {
+			chosen = candidate;
+		}
+	}
+	return chosen;
+};

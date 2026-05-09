@@ -21,7 +21,7 @@ import {
 	Events,
 	Queue as QueueAdapters,
 } from '@rankpulse/infrastructure';
-import { buildManifestProviderRegistry } from '@rankpulse/provider-core';
+import { buildManifestProviderRegistry, effectiveQueueRateLimit } from '@rankpulse/provider-core';
 import { SystemClock, SystemIdGenerator } from '@rankpulse/shared';
 import { Worker } from 'bullmq';
 import IORedis from 'ioredis';
@@ -402,6 +402,25 @@ async function bootstrap(): Promise<void> {
 	const workers: Worker[] = [];
 	for (const manifest of manifestRegistry.list()) {
 		const queueName = QueueAdapters.providerQueueName(manifest.id);
+		// Pull the effective rate-limit envelope for the provider's queue from the
+		// manifest. BullMQ enforces this at the worker level: when more than `max`
+		// jobs land within `duration` ms, the surplus is held back until a slot
+		// frees up — instead of failing with the upstream's quota error. PSI is the
+		// classic case (1 call/sec); without a limiter, run-now of N PSI defs slams
+		// 21 calls into a 1s window and 17 of them get HTTP 429 QUOTA_EXCEEDED. With
+		// the limiter the same workload spreads to ~21s and lands all 21 cleanly.
+		// Providers without a configured rateLimit (extremely rare; the type system
+		// requires one per descriptor) fall through to no limiter and the existing
+		// concurrency cap. The min-tokens/sec helper picks the most restrictive
+		// endpoint policy when a provider has multiple endpoints with different
+		// quotas — see `effectiveQueueRateLimit` for the rationale.
+		const limiter = effectiveQueueRateLimit(manifest);
+		if (limiter) {
+			logger.info(
+				{ queue: queueName, max: limiter.max, durationMs: limiter.duration },
+				'worker limiter configured',
+			);
+		}
 		const worker = new Worker(
 			queueName,
 			async (job) => {
@@ -411,6 +430,7 @@ async function bootstrap(): Promise<void> {
 			{
 				connection,
 				concurrency: env.WORKER_CONCURRENCY,
+				...(limiter ? { limiter } : {}),
 			},
 		);
 		worker.on('failed', (job, err) => {
