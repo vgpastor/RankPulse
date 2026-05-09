@@ -33,6 +33,7 @@ import type { ManifestProviderRegistry } from '@rankpulse/provider-core';
 import {
 	DataForSeoApiError,
 	extractTop10Domains,
+	extractTopSerpResults,
 	type SerpLiveResponse,
 } from '@rankpulse/provider-dataforseo';
 import { Ga4ApiError } from '@rankpulse/provider-ga4';
@@ -147,6 +148,7 @@ export interface ProviderFetchProcessorDeps {
 	resolveCredentialUseCase: ProviderConnectivityUseCases.ResolveProviderCredentialUseCase;
 	recordApiUsageUseCase: ProviderConnectivityUseCases.RecordApiUsageUseCase;
 	recordRankingObservationUseCase: RankTrackingUseCases.RecordRankingObservationUseCase;
+	recordSerpObservationUseCase: RankTrackingUseCases.RecordSerpObservationUseCase;
 	recordTop10HitsForSuggestionsUseCase: ProjectManagementUseCases.RecordTop10HitsForSuggestionsUseCase;
 	ingestGscRowsUseCase: SearchConsoleInsightsUseCases.IngestGscRowsUseCase;
 	ingestWikipediaPageviewsUseCase: EntityAwarenessUseCases.IngestWikipediaPageviewsUseCase;
@@ -367,6 +369,31 @@ export class ProviderFetchProcessor {
 						position: e.extraction.position,
 						url: e.extraction.url,
 						serpFeatures: e.extraction.serpFeatures,
+						sourceProvider: definition.providerId.value,
+						rawPayloadId,
+					});
+				}
+
+				// Issue #115 — persist the full SERP top-N as serp_observations
+				// rows so the SERP-Map UI and competitor-suggestions read model
+				// can answer "for this keyword, who's in the top 10 today?"
+				// without decoding raw_payloads. Idempotent on
+				// (project, phrase, locale, device, day) — see
+				// SerpObservation.record() / repository.save().
+				const serpRows = extractTopSerpResults(fetchResult as SerpLiveResponse, 30);
+				if (serpRows.length > 0 && (fanOutKey.device === 'desktop' || fanOutKey.device === 'mobile')) {
+					await this.deps.recordSerpObservationUseCase.execute({
+						projectId: fanOutKey.projectId,
+						phrase: fanOutKey.phrase,
+						country: fanOutKey.country,
+						language: fanOutKey.language,
+						device: fanOutKey.device,
+						results: serpRows.map((r) => ({
+							rank: r.rank,
+							domain: r.domain,
+							url: r.url,
+							title: r.title,
+						})),
 						sourceProvider: definition.providerId.value,
 						rawPayloadId,
 					});

@@ -48,3 +48,67 @@ export const RankingHistoryEntryDto = z.object({
 	sourceProvider: z.string(),
 });
 export type RankingHistoryEntryDto = z.infer<typeof RankingHistoryEntryDto>;
+
+// --- SERP Map (issue #115) ---
+
+export const SerpMapQuery = z.object({
+	phrase: z.string().min(1).optional(),
+	country: z
+		.string()
+		.regex(/^[A-Z]{2}$/)
+		.optional(),
+	language: z
+		.string()
+		.regex(/^[a-z]{2}(?:-[A-Z]{2})?$/)
+		.optional(),
+	windowDays: z.coerce.number().int().min(1).max(30).optional(),
+});
+export type SerpMapQuery = z.infer<typeof SerpMapQuery>;
+
+export const SerpResultClassification = z.enum(['own', 'competitor', 'other']);
+export type SerpResultClassification = z.infer<typeof SerpResultClassification>;
+
+export const SerpMapResultDto = z.object({
+	rank: z.number().int().min(1),
+	domain: z.string(),
+	url: z.string().nullable(),
+	title: z.string().nullable(),
+	classification: SerpResultClassification,
+	competitorLabel: z.string().nullable(),
+});
+export type SerpMapResultDto = z.infer<typeof SerpMapResultDto>;
+
+export const SerpMapRowDto = z.object({
+	phrase: z.string(),
+	country: z.string(),
+	language: z.string(),
+	device: z.enum(['desktop', 'mobile']),
+	observedAt: z.string().datetime(),
+	results: z.array(SerpMapResultDto),
+});
+export type SerpMapRowDto = z.infer<typeof SerpMapRowDto>;
+
+export const SerpMapResponse = z.object({
+	rows: z.array(SerpMapRowDto),
+});
+export type SerpMapResponse = z.infer<typeof SerpMapResponse>;
+
+export const SerpCompetitorSuggestionsQuery = z.object({
+	minDistinctKeywords: z.coerce.number().int().min(1).max(50).optional(),
+	windowDays: z.coerce.number().int().min(1).max(30).optional(),
+});
+export type SerpCompetitorSuggestionsQuery = z.infer<typeof SerpCompetitorSuggestionsQuery>;
+
+export const SerpCompetitorSuggestionDto = z.object({
+	domain: z.string(),
+	distinctKeywords: z.number().int().min(1),
+	totalAppearances: z.number().int().min(1),
+	bestRank: z.number().int().min(1),
+	sampleUrl: z.string().nullable(),
+});
+export type SerpCompetitorSuggestionDto = z.infer<typeof SerpCompetitorSuggestionDto>;
+
+export const SerpCompetitorSuggestionsResponse = z.object({
+	suggestions: z.array(SerpCompetitorSuggestionDto),
+});
+export type SerpCompetitorSuggestionsResponse = z.infer<typeof SerpCompetitorSuggestionsResponse>;

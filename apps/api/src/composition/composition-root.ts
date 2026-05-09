@@ -122,6 +122,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const apiUsageRepo = new DrizzlePersistence.DrizzleApiUsageRepository(drizzle.db);
 	const trackedKeywordRepo = new DrizzlePersistence.DrizzleTrackedKeywordRepository(drizzle.db);
 	const observationRepo = new DrizzlePersistence.DrizzleRankingObservationRepository(drizzle.db);
+	const serpObservationRepo = new DrizzlePersistence.DrizzleSerpObservationRepository(drizzle.db);
 	const gscPropertyRepo = new DrizzlePersistence.DrizzleGscPropertyRepository(drizzle.db);
 	const gscObservationRepo = new DrizzlePersistence.DrizzleGscPerformanceObservationRepository(drizzle.db);
 	const wikipediaArticleRepo = new DrizzlePersistence.DrizzleWikipediaArticleRepository(drizzle.db);
@@ -304,7 +305,9 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		events: eventPublisher,
 		trackedKeywordRepo,
 		observationRepo,
+		serpObservationRepo,
 		projectRepo,
+		competitorRepo,
 		rankTrackingSchemaTables: DrizzlePersistence.schema.rankTrackingSchemaTables,
 	} satisfies RTUseCases.RankTrackingDeps as unknown as SharedDeps);
 
@@ -527,9 +530,13 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		// rank-tracking
 		value(Tokens.TrackedKeywordRepository, trackedKeywordRepo),
 		value(Tokens.RankingObservationRepository, observationRepo),
+		value(Tokens.SerpObservationRepository, serpObservationRepo),
 		value(Tokens.StartTrackingKeyword, rt.StartTrackingKeyword),
 		value(Tokens.RecordRankingObservation, rt.RecordRankingObservation),
 		value(Tokens.QueryRankingHistory, rt.QueryRankingHistory),
+		value(Tokens.RecordSerpObservation, rt.RecordSerpObservation),
+		value(Tokens.QuerySerpMap, rt.QuerySerpMap),
+		value(Tokens.QuerySerpCompetitorSuggestions, rt.QuerySerpCompetitorSuggestions),
 
 		// search-console-insights
 		value(Tokens.GscPropertyRepository, gscPropertyRepo),

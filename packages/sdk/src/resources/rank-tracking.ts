@@ -34,4 +34,30 @@ export class RankTrackingResource {
 			query: { from: query?.from ?? null, to: query?.to ?? null },
 		});
 	}
+
+	serpMap(
+		projectId: string,
+		query?: RankTrackingContracts.SerpMapQuery,
+	): Promise<RankTrackingContracts.SerpMapResponse> {
+		return this.http.get(`/projects/${encodeURIComponent(projectId)}/serp-map`, {
+			query: {
+				phrase: query?.phrase ?? null,
+				country: query?.country ?? null,
+				language: query?.language ?? null,
+				windowDays: query?.windowDays ? String(query.windowDays) : null,
+			},
+		});
+	}
+
+	serpCompetitorSuggestions(
+		projectId: string,
+		query?: RankTrackingContracts.SerpCompetitorSuggestionsQuery,
+	): Promise<RankTrackingContracts.SerpCompetitorSuggestionsResponse> {
+		return this.http.get(`/projects/${encodeURIComponent(projectId)}/serp-map/suggestions`, {
+			query: {
+				minDistinctKeywords: query?.minDistinctKeywords ? String(query.minDistinctKeywords) : null,
+				windowDays: query?.windowDays ? String(query.windowDays) : null,
+			},
+		});
+	}
 }

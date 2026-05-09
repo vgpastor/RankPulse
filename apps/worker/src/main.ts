@@ -44,6 +44,7 @@ async function bootstrap(): Promise<void> {
 	const apiUsageRepo = new DrizzlePersistence.DrizzleApiUsageRepository(drizzle.db);
 	const trackedKeywordRepo = new DrizzlePersistence.DrizzleTrackedKeywordRepository(drizzle.db);
 	const observationRepo = new DrizzlePersistence.DrizzleRankingObservationRepository(drizzle.db);
+	const serpObservationRepo = new DrizzlePersistence.DrizzleSerpObservationRepository(drizzle.db);
 	const competitorRepo = new DrizzlePersistence.DrizzleCompetitorRepository(drizzle.db);
 	const competitorSuggestionRepo = new DrizzlePersistence.DrizzleCompetitorSuggestionRepository(drizzle.db);
 	const gscPropertyRepo = new DrizzlePersistence.DrizzleGscPropertyRepository(drizzle.db);
@@ -114,6 +115,11 @@ async function bootstrap(): Promise<void> {
 		SystemClock,
 		SystemIdGenerator,
 		eventPublisher,
+	);
+	const recordSerpObservationUseCase = new RankTrackingUseCases.RecordSerpObservationUseCase(
+		serpObservationRepo,
+		SystemClock,
+		SystemIdGenerator,
 	);
 	const ingestGscRowsUseCase = new SearchConsoleInsightsUseCases.IngestGscRowsUseCase(
 		gscPropertyRepo,
@@ -379,6 +385,7 @@ async function bootstrap(): Promise<void> {
 		resolveCredentialUseCase,
 		recordApiUsageUseCase,
 		recordRankingObservationUseCase,
+		recordSerpObservationUseCase,
 		recordTop10HitsForSuggestionsUseCase,
 		ingestGscRowsUseCase,
 		ingestWikipediaPageviewsUseCase,

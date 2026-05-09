@@ -23,6 +23,9 @@ export class RankTrackingController {
 		@Inject(Tokens.ScheduleEndpointFetch)
 		private readonly scheduleEndpoint: PCUseCases.ScheduleEndpointFetchUseCase,
 		@Inject(Tokens.QueryRankingHistory) private readonly queryHistory: RTUseCases.QueryRankingHistoryUseCase,
+		@Inject(Tokens.QuerySerpMap) private readonly querySerpMap: RTUseCases.QuerySerpMapUseCase,
+		@Inject(Tokens.QuerySerpCompetitorSuggestions)
+		private readonly querySerpSuggestions: RTUseCases.QuerySerpCompetitorSuggestionsUseCase,
 		@Inject(Tokens.TrackedKeywordRepository)
 		private readonly trackedRepo: RankTracking.TrackedKeywordRepository,
 		@Inject(Tokens.RankingObservationRepository)
@@ -134,5 +137,45 @@ export class RankTrackingController {
 		const to = q.to ? new Date(q.to) : new Date();
 		const from = q.from ? new Date(q.from) : new Date(to.getTime() - 90 * 24 * 60 * 60 * 1000);
 		return this.queryHistory.execute({ trackedKeywordId: id, from, to });
+	}
+
+	@Get('projects/:projectId/serp-map')
+	async serpMap(
+		@Principal() principal: AuthPrincipal,
+		@Param('projectId') projectId: string,
+		@Query(new ZodValidationPipe(RankTrackingContracts.SerpMapQuery))
+		q: RankTrackingContracts.SerpMapQuery,
+	): Promise<RankTrackingContracts.SerpMapResponse> {
+		const project = await this.projects.findById(projectId as ProjectManagement.ProjectId);
+		if (!project) {
+			throw new NotFoundError(`Project ${projectId} not found`);
+		}
+		await this.orgMembership.require(principal, project.organizationId);
+		return this.querySerpMap.execute({
+			projectId,
+			phrase: q.phrase,
+			country: q.country,
+			language: q.language,
+			windowDays: q.windowDays,
+		});
+	}
+
+	@Get('projects/:projectId/serp-map/suggestions')
+	async serpMapSuggestions(
+		@Principal() principal: AuthPrincipal,
+		@Param('projectId') projectId: string,
+		@Query(new ZodValidationPipe(RankTrackingContracts.SerpCompetitorSuggestionsQuery))
+		q: RankTrackingContracts.SerpCompetitorSuggestionsQuery,
+	): Promise<RankTrackingContracts.SerpCompetitorSuggestionsResponse> {
+		const project = await this.projects.findById(projectId as ProjectManagement.ProjectId);
+		if (!project) {
+			throw new NotFoundError(`Project ${projectId} not found`);
+		}
+		await this.orgMembership.require(principal, project.organizationId);
+		return this.querySerpSuggestions.execute({
+			projectId,
+			minDistinctKeywords: q.minDistinctKeywords,
+			windowDays: q.windowDays,
+		});
 	}
 }

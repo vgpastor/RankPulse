@@ -67,6 +67,48 @@ export const extractRankingsForDomains = (
 	return targets;
 };
 
+export interface SerpResultRow {
+	rank: number;
+	domain: string;
+	url: string | null;
+	title: string | null;
+}
+
+/**
+ * Issue #115: every distinct organic row in the top-N of the payload, with
+ * `rank`, normalized `domain`, `url` and `title`. Powers the
+ * `serp_observations` hypertable so the SERP-map UI can render top-10 cards
+ * without JSONB-decoding raw_payloads on each request.
+ *
+ * - Only `type === 'organic'` items are emitted (paid/snippet/people-also-ask
+ *   are not part of the competitive landscape we want to track).
+ * - When two organic items collapse to the same normalised domain we keep
+ *   the highest-ranked one (first seen) — the table's PK already enforces
+ *   uniqueness on `(observed_at, …, rank)` not domain.
+ * - `topN` defaults to 30 (DataForSEO's default depth) and is capped at 100.
+ */
+export const extractTopSerpResults = (payload: SerpLiveResponse, topN = 30): readonly SerpResultRow[] => {
+	const cap = Math.min(Math.max(topN, 1), 100);
+	const items = payload.tasks?.[0]?.result?.[0]?.items ?? [];
+	const seenRanks = new Set<number>();
+	const out: SerpResultRow[] = [];
+	for (const item of items) {
+		if (item.type !== 'organic') continue;
+		const rank = item.rank_absolute ?? item.rank_group;
+		if (typeof rank !== 'number' || rank <= 0 || rank > cap) continue;
+		if (seenRanks.has(rank)) continue;
+		if (!item.domain) continue;
+		seenRanks.add(rank);
+		out.push({
+			rank,
+			domain: normalizeDomain(item.domain),
+			url: item.url ?? null,
+			title: item.title ?? null,
+		});
+	}
+	return out.sort((a, b) => a.rank - b.rank);
+};
+
 /**
  * BACKLOG #18: every distinct organic domain in the top-10 of the payload,
  * normalized (lowercase, no `www.`). Used by competitor-suggestion to tally

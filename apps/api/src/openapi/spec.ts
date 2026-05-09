@@ -536,6 +536,50 @@ export function buildOpenApiDocument(): unknown {
 		},
 	});
 
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/projects/{projectId}/serp-map',
+		summary: 'SERP Map — latest top-N per tracked keyword with own/competitor/other classification',
+		description:
+			"Returns the latest snapshot per (phrase, country, language, device) tuple from the rolling 7-day window, with each row classified against the project's tracked domains and registered competitors. Powers the SERP-Map UI tab on /projects/:id/rankings (issue #115).",
+		tags: ['rank-tracking'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid() }),
+			query: RankTrackingContracts.SerpMapQuery,
+		},
+		responses: {
+			200: {
+				description: 'SERP map rows',
+				content: { 'application/json': { schema: RankTrackingContracts.SerpMapResponse } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/projects/{projectId}/serp-map/suggestions',
+		summary: 'SERP-derived competitor suggestions (external domains in top-10)',
+		description:
+			"Lists external domains (not tracked, not registered competitors) appearing in the project's SERP top-10 for ≥ minDistinctKeywords distinct keywords within the rolling window. Computed dynamically from serp_observations so adding a competitor immediately removes it from this list.",
+		tags: ['rank-tracking'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: {
+			params: z.object({ projectId: z.string().uuid() }),
+			query: RankTrackingContracts.SerpCompetitorSuggestionsQuery,
+		},
+		responses: {
+			200: {
+				description: 'Competitor suggestions',
+				content: {
+					'application/json': { schema: RankTrackingContracts.SerpCompetitorSuggestionsResponse },
+				},
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
 	// ---- search-console-insights ----
 
 	registry.registerPath({

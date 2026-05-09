@@ -6,9 +6,11 @@ import {
 	BookOpen,
 	CalendarClock,
 	Check,
+	Compass,
 	Gauge,
 	Globe2,
 	LineChart,
+	Map as MapIcon,
 	MapPin,
 	MousePointerClick,
 	Plus,
@@ -156,10 +158,22 @@ export const ProjectDetailPage = () => {
 						<p className="text-sm text-muted-foreground">{project.primaryDomain}</p>
 					</div>
 					<div className="flex flex-wrap items-center gap-2">
+						<Link to="/projects/$id/cockpit" params={{ id: project.id }}>
+							<Button variant="primary" size="sm">
+								<Compass size={14} />
+								Cockpit
+							</Button>
+						</Link>
 						<Link to="/projects/$id/rankings" params={{ id: project.id }}>
 							<Button variant="secondary" size="sm">
 								<LineChart size={14} />
 								Rankings
+							</Button>
+						</Link>
+						<Link to="/projects/$id/serp-map" params={{ id: project.id }}>
+							<Button variant="secondary" size="sm">
+								<MapIcon size={14} />
+								SERP Map
 							</Button>
 						</Link>
 						<Link to="/projects/$id/competitors" params={{ id: project.id }}>
