@@ -16,3 +16,4 @@ export * from './molecules/empty-state.js';
 export * from './molecules/form-field.js';
 export * from './molecules/kpi-card.js';
 export * from './molecules/modal.js';
+export * from './molecules/tabs.js';

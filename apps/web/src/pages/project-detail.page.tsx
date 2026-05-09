@@ -182,6 +182,12 @@ export const ProjectDetailPage = () => {
 								Competitors
 							</Button>
 						</Link>
+						<Link to="/projects/$id/competitor-intelligence" params={{ id: project.id }}>
+							<Button variant="secondary" size="sm">
+								<Users size={14} />
+								Competitor Intelligence
+							</Button>
+						</Link>
 						<Link to="/projects/$id/schedules" params={{ id: project.id }}>
 							<Button variant="secondary" size="sm">
 								<CalendarClock size={14} />

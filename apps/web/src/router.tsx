@@ -14,6 +14,7 @@ import { BrandPromptsPage } from './pages/brand-prompts.page.js';
 import { CannibalizationPage } from './pages/cannibalization.page.js';
 import { CockpitPage } from './pages/cockpit.page.js';
 import { CompetitorActivityPage } from './pages/competitor-activity.page.js';
+import { CompetitorIntelligencePage } from './pages/competitor-intelligence.page.js';
 import { CompetitorsPage } from './pages/competitors.page.js';
 import { ContentGapPage } from './pages/content-gap.page.js';
 import { CredentialsPage } from './pages/credentials.page.js';
@@ -207,6 +208,12 @@ const projectCompetitorsRoute = createRoute({
 	component: CompetitorsPage,
 });
 
+const projectCompetitorIntelligenceRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/projects/$id/competitor-intelligence',
+	component: CompetitorIntelligencePage,
+});
+
 const projectScorecardRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/projects/$id/scorecard',
@@ -286,6 +293,7 @@ const routeTree = rootRoute.addChildren([
 	projectAiSearchMatrixRoute,
 	projectAiRadarRoute,
 	projectCompetitorsRoute,
+	projectCompetitorIntelligenceRoute,
 	projectScorecardRoute,
 	projectOpportunitiesRoute,
 	projectGapAnalysisRoute,
