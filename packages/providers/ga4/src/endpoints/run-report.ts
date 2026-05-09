@@ -27,6 +27,44 @@ const MetricName = z
 	.max(64)
 	.regex(/^[a-zA-Z][a-zA-Z0-9_]*$/);
 
+/**
+ * GA4 `FilterExpression` shape — recursive: a filter can be a leaf (`filter`),
+ * an `andGroup`/`orGroup` of nested expressions, or a `notExpression` of one.
+ *
+ * Why we ship a permissive shape with `passthrough()` instead of a strict
+ * mirror of the GA4 spec: the API has dozens of leaf filter types
+ * (stringFilter, numericFilter, inListFilter, betweenFilter…) and each has
+ * its own enums (matchType, valueType…). Mirroring all of that here would
+ * (a) double the surface of this file, (b) drift behind GA4 schema changes,
+ * (c) reject otherwise-valid Google params for cosmetic reasons. The leaf is
+ * any object with a `fieldName` string; the rest passes through. GA4 itself
+ * is the source of truth for validity — we surface its 400s as ProviderApiError.
+ *
+ * Common authored shape (single field equality on `hostName`, used for the
+ * cross-domain cross-project pattern where one GA4 property collects traffic
+ * for several `project_domains`):
+ *
+ *   {
+ *     filter: {
+ *       fieldName: 'hostName',
+ *       stringFilter: { matchType: 'EXACT', value: 'patroltech.online' }
+ *     }
+ *   }
+ */
+const FilterExpression: z.ZodType<unknown> = z.lazy(() =>
+	z
+		.object({
+			filter: z
+				.object({ fieldName: z.string().min(1) })
+				.passthrough()
+				.optional(),
+			andGroup: z.object({ expressions: z.array(FilterExpression).min(1) }).optional(),
+			orGroup: z.object({ expressions: z.array(FilterExpression).min(1) }).optional(),
+			notExpression: FilterExpression.optional(),
+		})
+		.passthrough(),
+);
+
 export const RunReportParams = z.object({
 	propertyId: z.string().regex(PropertyIdRegex, 'propertyId must be numeric or "properties/<id>"'),
 	startDate: z.string().regex(DATE_OR_TOKEN_REGEX),
@@ -40,6 +78,16 @@ export const RunReportParams = z.object({
 	rowLimit: z.number().int().min(1).max(100_000).default(10_000),
 	offset: z.number().int().min(0).default(0),
 	keepEmptyRows: z.boolean().default(false),
+	/**
+	 * Optional GA4 `dimensionFilter` (alias `dimensionsFilter`). Limits which
+	 * dimension rows the report returns — e.g. `hostName == 'patroltech.online'`
+	 * to scope a single GA4 property's response down to one of the domains
+	 * tracked by it. See `FilterExpression` above for the shape.
+	 */
+	dimensionFilter: FilterExpression.optional(),
+	/** Optional GA4 `metricFilter`. Same shape as `dimensionFilter` but matched
+	 * against metric values post-aggregation (e.g. `sessions > 10`). */
+	metricFilter: FilterExpression.optional(),
 });
 export type RunReportParams = z.infer<typeof RunReportParams>;
 
@@ -84,7 +132,7 @@ export const fetchRunReport = async (
 ): Promise<RunReportResponse> => {
 	const property = normalizePropertyId(params.propertyId);
 	const path = `/v1beta/${property}:runReport`;
-	const body = {
+	const body: Record<string, unknown> = {
 		dateRanges: [{ startDate: params.startDate, endDate: params.endDate }],
 		dimensions: params.dimensions.map((name) => ({ name })),
 		metrics: params.metrics.map((name) => ({ name })),
@@ -92,6 +140,17 @@ export const fetchRunReport = async (
 		offset: String(params.offset),
 		keepEmptyRows: params.keepEmptyRows,
 	};
+	// Forward the optional filters verbatim — the schema validates the
+	// envelope (`fieldName` exists somewhere) but otherwise lets GA4 own
+	// the leaf-level validation. Empty objects are skipped so we don't
+	// trip GA4's "FilterExpression must specify exactly one of..."
+	// validation when the operator clears a filter.
+	if (params.dimensionFilter && Object.keys(params.dimensionFilter as object).length > 0) {
+		body.dimensionFilter = params.dimensionFilter;
+	}
+	if (params.metricFilter && Object.keys(params.metricFilter as object).length > 0) {
+		body.metricFilter = params.metricFilter;
+	}
 	const raw = (await http.post(path, body, ctx.credential.plaintextSecret, ctx.signal)) as RunReportResponse;
 	return raw;
 };

@@ -1,12 +1,5 @@
-import type {
-	AclContext,
-	AuthStrategy,
-	EndpointManifest,
-	IngestBinding,
-	ProviderManifest,
-} from '@rankpulse/provider-core';
+import type { AuthStrategy, EndpointManifest, ProviderManifest } from '@rankpulse/provider-core';
 import { InvalidInputError } from '@rankpulse/shared';
-import { extractRankingForDomain } from './acl/serp-to-ranking.acl.js';
 import { parseCredential } from './credential.js';
 import { competitorsDomainDescriptor, fetchCompetitorsDomain } from './endpoints/competitors-domain.js';
 import {
@@ -23,12 +16,10 @@ import { fetchOnPageInstantPages, onPageInstantDescriptor } from './endpoints/on
 import { fetchRelatedKeywords, relatedKeywordsDescriptor } from './endpoints/related-keywords.js';
 import {
 	fetchSerpGoogleOrganicAdvanced,
-	type SerpAdvancedResponse,
 	serpGoogleOrganicAdvancedDescriptor,
 } from './endpoints/serp-google-organic-advanced.js';
 import {
 	fetchSerpGoogleOrganicLive,
-	type SerpLiveResponse,
 	serpGoogleOrganicLiveDescriptor,
 } from './endpoints/serp-google-organic-live.js';
 import { buildLegacyShim, DataForSeoHttpClient } from './http.js';
@@ -80,27 +71,6 @@ const adapt =
  * misconfigured (no domain) and the IngestRouter precondition guard will
  * reject before reaching the use case.
  */
-const extractRankingRows = (
-	response: SerpLiveResponse | SerpAdvancedResponse,
-	ctx: AclContext,
-): unknown[] => {
-	const domain = typeof ctx.systemParams.domain === 'string' ? ctx.systemParams.domain : null;
-	if (!domain) return [];
-	const extraction = extractRankingForDomain(response as SerpLiveResponse, domain);
-	return [
-		{
-			position: extraction.position,
-			url: extraction.url,
-			serpFeatures: extraction.serpFeatures,
-		},
-	];
-};
-
-const rankTrackingIngest: IngestBinding<SerpLiveResponse | SerpAdvancedResponse> = {
-	useCaseKey: 'rank-tracking:record-ranking-observation',
-	systemParamKey: 'trackedKeywordId',
-	acl: extractRankingRows,
-};
 
 const endpoints: readonly EndpointManifest[] = [
 	{
