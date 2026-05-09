@@ -121,14 +121,15 @@ const rankTrackingRankedKeywordsIngest: IngestBinding<RankedKeywordsResponse> = 
  * `IngestDomainIntersectionUseCase`, which persists into the
  * `competitor_keyword_gaps` hypertable.
  *
- * `IngestBinding` only supports a single `systemParamKey`, so we declare
- * `ourDomain` (the precondition the router asserts before dispatch). The ACL
- * additionally reads `competitorDomain` directly from `ctx.systemParams` —
- * both are required for the row mapping to be meaningful.
+ * `ourDomain` is the binding's primary `systemParamKey`; `competitorDomain`
+ * is unconditionally required by the ACL too, so it's listed in
+ * `additionalSystemParamKeys` for the IngestRouter precondition (#150) —
+ * both missing keys surface in a single error instead of cascading.
  */
 const competitorIntelligenceDomainIntersectionIngest: IngestBinding<DomainIntersectionResponse> = {
 	useCaseKey: 'competitor-intelligence:ingest-domain-intersection',
 	systemParamKey: 'ourDomain',
+	additionalSystemParamKeys: ['competitorDomain'],
 	acl: normaliseDomainIntersectionResponse,
 };
 

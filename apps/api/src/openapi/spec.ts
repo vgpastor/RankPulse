@@ -429,7 +429,13 @@ export function buildOpenApiDocument(): unknown {
 	registry.registerPath({
 		method: 'patch',
 		path: '/api/v1/providers/{providerId}/job-definitions/{definitionId}',
-		summary: 'Update cron / params / enabled on an existing job definition',
+		summary: 'Update cron / params / enabled / systemParams on an existing job definition',
+		description:
+			'Body fields:\n' +
+			'- `cron`, `params`, `enabled` — same semantics as on create.\n' +
+			'- `systemParams` — patch for the orchestration bag stamped at scheduling time (`targetDomain`, `ourDomain`, `competitorDomain`, `scope`, …). Merged ON TOP of the existing def; the entity-bound whitelist (`organizationId`, `projectId`, `gscPropertyId`, `ga4PropertyId`, `trackedKeywordId`, `trackedPageId`, `wikipediaArticleId`, `bingPropertyId`, `clarityProjectId`, `monitoredDomainId`, `metaPixelId`, `metaAdAccountId`) cannot be overwritten via PATCH and is preserved from the existing def.\n\n' +
+			'Unknown fields are rejected (400) — the schema is `.strict()` so a stale client sending e.g. `organizationId` at the top level surfaces immediately instead of being silently dropped (#149).\n\n' +
+			'The GET response carries `params` with both user surface AND stamped systemParams merged together (storage model). To inspect which orchestration keys are present, read `params.<key>` directly.',
 		tags: ['provider-connectivity'],
 		security: [{ [ApiTokenAuthHeader]: [] }],
 		request: {

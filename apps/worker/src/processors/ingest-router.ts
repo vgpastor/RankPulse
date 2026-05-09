@@ -8,6 +8,12 @@ type ProviderEndpointKey = `${string}|${string}`;
 
 export interface IngestRouterEntry {
 	readonly systemParamKey: string;
+	/**
+	 * Extra systemParams the ACL/handler reads beyond `systemParamKey`.
+	 * Validated together with the primary key so a single dispatch
+	 * surfaces ALL missing keys in one error (#150).
+	 */
+	readonly additionalSystemParamKeys?: readonly string[];
 	readonly acl: (response: unknown, ctx: AclContext) => unknown[];
 	readonly ingest: IngestUseCase;
 }
@@ -49,11 +55,29 @@ export class IngestRouter {
 		if (!entry) return false;
 
 		const params = input.definition.params as Record<string, unknown>;
-		const systemParamValue = params[entry.systemParamKey];
-		if (!systemParamValue) {
+		// #150 — validate the primary `systemParamKey` AND any
+		// `additionalSystemParamKeys` declared on the binding in one pass,
+		// then surface ALL missing keys in a single error. Pre-#150 the
+		// router checked only the primary; the ACL then re-threw on its
+		// extras one at a time, costing the operator a fresh `run-now`
+		// per missing key (e.g. domain-intersection: ourDomain → fix → re-run
+		// → competitorDomain → fix → re-run).
+		const requiredKeys = entry.additionalSystemParamKeys
+			? [entry.systemParamKey, ...entry.additionalSystemParamKeys]
+			: [entry.systemParamKey];
+		const missingKeys = requiredKeys.filter((k) => {
+			const v = params[k];
+			// Treat empty string the same as missing — DataForSEO Labs ACLs
+			// already reject `''` and `'   '`, so accepting them here would
+			// just defer the failure to the ACL with a less helpful message.
+			return v === undefined || v === null || (typeof v === 'string' && v.trim() === '');
+		});
+		if (missingKeys.length > 0) {
+			const list = missingKeys.join(', ');
+			const subject = missingKeys.length === 1 ? 'this' : 'these';
 			throw new NotFoundError(
-				`${input.providerId}/${input.endpointId} processor reached without ${entry.systemParamKey} in systemParams. ` +
-					`Auto-Schedule handler should have set this. See ADR 0001.`,
+				`${input.providerId}/${input.endpointId} processor reached without systemParams: ${list}. ` +
+					`Auto-Schedule handler should have set ${subject}. See ADR 0001.`,
 			);
 		}
 
@@ -99,6 +123,7 @@ export function buildIngestRouter(
 			const key: ProviderEndpointKey = `${manifest.id}|${endpoint.descriptor.id}`;
 			entries.set(key, {
 				systemParamKey: endpoint.ingest.systemParamKey,
+				additionalSystemParamKeys: endpoint.ingest.additionalSystemParamKeys,
 				acl: endpoint.ingest.acl as (response: unknown, ctx: AclContext) => unknown[],
 				ingest: useCase,
 			});

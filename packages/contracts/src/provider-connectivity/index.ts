@@ -72,10 +72,32 @@ export const UpdateJobDefinitionRequest = z
 		cron: z.string().min(5).max(80).optional(),
 		params: z.record(z.string(), z.unknown()).optional(),
 		enabled: z.boolean().optional(),
+		/**
+		 * Patch the orchestration bag (`targetDomain`, `ourDomain`,
+		 * `competitorDomain`, `scope`, …) — keys the auto-schedule handler
+		 * stamps but the operator may need to fix on a misconfigured def
+		 * (#149). Merged ON TOP of the existing params; the use case still
+		 * preserves the entity-bound system keys (organizationId,
+		 * gscPropertyId, …) from the existing def via the same whitelist
+		 * used for `params` patches.
+		 */
+		systemParams: z.record(z.string(), z.unknown()).optional(),
 	})
-	.refine((v) => v.cron !== undefined || v.params !== undefined || v.enabled !== undefined, {
-		message: 'At least one of cron, params, enabled must be provided',
-	});
+	// `.strict()` rejects unknown fields with 400 instead of silently dropping
+	// them — pre-#149 the schema accepted arbitrary keys (including `systemParams`
+	// itself) and the use case never saw them, leaving the operator with a 200
+	// OK response and a still-broken schedule.
+	.strict()
+	.refine(
+		(v) =>
+			v.cron !== undefined ||
+			v.params !== undefined ||
+			v.enabled !== undefined ||
+			v.systemParams !== undefined,
+		{
+			message: 'At least one of cron, params, enabled, systemParams must be provided',
+		},
+	);
 export type UpdateJobDefinitionRequest = z.infer<typeof UpdateJobDefinitionRequest>;
 
 export const JobRunDto = z.object({

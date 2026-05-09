@@ -51,6 +51,14 @@ export interface UpdateJobDefinitionCommand {
 	cron?: string;
 	params?: Record<string, unknown>;
 	enabled?: boolean;
+	/**
+	 * Patch for the orchestration bag the auto-schedule handler stamps
+	 * (`targetDomain`, `ourDomain`, `competitorDomain`, `scope`, …). Merged
+	 * ON TOP of the existing def's `params` (replaces overlapping keys),
+	 * but the entity-bound whitelist is still preserved so a user PATCH
+	 * cannot tamper with `organizationId`, `gscPropertyId`, etc. (#149).
+	 */
+	systemParams?: Record<string, unknown>;
 }
 
 /**
@@ -106,6 +114,31 @@ function mergeUserParamsPreservingSystem(
 	return { ...userPatch, ...preserved };
 }
 
+/**
+ * Overlay a `systemParams` PATCH onto the existing def's params. Used by
+ * #149 so the operator can fix orchestration keys (`targetDomain`,
+ * `ourDomain`, `competitorDomain`, `scope`, …) on a misconfigured def
+ * without rebuilding the whole schedule.
+ *
+ * Unlike `mergeUserParamsPreservingSystem` which has REPLACE semantics on
+ * the user surface, this one has MERGE semantics — only the keys the
+ * caller supplies change; everything else (including unrelated user
+ * params and stamped orchestration keys not being patched) survives.
+ *
+ * The whitelist is still applied so a malicious patch can't overwrite
+ * `organizationId` / `gscPropertyId` / etc.
+ */
+function applySystemParamsPatch(
+	existing: Record<string, unknown>,
+	systemPatch: Record<string, unknown>,
+): Record<string, unknown> {
+	const merged: Record<string, unknown> = { ...existing, ...systemPatch };
+	for (const key of SYSTEM_PARAM_KEYS) {
+		if (existing[key] !== undefined) merged[key] = existing[key];
+	}
+	return merged;
+}
+
 export class UpdateJobDefinitionUseCase {
 	constructor(
 		private readonly definitions: ProviderConnectivity.JobDefinitionRepository,
@@ -138,6 +171,15 @@ export class UpdateJobDefinitionUseCase {
 			// downstream code requires extending this list, which forces a
 			// review of every PATCH call site.
 			def.updateParams(mergeUserParamsPreservingSystem(def.params, cmd.params));
+		}
+		if (cmd.systemParams !== undefined) {
+			// #149 — pre-fix, the schema dropped `systemParams` silently and
+			// the operator had no way to repair an ACL/router precondition
+			// failure caused by a missing orchestration key. Now the patch
+			// is overlaid on the existing params (post-`params`-replace if
+			// both were sent), with the entity-bound whitelist still
+			// protecting sacred keys.
+			def.updateParams(applySystemParamsPatch(def.params, cmd.systemParams));
 		}
 		if (cmd.enabled === true) def.enable();
 		if (cmd.enabled === false) def.disable();

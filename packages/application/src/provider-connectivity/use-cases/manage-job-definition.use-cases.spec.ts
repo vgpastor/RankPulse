@@ -316,3 +316,123 @@ describe('UpdateJobDefinitionUseCase — preserves systemParams (bug #51)', () =
 		expect(view.params[key]).toBe('preserved-value');
 	});
 });
+
+// ===== #149: PATCH accepts and persists `systemParams` =====
+
+describe('UpdateJobDefinitionUseCase — systemParams patch (#149)', () => {
+	const aDefMissingTargetDomain = (): PC2.ProviderJobDefinition =>
+		PC2.ProviderJobDefinition.schedule({
+			id: 'def-149' as PC2.ProviderJobDefinitionId,
+			projectId: 'proj-1' as never,
+			providerId: PC2.ProviderId.create('dataforseo'),
+			endpointId: PC2.EndpointId.create('dataforseo-labs-ranked-keywords'),
+			params: {
+				// User-supplied params (validated via paramsSchema upstream)
+				locationCode: 2724,
+				languageCode: 'es',
+				// Sacred whitelist key already stamped by the scheduler use case
+				organizationId: 'org-1',
+				projectId: 'proj-1',
+				// `targetDomain` is missing — that's the operator's bug we're repairing
+			},
+			cron: PC2.CronExpression.create('0 5 * * *'),
+			credentialOverrideId: null,
+			now: new Date('2026-05-09T00:00:00Z'),
+		});
+
+	it('persists a new orchestration key supplied via systemParams', async () => {
+		const def = aDefMissingTargetDomain();
+		const repo = {
+			save: vi.fn(),
+			findById: vi.fn().mockResolvedValue(def),
+			delete: vi.fn(),
+			listForProject: vi.fn(),
+			findByProjectEndpointAndSystemParam: vi.fn(),
+			findFor: vi.fn(),
+		} as unknown as PC2.JobDefinitionRepository;
+		const scheduler = {
+			register: vi.fn(),
+			unregister: vi.fn(),
+			enqueueOnce: vi.fn(),
+		} satisfies PC2.JobScheduler;
+
+		const uc = new UpdateJobDefUC2(repo, scheduler);
+		const view = await uc.execute({
+			definitionId: 'def-149',
+			systemParams: { targetDomain: 'patroltech.online' },
+		});
+
+		expect(view.params.targetDomain).toBe('patroltech.online');
+		// Pre-existing keys survive the patch
+		expect(view.params.locationCode).toBe(2724);
+		expect(view.params.organizationId).toBe('org-1');
+	});
+
+	it('blocks user-supplied systemParams from overwriting sacred whitelist keys', async () => {
+		const def = aDefMissingTargetDomain();
+		const repo = {
+			save: vi.fn(),
+			findById: vi.fn().mockResolvedValue(def),
+			delete: vi.fn(),
+			listForProject: vi.fn(),
+			findByProjectEndpointAndSystemParam: vi.fn(),
+			findFor: vi.fn(),
+		} as unknown as PC2.JobDefinitionRepository;
+		const scheduler = {
+			register: vi.fn(),
+			unregister: vi.fn(),
+			enqueueOnce: vi.fn(),
+		} satisfies PC2.JobScheduler;
+
+		const uc = new UpdateJobDefUC2(repo, scheduler);
+		const view = await uc.execute({
+			definitionId: 'def-149',
+			systemParams: {
+				organizationId: 'EVIL-ORG',
+				projectId: 'EVIL-PROJ',
+				targetDomain: 'attacker.com',
+			},
+		});
+
+		expect(view.params.organizationId).toBe('org-1');
+		expect(view.params.projectId).toBe('proj-1');
+		// Non-whitelisted orchestration keys still take effect
+		expect(view.params.targetDomain).toBe('attacker.com');
+	});
+
+	it('applies both `params` and `systemParams` in one PATCH call', async () => {
+		const def = aDefMissingTargetDomain();
+		const repo = {
+			save: vi.fn(),
+			findById: vi.fn().mockResolvedValue(def),
+			delete: vi.fn(),
+			listForProject: vi.fn(),
+			findByProjectEndpointAndSystemParam: vi.fn(),
+			findFor: vi.fn(),
+		} as unknown as PC2.JobDefinitionRepository;
+		const scheduler = {
+			register: vi.fn(),
+			unregister: vi.fn(),
+			enqueueOnce: vi.fn(),
+		} satisfies PC2.JobScheduler;
+
+		const uc = new UpdateJobDefUC2(repo, scheduler);
+		const view = await uc.execute({
+			definitionId: 'def-149',
+			// `params` REPLACE semantics (with whitelist preservation)
+			params: { locationCode: 2840, languageCode: 'en' },
+			// `systemParams` MERGE semantics (overlay)
+			systemParams: { targetDomain: 'patroltech.online', country: 'US' },
+		});
+
+		// `params` replaced the user surface
+		expect(view.params.locationCode).toBe(2840);
+		expect(view.params.languageCode).toBe('en');
+		// `systemParams` overlaid the orchestration keys
+		expect(view.params.targetDomain).toBe('patroltech.online');
+		expect(view.params.country).toBe('US');
+		// Whitelist survived both phases
+		expect(view.params.organizationId).toBe('org-1');
+		expect(view.params.projectId).toBe('proj-1');
+	});
+});
