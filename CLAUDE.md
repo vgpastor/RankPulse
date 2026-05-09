@@ -303,7 +303,88 @@ pnpm clean      # borra dist/.turbo/*.tsbuildinfo de todos los packages
 7. Abre la issue de seguimiento con etiquetas `provider` + `free-source`
    o `paid-source`, y reclámala antes de empezar (ver "Claim de issues").
 
-### 7.3 Nuevo átomo / molécula UI
+### 7.3 Nuevo módulo de aplicación con auto-schedule (event-driven scheduling)
+
+> Patrón cuando un evento de dominio (ej. `CompetitorAdded`,
+> `GscPropertyLinked`, `Ga4PropertyLinked`) debe **auto-crear** uno o
+> varios `JobDefinition`s. Documentado por experiencia: si saltas el
+> paso 4, la API arranca pero crashea silenciosamente al primer evento
+> (PR #156 lo demostró tirando producción 10 min — los handlers se
+> construyen con `deps` incompleto).
+
+1. **Crea el config** `packages/application/src/<contexto>/event-handlers/auto-schedule.config.ts`:
+   - Exporta `<contexto>AutoScheduleConfigs: readonly AutoScheduleConfig[]`.
+   - Para schedules estáticos por evento: `schedule: AutoScheduleSpec`.
+   - Para fan-out dinámico (N locales, M provider creds): `dynamicSchedules: (event, deps) => Promise<AutoScheduleSpec[]>`.
+   - Cada `AutoScheduleSpec` declara `providerId`, `endpointId`, `cron`,
+     `systemParamKey` (la clave de idempotencia), `paramsBuilder`,
+     `systemParamsBuilder`. Ejemplos canónicos:
+     - Estático mono-evento: `search-console-insights/event-handlers/auto-schedule.config.ts`.
+     - Dinámico fan-out con repos: `ai-search-insights/event-handlers/auto-schedule.config.ts`.
+     - Multi-evento + fan-out por locales: `competitor-intelligence/event-handlers/auto-schedule.config.ts`.
+
+2. **Wírealo en el módulo** (`packages/application/src/<contexto>/module.ts`):
+   ```ts
+   import { buildAutoScheduleHandlers } from '../_core/auto-schedule.js';
+   import { <contexto>AutoScheduleConfigs } from './event-handlers/auto-schedule.config.js';
+
+   eventHandlers: buildAutoScheduleHandlers(deps, <contexto>AutoScheduleConfigs),
+   ```
+
+3. **Tipa los deps que el config necesita** extendiendo `SharedDeps`
+   con la(s) repo(s) que `dynamicSchedules` lea (ej. `projectRepo`,
+   `credentialRepo`). El cast a `SharedDeps` en composition-root no
+   te avisa de campos faltantes — esa es la trampa.
+
+4. **Composition root — paso CRÍTICO**: en
+   `apps/api/src/composition/composition-root.ts`, el módulo debe
+   recibir `...autoScheduleSurface` (objeto `{ scheduleEndpointFetch,
+   logger }`) en su `compose({...})`:
+   ```ts
+   const <contexto> = <Contexto>UseCases.<contexto>Module.compose({
+     clock: SystemClock,
+     ids: SystemIdGenerator,
+     events: eventPublisher,
+     // ...repos del contexto...
+     ...autoScheduleSurface,   // ← OBLIGATORIO si el módulo tiene auto-schedule
+   } as <Contexto>Deps as unknown as SharedDeps);
+   ```
+   Si tu módulo es el **primero del fichero** que necesita
+   `autoScheduleSurface`, **muévelo** (la const `autoScheduleSurface`)
+   por encima de su `compose(...)` — el orden importa por TDZ. Caso
+   real: PR #156 movió la declaración para `competitor-intelligence`.
+
+5. **Tests**: `auto-schedule.config.spec.ts` con eventos sintéticos +
+   un fake `projectRepo`/`credentialRepo`. Asserts típicos:
+   - Mono-locale → N specs esperados.
+   - Multi-locale → fan-out × N.
+   - Datos faltantes (proyecto sin locations, países no mapeados) →
+     skip silencioso, no excepción.
+   - `systemParamsBuilder` produce el campo de idempotencia esperado
+     (`brandPromptId`, `targetDomain`, `intersectionScheduleKey`, …).
+
+6. **Verificación post-deploy** (irrenunciable):
+   ```bash
+   # Antes
+   curl … /providers/job-definitions/by-project/<id> | jq 'length'
+   # Disparar el evento (ej. POST /projects/<id>/competitors)
+   curl -X POST … /projects/<id>/competitors -d '{"domain":"test-…com"}'
+   # Esperar 5s y volver a contar
+   ```
+   Si el delta es 0 sin error visible → revisa logs PM2; muy
+   probablemente faltó `autoScheduleSurface` en el compose (paso 4)
+   y los handlers están registrados pero crashean silenciosamente al
+   resolver la dep.
+
+> **systemParams que son seguros de asumir presentes en el handler**
+> (stamped por `ScheduleEndpointFetchUseCase`):
+> `organizationId`, `projectId`. Defensivamente, el `IngestRouter`
+> también inyecta `projectId` desde `definition.projectId` si el
+> schedule legacy no lo tenía (PR #152). Cualquier otro
+> systemParam (gscPropertyId, targetDomain, etc.) lo pone tu
+> `systemParamsBuilder` y solo existe si lo metes ahí.
+
+### 7.4 Nuevo átomo / molécula UI
 
 1. Crea el componente en `packages/ui/src/atoms/<name>.tsx` (o `molecules/`).
 2. Usa `class-variance-authority` (`cva`) para variantes y `cn()` (de `lib/cn`).
@@ -311,7 +392,7 @@ pnpm clean      # borra dist/.turbo/*.tsbuildinfo de todos los packages
 4. Usa **mobile-first** Tailwind y respeta tokens de `styles.css`.
 5. (Cuando tengamos Storybook configurado) añade el `.stories.tsx`.
 
-### 7.4 Nueva página web
+### 7.5 Nueva página web
 
 1. Crea `apps/web/src/pages/<feature>.page.tsx`.
 2. Registra la ruta en `apps/web/src/router.tsx`.
@@ -472,4 +553,140 @@ exhaustivos en `ops/DEPLOY.md`.
 
 ---
 
-_Última actualización: 2026-05-06. Mantén este archivo vivo._
+## 13. TIL — gotchas que NO se ven en el código
+
+> Lecciones de bugs reales en producción. Cada entrada lista síntoma,
+> causa raíz y la PR/issue que lo cerró, para que el siguiente que
+> tropiece tarde minutos en lugar de horas.
+
+### 13.1 Runs `succeeded` con `rawPayloadId` pero tablas read-model vacías
+
+**Síntoma**: un job-definition de provider devuelve `runId`, el run
+termina `status: 'succeeded'` con `rawPayloadId` poblado, pero la
+tabla read-model correspondiente (`ranked_keywords_observations`,
+`competitor_keyword_gaps`, etc.) sigue vacía. Sin error visible al
+operador.
+
+**Causa raíz**: los worker handlers `<context>:ingest-*` exigen
+`systemParams.projectId` y hacen `logger.warn + return` silencioso si
+falta. Los `JobDefinition` creados antes de PR #152 vía la ruta manual
+`POST /endpoints/.../schedule` nunca llevaban `projectId` en
+`systemParams` (el controller solo stampa `organizationId`).
+
+**Fix permanente** (#147 → PR #152): `ScheduleEndpointFetchUseCase`
+stampea `projectId` siempre en los params persistidos. **Defensa**:
+`IngestRouter` también inyecta `projectId` desde `definition.projectId`
+en runtime para defs legacy.
+
+**Para el agente**: si añades un nuevo `<context>:ingest-*` handler en
+`apps/worker/src/main.ts`, **no** repitas el patrón "if (!projectId)
+return" — usa `systemParams.projectId as string` directamente. Está
+garantizado por el use case + router. Los demás systemParams (FK del
+contexto) sí necesitan validación.
+
+### 13.2 Run en 17 ms con `rawPayloadId` idéntico entre llamadas
+
+**Síntoma**: dispar­ar `run-now` repetidamente devuelve siempre el
+mismo `rawPayloadId`, runs duran <50 ms (vs los 5–15 s típicos de una
+llamada DataForSEO real), y la tabla read-model no cambia.
+
+**Causa raíz**: `provider-fetch.processor.ts` cachea raw_payloads por
+`requestHash` (`(providerId, endpointId, params, dateBucket)`).
+Anteriormente la rama de "idempotent skip" salt­aba **fetch + ingest**
+con un `return`. Si la primera run del día tuvo un bug silencioso de
+ingest (#147), las posteriores nunca recuperaban los datos porque la
+cache hit las cortocircuitaba antes de llegar al `IngestRouter`.
+
+**Fix permanente** (#151 → PR #154): la rama de skip ahora **replays**
+el ingest sobre el payload cacheado (`ingestRouter.dispatch({
+fetchResult: existing.payload, … })`). Coste 0, hace el sistema
+self-healing — un fix futuro de un bug de ingest se aplica
+retroactivamente al siguiente `run-now` sin tocar nada en BD.
+
+**Para el agente**: si encuentras `succeeded` con duración patológica,
+**no concluyas** que la API externa respondió rápido — confirma con
+`SELECT length(payload::text) FROM raw_payloads WHERE id = '<id>'`.
+Si el payload es real y grande pero el read-model está vacío, es un
+bug de ACL o ingest, no de fetch.
+
+### 13.3 PATCH `/job-definitions/{id}` acepta `systemParams` pero lo descarta
+
+**Síntoma**: `PATCH /providers/<p>/job-definitions/<d>` con body
+`{ systemParams: {...} }` devuelve 200 OK con la def, pero el campo
+no se persiste — el processor sigue fallando con
+`INGEST_PRECONDITION_FAILED`.
+
+**Causa raíz**: el zod schema del PATCH solo permite
+`{ cron, params, enabled }`. Cualquier otra clave se ignora
+silenciosamente (no hay `.strict()`). Issue #149 abierta.
+
+**Workaround**: pasar systemParams en el `POST .../schedule` original
+o usar `params` (que SÍ es modificable en PATCH; el processor lee la
+fusion `validatedParams + systemParams` que se almacena en
+`definition.params`).
+
+**Para el agente**: nunca asumas que un PATCH 200 implica que tus
+campos se persistieron. Verifica con `GET` si el campo es crítico, o
+añade `.strict()` al schema cuando refactorices.
+
+### 13.4 Auto-schedule handler crashea API en bootstrap
+
+**Síntoma**: deploy completa migraciones, PM2 reporta `online` con 4
+instancias y 0 restarts, pero el health check `:3200/healthz` falla
+durante 18 s y el deploy aborta. La API queda 502 en producción.
+
+**Causa raíz**: PR #155 añadió auto-schedule a `competitor-intelligence`
+pero la composition root no le pasaba `scheduleEndpointFetch` y
+`logger` en los deps. Los `EventHandler` se construyen OK al compose
+(no toca esos campos), pero al llegar el primer evento crashean
+porque `deps.scheduleEndpointFetch.execute` es `undefined`. PM2 no
+reinicia porque el bootstrap **completa** antes del primer evento; la
+crash llega después y mata el listener silenciosamente.
+
+**Fix permanente** (PR #156): `...autoScheduleSurface` añadido al
+spread de deps de `competitor-intelligence` + bloque movido por encima
+del `compose(...)` para evitar TDZ.
+
+**Para el agente**: ver receta 7.3 paso 4. **Antes de mergear** un
+módulo con auto-schedule, ejecuta `pnpm --filter @rankpulse/api dev`
+localmente y dispara el evento que el handler escucha — si la
+respuesta del use case que emite el evento es 200 pero los logs
+muestran `TypeError: Cannot read properties of undefined (reading
+'execute')`, te falta el spread.
+
+### 13.5 Endpoints DataForSEO Labs + country → location_code
+
+**Síntoma**: nuevo proyecto en un país no soportado (ej. JP, KR, IN)
+no genera schedules de auto-discover de competidores aunque el evento
+emite correctamente.
+
+**Causa raíz**: `DATAFORSEO_LOCATION_CODES` en
+`competitor-intelligence/event-handlers/auto-schedule.config.ts` mapea
+13 países (5 mercados PT + 8 LATAM/EU comunes). Locations con country
+no mapeado se **skip-ean silenciosamente** (decisión deliberada — un
+país no soportado no debe bloquear el resto del fan-out de un proyecto
+multi-locale).
+
+**Para añadir un país**: una línea en el `Record<string, number>`. Las
+referencias de DataForSEO están en
+https://docs.dataforseo.com/v3/serp/google/locations/.
+
+### 13.6 Composition root: orden importa (TDZ)
+
+**Síntoma**: `ReferenceError: Cannot access 'autoScheduleSurface'
+before initialization` al compilar/arrancar.
+
+**Causa raíz**: bloques `const` en el composition-root tienen TDZ
+(temporal dead zone). Si un módulo usa `...autoScheduleSurface` antes
+de su declaración, falla. La declaración estaba al lado de los
+módulos que históricamente la usaban (`searchConsoleInsights`, etc.) —
+añadir un módulo nuevo más arriba (ej. `competitorIntelligence`) sin
+mover el bloque rompe el orden.
+
+**Para el agente**: cuando edites el composition-root, mira los
+`grep -n` de las consts compartidas (`autoScheduleSurface`,
+`autoScheduleLogger`, `scheduleEndpointFetch`) y muévelas al **top**
+del bloque "compose modules" si añades un consumer nuevo arriba. No
+asumas orden histórico.
+
+_Última actualización: 2026-05-09. Mantén este archivo vivo._
