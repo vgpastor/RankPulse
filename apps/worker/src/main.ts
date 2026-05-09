@@ -50,6 +50,7 @@ async function bootstrap(): Promise<void> {
 		drizzle.db,
 	);
 	const competitorKeywordGapRepo = new DrizzlePersistence.DrizzleCompetitorKeywordGapRepository(drizzle.db);
+	const competitorPageAuditRepo = new DrizzlePersistence.DrizzleCompetitorPageAuditRepository(drizzle.db);
 	const projectRepo = new DrizzlePersistence.DrizzleProjectRepository(drizzle.db);
 	const competitorRepo = new DrizzlePersistence.DrizzleCompetitorRepository(drizzle.db);
 	const competitorSuggestionRepo = new DrizzlePersistence.DrizzleCompetitorSuggestionRepository(drizzle.db);
@@ -140,6 +141,12 @@ async function bootstrap(): Promise<void> {
 		competitorKeywordGapRepo,
 		SystemIdGenerator,
 	);
+	const ingestCompetitorPageAuditUseCase =
+		new CompetitorIntelligenceUseCases.IngestCompetitorPageAuditUseCase(
+			projectRepo,
+			competitorPageAuditRepo,
+			SystemIdGenerator,
+		);
 	const ingestGscRowsUseCase = new SearchConsoleInsightsUseCases.IngestGscRowsUseCase(
 		gscPropertyRepo,
 		gscObservationRepo,
@@ -455,6 +462,34 @@ async function bootstrap(): Promise<void> {
 					language,
 					rawPayloadId,
 					rows: rows as Parameters<typeof ingestDomainIntersectionUseCase.execute>[0]['rows'],
+				});
+			},
+		},
+		'competitor-intelligence:ingest-competitor-page-audit': {
+			async execute({ rawPayloadId, rows, systemParams }) {
+				const projectId = systemParams.projectId as string | undefined;
+				const competitorDomain = systemParams.competitorDomain as string | undefined;
+				const url = systemParams.url as string | undefined;
+				if (!projectId || !competitorDomain || !url) {
+					logger.warn(
+						{ systemParams },
+						'competitor-intelligence:ingest-competitor-page-audit skipped: missing projectId, competitorDomain, or url in systemParams',
+					);
+					return;
+				}
+				const audit = rows[0] as
+					| Parameters<typeof ingestCompetitorPageAuditUseCase.execute>[0]['audit']
+					| undefined;
+				if (!audit) {
+					// ACL returns [] when scope !== 'competitor'; treat as a no-op.
+					return;
+				}
+				await ingestCompetitorPageAuditUseCase.execute({
+					projectId,
+					competitorDomain,
+					url,
+					rawPayloadId,
+					audit,
 				});
 			},
 		},

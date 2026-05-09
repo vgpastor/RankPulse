@@ -1,7 +1,9 @@
 import {
+	boolean,
 	doublePrecision,
 	index,
 	integer,
+	jsonb,
 	pgTable,
 	primaryKey,
 	smallint,
@@ -54,4 +56,63 @@ export const competitorKeywordGaps = pgTable(
 
 export type CompetitorKeywordGapRow = typeof competitorKeywordGaps.$inferSelect;
 
-export const competitorIntelligenceSchemaTables = [competitorKeywordGaps] as const;
+/**
+ * Issue #131: fat snapshot of a competitor URL on-page audit (DataForSEO
+ * `on_page/instant_pages`). Promoted to a TimescaleDB hypertable by migration
+ * `0020` with chunk-time = 30 days and a 13-month retention policy.
+ *
+ * `raw_payloads` stores the full DataForSEO response so the ACL can be
+ * re-run for backfills if we add columns later — only PK + sourceProvider
+ * are required here; every other column is nullable on purpose.
+ */
+export const competitorPageAudits = pgTable(
+	'competitor_page_audits',
+	{
+		observedAt: timestamp('observed_at', { withTimezone: true }).notNull(),
+		projectId: uuid('project_id')
+			.notNull()
+			.references(() => projects.id, { onDelete: 'cascade' }),
+		competitorDomain: text('competitor_domain').notNull(),
+		url: text('url').notNull(),
+		statusCode: smallint('status_code'),
+		statusMessage: text('status_message'),
+		fetchTimeMs: integer('fetch_time_ms'),
+		pageSizeBytes: integer('page_size_bytes'),
+		title: text('title'),
+		metaDescription: text('meta_description'),
+		h1: text('h1'),
+		h2Count: smallint('h2_count'),
+		h3Count: smallint('h3_count'),
+		wordCount: integer('word_count'),
+		plainTextSizeBytes: integer('plain_text_size_bytes'),
+		internalLinksCount: integer('internal_links_count'),
+		externalLinksCount: integer('external_links_count'),
+		hasSchemaOrg: boolean('has_schema_org'),
+		schemaTypes: jsonb('schema_types').$type<string[]>(),
+		canonicalUrl: text('canonical_url'),
+		redirectUrl: text('redirect_url'),
+		lcpMs: integer('lcp_ms'),
+		cls: doublePrecision('cls'),
+		ttfbMs: integer('ttfb_ms'),
+		domSize: integer('dom_size'),
+		isAmp: boolean('is_amp'),
+		isJavascript: boolean('is_javascript'),
+		isHttps: boolean('is_https'),
+		hreflangCount: smallint('hreflang_count'),
+		ogTagsCount: smallint('og_tags_count'),
+		sourceProvider: text('source_provider').notNull(),
+		rawPayloadId: uuid('raw_payload_id'),
+		observedAtProvider: timestamp('observed_at_provider', { withTimezone: true }),
+	},
+	(t) => ({
+		pk: primaryKey({
+			columns: [t.observedAt, t.projectId, t.competitorDomain, t.url],
+		}),
+		pairIdx: index('competitor_page_audits_pair_idx').on(t.projectId, t.competitorDomain, t.observedAt),
+		domainIdx: index('competitor_page_audits_domain_idx').on(t.competitorDomain, t.observedAt),
+	}),
+);
+
+export type CompetitorPageAuditRow = typeof competitorPageAudits.$inferSelect;
+
+export const competitorIntelligenceSchemaTables = [competitorKeywordGaps, competitorPageAudits] as const;

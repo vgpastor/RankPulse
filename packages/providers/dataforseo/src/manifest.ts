@@ -7,6 +7,7 @@ import type {
 import { InvalidInputError } from '@rankpulse/shared';
 import { summariseBacklinksResponse } from './acl/backlinks-summary.acl.js';
 import { normaliseDomainIntersectionResponse } from './acl/domain-intersection-to-domain.acl.js';
+import { mapOnPageToCompetitorAudit } from './acl/on-page-instant-to-competitor-audit.acl.js';
 import { normaliseRankedKeywordsResponse } from './acl/ranked-keywords-to-domain.acl.js';
 import { parseCredential } from './credential.js';
 import {
@@ -31,7 +32,11 @@ import {
 	keywordsDataSearchVolumeDescriptor,
 } from './endpoints/keywords-data-search-volume.js';
 import { fetchKeywordsForSite, keywordsForSiteDescriptor } from './endpoints/keywords-for-site.js';
-import { fetchOnPageInstantPages, onPageInstantDescriptor } from './endpoints/on-page-instant.js';
+import {
+	fetchOnPageInstantPages,
+	type OnPageInstantResponse,
+	onPageInstantDescriptor,
+} from './endpoints/on-page-instant.js';
 import { fetchPageIntersection, pageIntersectionDescriptor } from './endpoints/page-intersection.js';
 import {
 	fetchRankedKeywords,
@@ -127,6 +132,28 @@ const competitorIntelligenceDomainIntersectionIngest: IngestBinding<DomainInters
 	acl: normaliseDomainIntersectionResponse,
 };
 
+/**
+ * Issue #131: typed ingest binding for the `on_page/instant_pages` endpoint
+ * extended to audit COMPETITOR URLs (not only own URLs). The ACL is
+ * polymorphic, gated on `ctx.systemParams.scope`:
+ *   - `scope === 'competitor'` → emit ONE fat row that flows into the
+ *     `competitor_page_audits` hypertable via
+ *     `IngestCompetitorPageAuditUseCase`.
+ *   - anything else (`'own'`, absent, …) → return `[]` so the row never
+ *     reaches the use case. The raw_payload is still stored upstream by the
+ *     processor, so a future web-performance binding for own-domain audits
+ *     can be attached without restructuring this manifest entry.
+ *
+ * `systemParamKey` is `url` (the router's hard precondition); the ACL
+ * additionally validates `competitorDomain` and `projectId` from
+ * `ctx.systemParams` and throws `InvalidInputError` on misconfiguration.
+ */
+const competitorIntelligenceCompetitorPageAuditIngest: IngestBinding<OnPageInstantResponse> = {
+	useCaseKey: 'competitor-intelligence:ingest-competitor-page-audit',
+	systemParamKey: 'url',
+	acl: mapOnPageToCompetitorAudit,
+};
+
 const endpoints: readonly EndpointManifest[] = [
 	{
 		descriptor: serpGoogleOrganicLiveDescriptor,
@@ -206,7 +233,13 @@ const endpoints: readonly EndpointManifest[] = [
 	{
 		descriptor: onPageInstantDescriptor,
 		fetch: adapt(fetchOnPageInstantPages),
-		ingest: null,
+		// Issue #131: ACL polymorphic on `systemParams.scope`. Emits a row
+		// only when `scope === 'competitor'` (routed to
+		// `IngestCompetitorPageAuditUseCase`); returns `[]` for `'own'` /
+		// absent so the binding is a no-op for other scopes. Web-performance
+		// can attach its own binding later (different `useCaseKey`) for
+		// `scope === 'own'` if/when an own-domain audit BC is wired.
+		ingest: competitorIntelligenceCompetitorPageAuditIngest as IngestBinding,
 	},
 	{
 		descriptor: backlinksSummaryDescriptor,
