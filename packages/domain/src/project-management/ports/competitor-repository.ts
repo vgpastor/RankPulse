@@ -7,4 +7,6 @@ export interface CompetitorRepository {
 	findById(id: CompetitorId): Promise<Competitor | null>;
 	findByDomain(projectId: ProjectId, domain: DomainName): Promise<Competitor | null>;
 	listForProject(projectId: ProjectId): Promise<readonly Competitor[]>;
+	/** Hard-delete a competitor. Idempotent — no-op when id is unknown. */
+	remove(id: CompetitorId): Promise<void>;
 }

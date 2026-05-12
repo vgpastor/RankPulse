@@ -74,6 +74,15 @@ export class DrizzleCompetitorRepository implements ProjectManagement.Competitor
 		return rows.map((r) => this.toAggregate(r));
 	}
 
+	async remove(id: ProjectManagement.CompetitorId): Promise<void> {
+		// Hard delete. Idempotent — no row affected if id is unknown.
+		// Related read-models (competitor_keyword_gaps, competitor_page_audits,
+		// ranked_keywords_observations) keep their historical rows; the
+		// competitor entry just stops appearing in the listing and any
+		// future auto-schedules cannot create new defs for it.
+		await this.db.delete(competitors).where(eq(competitors.id, id));
+	}
+
 	private toAggregate(row: typeof competitors.$inferSelect): ProjectManagement.Competitor {
 		return ProjectManagement.Competitor.rehydrate({
 			id: row.id as ProjectManagement.CompetitorId,

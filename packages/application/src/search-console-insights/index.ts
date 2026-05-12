@@ -4,6 +4,7 @@ export * from './lib/holt-winters.js';
 export * from './module.js';
 export * from './use-cases/ingest-gsc-rows.use-case.js';
 export * from './use-cases/link-gsc-property.use-case.js';
+export * from './use-cases/unlink-gsc-property.use-case.js';
 export * from './use-cases/query-brand-decay.use-case.js';
 export * from './use-cases/query-clicks-forecast.use-case.js';
 export * from './use-cases/query-ctr-anomalies.use-case.js';

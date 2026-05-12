@@ -37,6 +37,7 @@ export const Tokens = {
 	AddDomainToProject: Symbol('AddDomainToProjectUseCase'),
 	AddProjectLocation: Symbol('AddProjectLocationUseCase'),
 	AddCompetitor: Symbol('AddCompetitorUseCase'),
+	RemoveCompetitor: Symbol('RemoveCompetitorUseCase'),
 	ImportKeywords: Symbol('ImportKeywordsUseCase'),
 	CreatePortfolio: Symbol('CreatePortfolioUseCase'),
 	ListPortfolios: Symbol('ListPortfoliosUseCase'),
@@ -106,6 +107,7 @@ export const Tokens = {
 
 	// Search-Console-Insights use cases
 	LinkGscProperty: Symbol('LinkGscPropertyUseCase'),
+	UnlinkGscProperty: Symbol('UnlinkGscPropertyUseCase'),
 	IngestGscRows: Symbol('IngestGscRowsUseCase'),
 	QueryGscPerformance: Symbol('QueryGscPerformanceUseCase'),
 	QueryCtrAnomalies: Symbol('QueryCtrAnomaliesUseCase'),
