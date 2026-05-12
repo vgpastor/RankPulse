@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Inject, Param, Post, Query } from '@nestjs/common';
 import type { SearchConsoleInsights as SCIUseCases } from '@rankpulse/application';
 import { SearchConsoleInsightsContracts } from '@rankpulse/contracts';
 import type { IdentityAccess, ProjectManagement, SearchConsoleInsights } from '@rankpulse/domain';
@@ -19,6 +19,8 @@ export class GscController {
 
 	constructor(
 		@Inject(Tokens.LinkGscProperty) private readonly linkProperty: SCIUseCases.LinkGscPropertyUseCase,
+		@Inject(Tokens.UnlinkGscProperty)
+		private readonly unlinkProperty: SCIUseCases.UnlinkGscPropertyUseCase,
 		@Inject(Tokens.QueryGscPerformance)
 		private readonly queryPerformance: SCIUseCases.QueryGscPerformanceUseCase,
 		@Inject(Tokens.GscPropertyRepository)
@@ -47,6 +49,24 @@ export class GscController {
 			propertyType: body.propertyType,
 			credentialId: body.credentialId ?? null,
 		});
+	}
+
+	/**
+	 * Soft-unlink a GSC property. The row stays in BD with
+	 * `unlinked_at = NOW()`; subsequent ingest skips it (use case
+	 * `IngestGscRowsUseCase` already short-circuits on
+	 * `!property.isActive()`). Historical observations remain queryable.
+	 * Returns 204 on success; 409 if already unlinked. See #165.
+	 */
+	@Delete('properties/:id')
+	@HttpCode(204)
+	async unlink(@Principal() principal: AuthPrincipal, @Param('id') id: string): Promise<void> {
+		const property = await this.propertyRepo.findById(id as SearchConsoleInsights.GscPropertyId);
+		if (!property) {
+			throw new NotFoundError(`GSC property ${id} not found`);
+		}
+		await this.orgMembership.require(principal, property.organizationId);
+		await this.unlinkProperty.execute({ gscPropertyId: id });
 	}
 
 	@Get('projects/:projectId/properties')

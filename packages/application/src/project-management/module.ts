@@ -21,6 +21,7 @@ import {
 import { QueryCompetitorActivityUseCase } from './use-cases/query-competitor-activity.use-case.js';
 import { RecordCompetitorBacklinksProfileUseCase } from './use-cases/record-competitor-backlinks-profile.use-case.js';
 import { RecordCompetitorWaybackSnapshotUseCase } from './use-cases/record-competitor-wayback-snapshot.use-case.js';
+import { RemoveCompetitorUseCase } from './use-cases/remove-competitor.use-case.js';
 
 export interface ProjectManagementDeps {
 	readonly clock: Clock;
@@ -115,6 +116,7 @@ export const projectManagementModule: ContextModule = {
 				AddDomainToProject: new AddDomainToProjectUseCase(d.projectRepo, d.clock, d.events),
 				AddProjectLocation: new AddProjectLocationUseCase(d.projectRepo, d.clock, d.events),
 				AddCompetitor: new AddCompetitorUseCase(d.projectRepo, d.competitorRepo, d.clock, d.ids, d.events),
+				RemoveCompetitor: new RemoveCompetitorUseCase(d.projectRepo, d.competitorRepo),
 				ImportKeywords: new ImportKeywordsUseCase(d.projectRepo, d.keywordListRepo, d.clock, d.ids, d.events),
 				CreatePortfolio: new CreatePortfolioUseCase(d.portfolioRepo, d.clock, d.ids, d.events),
 				ListPortfolios: new ListPortfoliosUseCase(d.portfolioRepo),

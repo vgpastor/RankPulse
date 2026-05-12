@@ -11,6 +11,7 @@ export * from './in-memory/in-memory-competitor-keyword-gap-repository.js';
 export * from './in-memory/in-memory-competitor-page-audit-repository.js';
 export * from './in-memory/in-memory-competitor-repository.js';
 export * from './in-memory/in-memory-gsc-performance-observation-repository.js';
+export * from './in-memory/in-memory-gsc-property-repository.js';
 export * from './in-memory/in-memory-keyword-list-repository.js';
 export * from './in-memory/in-memory-llm-answer-read-model.js';
 export * from './in-memory/in-memory-llm-answer-repository.js';

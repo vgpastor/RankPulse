@@ -10,3 +10,4 @@ export * from './use-cases/query-ctr-anomalies.use-case.js';
 export * from './use-cases/query-gsc-performance.use-case.js';
 export * from './use-cases/query-lost-opportunity.use-case.js';
 export * from './use-cases/query-quick-win-roi.use-case.js';
+export * from './use-cases/unlink-gsc-property.use-case.js';

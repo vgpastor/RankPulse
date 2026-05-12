@@ -1,4 +1,15 @@
-import { applyDecorators, Body, Controller, Get, Inject, Param, Post, Query } from '@nestjs/common';
+import {
+	applyDecorators,
+	Body,
+	Controller,
+	Delete,
+	Get,
+	HttpCode,
+	Inject,
+	Param,
+	Post,
+	Query,
+} from '@nestjs/common';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import type { ProjectManagement as PMUseCases } from '@rankpulse/application';
 import { ProjectManagementContracts } from '@rankpulse/contracts';
@@ -52,6 +63,7 @@ export class ProjectsController {
 		@Inject(Tokens.AddDomainToProject) private readonly addDomain: PMUseCases.AddDomainToProjectUseCase,
 		@Inject(Tokens.AddProjectLocation) private readonly addLocation: PMUseCases.AddProjectLocationUseCase,
 		@Inject(Tokens.AddCompetitor) private readonly addCompetitor: PMUseCases.AddCompetitorUseCase,
+		@Inject(Tokens.RemoveCompetitor) private readonly removeCompetitor: PMUseCases.RemoveCompetitorUseCase,
 		@Inject(Tokens.ImportKeywords) private readonly importKeywords: PMUseCases.ImportKeywordsUseCase,
 		@Inject(Tokens.ListCompetitorSuggestions)
 		private readonly listSuggestions: PMUseCases.ListCompetitorSuggestionsUseCase,
@@ -147,6 +159,26 @@ export class ProjectsController {
 			label: c.label,
 			createdAt: c.createdAt.toISOString(),
 		}));
+	}
+
+	/**
+	 * Hard-delete a competitor from a project. Idempotent at the
+	 * application layer (404 only if the (project, competitor) pair does
+	 * not match). Related job-definitions referencing this competitor's
+	 * domain are NOT cascade-deleted — operators can purge them
+	 * separately via `DELETE /providers/{p}/job-definitions/{id}`. See
+	 * RemoveCompetitorUseCase docstring for the rationale (#165).
+	 */
+	@Delete(':id/competitors/:competitorId')
+	@HttpCode(204)
+	async removeCompetitorFromProject(
+		@Principal() principal: AuthPrincipal,
+		@Param('id') id: string,
+		@Param('competitorId') competitorId: string,
+	): Promise<void> {
+		const project = await this.loadProject(id);
+		await this.orgMembership.require(principal, project.organizationId);
+		await this.removeCompetitor.execute({ projectId: id, competitorId });
 	}
 
 	// BACKLOG #18 — competitor auto-discovery surface area.

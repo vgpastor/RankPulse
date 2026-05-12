@@ -28,4 +28,8 @@ export class InMemoryCompetitorRepository implements ProjectManagement.Competito
 	): Promise<readonly ProjectManagement.Competitor[]> {
 		return [...this.byId.values()].filter((c) => c.projectId === projectId);
 	}
+
+	async remove(id: ProjectManagement.CompetitorId): Promise<void> {
+		this.byId.delete(id);
+	}
 }

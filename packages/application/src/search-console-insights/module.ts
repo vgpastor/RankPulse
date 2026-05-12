@@ -15,6 +15,7 @@ import { QueryCtrAnomaliesUseCase } from './use-cases/query-ctr-anomalies.use-ca
 import { QueryGscPerformanceUseCase } from './use-cases/query-gsc-performance.use-case.js';
 import { QueryLostOpportunityUseCase } from './use-cases/query-lost-opportunity.use-case.js';
 import { QueryQuickWinRoiUseCase } from './use-cases/query-quick-win-roi.use-case.js';
+import { UnlinkGscPropertyUseCase } from './use-cases/unlink-gsc-property.use-case.js';
 
 export interface SearchConsoleInsightsDeps {
 	readonly clock: Clock;
@@ -41,6 +42,7 @@ export const searchConsoleInsightsModule: ContextModule = {
 		return {
 			useCases: {
 				LinkGscProperty: new LinkGscPropertyUseCase(d.gscPropertyRepo, d.clock, d.ids, d.events),
+				UnlinkGscProperty: new UnlinkGscPropertyUseCase(d.gscPropertyRepo, d.clock),
 				IngestGscRows: ingestGscRows,
 				QueryGscPerformance: new QueryGscPerformanceUseCase(d.gscPropertyRepo, d.gscObservationRepo),
 				QueryCtrAnomalies: new QueryCtrAnomaliesUseCase(d.projectRepo, d.gscCockpitReadModel),
