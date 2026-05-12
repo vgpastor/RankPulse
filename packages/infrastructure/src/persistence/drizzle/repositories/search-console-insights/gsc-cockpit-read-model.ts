@@ -37,6 +37,15 @@ export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCock
 					     ELSE 0 END AS weighted_position
 				FROM gsc_observations
 				WHERE project_id = ${projectId}
+					-- Exclude observations from unlinked properties so the cockpit
+					-- only surfaces data from currently-active GSC properties.
+					-- Bug A of #164: unlinking a property left historical rows
+					-- in gsc_observations contributing to the cockpit until they
+					-- aged out of the window. This subquery makes unlink immediate.
+					AND gsc_property_id IN (
+						SELECT id FROM gsc_properties
+						WHERE project_id = ${projectId} AND unlinked_at IS NULL
+					)
 					AND observed_at >= now() - (${windowDays}::int * interval '1 day')
 					AND query <> ''
 				GROUP BY query, page
@@ -89,6 +98,9 @@ export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCock
 				SUM(impressions)::bigint AS impressions
 			FROM gsc_observations
 			WHERE project_id = ${projectId}
+				AND gsc_property_id IN (
+					SELECT id FROM gsc_properties WHERE project_id = ${projectId} AND unlinked_at IS NULL
+				)
 				AND observed_at >= now() - (${windowDays}::int * interval '1 day')
 				AND query <> ''
 			GROUP BY week_start, query
@@ -128,6 +140,9 @@ export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCock
 				SUM(impressions)::bigint AS impressions
 			FROM gsc_observations
 			WHERE project_id = ${projectId}
+				AND gsc_property_id IN (
+					SELECT id FROM gsc_properties WHERE project_id = ${projectId} AND unlinked_at IS NULL
+				)
 				AND observed_at >= now() - (${windowDays}::int * interval '1 day')
 			GROUP BY day
 			ORDER BY day ASC
