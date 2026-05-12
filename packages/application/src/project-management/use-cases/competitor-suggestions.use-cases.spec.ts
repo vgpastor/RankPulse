@@ -48,6 +48,9 @@ class InMemoryCompetitorRepo implements ProjectManagement.CompetitorRepository {
 	async listForProject(projectId: ProjectManagement.ProjectId) {
 		return [...this.store.values()].filter((c) => c.projectId === projectId);
 	}
+	async remove(id: ProjectManagement.CompetitorId): Promise<void> {
+		this.store.delete(id);
+	}
 }
 
 const buildClock = (now = '2026-05-04T10:00:00Z') => new FakeClock(now);
