@@ -128,6 +128,12 @@ const buildCompetitorAddedSpecs = async (
 		});
 
 		// 2. domain-intersection — pairs OUR primary domain × this competitor.
+		// DataForSEO `one_intersect` returns keywords where target[0] ranks
+		// and target[1] does NOT. We want "keywords where competitor ranks
+		// and WE don't" (the gap to fagocitar), so the order is
+		// [competitorDomain, ourDomain] — NOT the other way around. Until
+		// PR fixing this, the read model was empty because we asked for
+		// keywords where our (new, near-empty) domains rank.
 		specs.push({
 			providerId: DOMAIN_INTERSECTION_DEFAULTS.providerId,
 			endpointId: DOMAIN_INTERSECTION_DEFAULTS.endpointId,
@@ -138,7 +144,7 @@ const buildCompetitorAddedSpecs = async (
 			// looks up `params[systemParamKey]` via a string `equals` match.
 			systemParamKey: 'intersectionScheduleKey',
 			paramsBuilder: () => ({
-				targets: [ourDomain, competitorDomain],
+				targets: [competitorDomain, ourDomain],
 				locationCode,
 				languageCode,
 				limit: DOMAIN_INTERSECTION_DEFAULTS.limit,

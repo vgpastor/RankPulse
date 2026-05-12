@@ -77,7 +77,7 @@ describe('CompetitorAdded → schedules', () => {
 
 		// domain-intersection params pair OUR primary × the competitor
 		expect(di?.paramsBuilder(event)).toMatchObject({
-			targets: ['patroltech.online', 'silvertraconline.com'],
+			targets: ['silvertraconline.com', 'patroltech.online'],
 			locationCode: 2724,
 			languageCode: 'es',
 		});
