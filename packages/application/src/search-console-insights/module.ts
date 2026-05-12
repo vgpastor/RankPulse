@@ -9,13 +9,13 @@ import type { ContextModule, ContextRegistrations, SharedDeps } from '../_core/m
 import { searchConsoleInsightsAutoScheduleConfigs } from './event-handlers/auto-schedule.config.js';
 import { IngestGscRowsUseCase } from './use-cases/ingest-gsc-rows.use-case.js';
 import { LinkGscPropertyUseCase } from './use-cases/link-gsc-property.use-case.js';
-import { UnlinkGscPropertyUseCase } from './use-cases/unlink-gsc-property.use-case.js';
 import { QueryBrandDecayUseCase } from './use-cases/query-brand-decay.use-case.js';
 import { QueryClicksForecastUseCase } from './use-cases/query-clicks-forecast.use-case.js';
 import { QueryCtrAnomaliesUseCase } from './use-cases/query-ctr-anomalies.use-case.js';
 import { QueryGscPerformanceUseCase } from './use-cases/query-gsc-performance.use-case.js';
 import { QueryLostOpportunityUseCase } from './use-cases/query-lost-opportunity.use-case.js';
 import { QueryQuickWinRoiUseCase } from './use-cases/query-quick-win-roi.use-case.js';
+import { UnlinkGscPropertyUseCase } from './use-cases/unlink-gsc-property.use-case.js';
 
 export interface SearchConsoleInsightsDeps {
 	readonly clock: Clock;

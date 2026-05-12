@@ -60,10 +60,7 @@ export class GscController {
 	 */
 	@Delete('properties/:id')
 	@HttpCode(204)
-	async unlink(
-		@Principal() principal: AuthPrincipal,
-		@Param('id') id: string,
-	): Promise<void> {
+	async unlink(@Principal() principal: AuthPrincipal, @Param('id') id: string): Promise<void> {
 		const property = await this.propertyRepo.findById(id as SearchConsoleInsights.GscPropertyId);
 		if (!property) {
 			throw new NotFoundError(`GSC property ${id} not found`);

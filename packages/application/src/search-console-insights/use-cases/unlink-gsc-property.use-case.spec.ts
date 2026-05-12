@@ -1,7 +1,7 @@
-import { IdentityAccess, ProjectManagement, SearchConsoleInsights } from '@rankpulse/domain';
-import { FakeClock, NotFoundError, type Uuid } from '@rankpulse/shared';
+import type { IdentityAccess, ProjectManagement } from '@rankpulse/domain';
+import { SearchConsoleInsights } from '@rankpulse/domain';
+import { ConflictError, FakeClock, NotFoundError, type Uuid } from '@rankpulse/shared';
 import { InMemoryGscPropertyRepository } from '@rankpulse/testing';
-import { ConflictError } from '@rankpulse/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { UnlinkGscPropertyUseCase } from './unlink-gsc-property.use-case.js';
 

@@ -19,9 +19,9 @@ import {
 	RenamePortfolioUseCase,
 } from './use-cases/manage-portfolios.use-cases.js';
 import { QueryCompetitorActivityUseCase } from './use-cases/query-competitor-activity.use-case.js';
-import { RemoveCompetitorUseCase } from './use-cases/remove-competitor.use-case.js';
 import { RecordCompetitorBacklinksProfileUseCase } from './use-cases/record-competitor-backlinks-profile.use-case.js';
 import { RecordCompetitorWaybackSnapshotUseCase } from './use-cases/record-competitor-wayback-snapshot.use-case.js';
+import { RemoveCompetitorUseCase } from './use-cases/remove-competitor.use-case.js';
 
 export interface ProjectManagementDeps {
 	readonly clock: Clock;

@@ -30,9 +30,7 @@ export class UnlinkGscPropertyUseCase {
 	) {}
 
 	async execute(cmd: UnlinkGscPropertyCommand): Promise<UnlinkGscPropertyResult> {
-		const property = await this.properties.findById(
-			cmd.gscPropertyId as SearchConsoleInsights.GscPropertyId,
-		);
+		const property = await this.properties.findById(cmd.gscPropertyId as SearchConsoleInsights.GscPropertyId);
 		if (!property) {
 			throw new NotFoundError(`GscProperty ${cmd.gscPropertyId} not found`);
 		}

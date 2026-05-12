@@ -1,9 +1,7 @@
-import { IdentityAccess, ProjectManagement } from '@rankpulse/domain';
+import type { IdentityAccess } from '@rankpulse/domain';
+import { ProjectManagement } from '@rankpulse/domain';
 import { NotFoundError, type Uuid } from '@rankpulse/shared';
-import {
-	InMemoryCompetitorRepository,
-	InMemoryProjectRepository,
-} from '@rankpulse/testing';
+import { InMemoryCompetitorRepository, InMemoryProjectRepository } from '@rankpulse/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RemoveCompetitorUseCase } from './remove-competitor.use-case.js';
 

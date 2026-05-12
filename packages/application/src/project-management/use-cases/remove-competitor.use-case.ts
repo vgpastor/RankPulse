@@ -45,9 +45,7 @@ export class RemoveCompetitorUseCase {
 		}
 		const competitor = await this.competitors.findById(cmd.competitorId as ProjectManagement.CompetitorId);
 		if (!competitor || competitor.projectId !== project.id) {
-			throw new NotFoundError(
-				`Competitor ${cmd.competitorId} not found in project ${cmd.projectId}`,
-			);
+			throw new NotFoundError(`Competitor ${cmd.competitorId} not found in project ${cmd.projectId}`);
 		}
 		await this.competitors.remove(competitor.id);
 		return { removed: true };
