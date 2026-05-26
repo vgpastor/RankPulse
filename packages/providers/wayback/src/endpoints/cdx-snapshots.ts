@@ -58,12 +58,22 @@ export type CdxResponse = readonly CdxRow[];
 
 const buildPath = (): string => '/cdx/search/cdx';
 
+/**
+ * Wayback CDX strictly requires `YYYYMMDD` (8 digits, no separators) in
+ * `from`/`to`. The worker's `resolveDateTokens` substitutes the persisted
+ * `{{today-N}}` tokens with canonical ISO `YYYY-MM-DD` (hyphens), so we
+ * normalise here at the wire boundary — Wayback's silent-empty response
+ * for the ISO form caused 33 prod runs to record snapshot_count=0 with
+ * no error (see #179 follow-up). Idempotent for already-compact input.
+ */
+const toCompactCdxDate = (raw: string): string => raw.replace(/-/g, '');
+
 const buildQuery = (params: CdxSnapshotsParams): Record<string, string> => ({
 	url: params.domain,
 	matchType: 'prefix',
 	output: 'json',
-	from: params.from,
-	to: params.to,
+	from: toCompactCdxDate(params.from),
+	to: toCompactCdxDate(params.to),
 	limit: String(params.limit),
 });
 
