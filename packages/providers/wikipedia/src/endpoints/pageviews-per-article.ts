@@ -61,6 +61,17 @@ export interface PageviewsPerArticleResponse {
 	items?: PageviewItem[];
 }
 
+/**
+ * Wikimedia's pageviews REST embeds dates as URL path segments and
+ * strictly requires `YYYYMMDD` (8 digits, no separators). The worker's
+ * `resolveDateTokens` substitutes the persisted `{{today-N}}` tokens
+ * with canonical ISO `YYYY-MM-DD` (hyphens), so we normalise here at
+ * the wire boundary — same shape of bug as Wayback (#179 follow-up),
+ * where the ISO form silently produces empty `items` instead of
+ * surfacing a 404. Idempotent for already-compact input.
+ */
+const toCompactWikiDate = (raw: string): string => raw.replace(/-/g, '');
+
 const buildPath = (params: PageviewsPerArticleParams): string => {
 	const segments = [
 		'/metrics/pageviews/per-article',
@@ -69,8 +80,8 @@ const buildPath = (params: PageviewsPerArticleParams): string => {
 		params.agent,
 		encodeURIComponent(params.article),
 		params.granularity,
-		params.start,
-		params.end,
+		toCompactWikiDate(params.start),
+		toCompactWikiDate(params.end),
 	];
 	return segments.join('/');
 };
