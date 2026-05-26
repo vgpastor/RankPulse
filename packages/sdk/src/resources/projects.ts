@@ -53,10 +53,16 @@ export class ProjectsResource {
 		return this.http.post(`/projects/${encodeURIComponent(projectId)}/locations`, body);
 	}
 
+	/**
+	 * Idempotent ensure-and-refeed. Returns `created: true` for a fresh
+	 * competitor, `created: false` if it already existed (in which case
+	 * the call only re-published CompetitorAdded so auto-schedule
+	 * handlers backfill missing feeders).
+	 */
 	addCompetitor(
 		projectId: string,
 		body: ProjectManagementContracts.AddCompetitorRequest,
-	): Promise<{ competitorId: string }> {
+	): Promise<{ competitorId: string; created: boolean }> {
 		return this.http.post(`/projects/${encodeURIComponent(projectId)}/competitors`, body);
 	}
 

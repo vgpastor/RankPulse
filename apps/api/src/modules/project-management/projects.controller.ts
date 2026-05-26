@@ -184,12 +184,13 @@ export class ProjectsController {
 	}
 
 	@Post(':id/competitors')
+	@HttpCode(200)
 	@BulkWriteThrottle
 	async addCompetitorToProject(
 		@Principal() principal: AuthPrincipal,
 		@Param('id') id: string,
 		@Body(new ZodValidationPipe(ProjectManagementContracts.AddCompetitorRequest)) body: AddCompetitorRequest,
-	): Promise<{ competitorId: string }> {
+	): Promise<{ competitorId: string; created: boolean }> {
 		const project = await this.loadProject(id);
 		await this.orgMembership.require(principal, project.organizationId);
 		return this.addCompetitor.execute({ projectId: id, ...body });

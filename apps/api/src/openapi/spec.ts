@@ -201,7 +201,9 @@ export function buildOpenApiDocument(): unknown {
 	registry.registerPath({
 		method: 'post',
 		path: '/api/v1/projects/{id}/competitors',
-		summary: 'Track a competitor for a project',
+		summary: 'Track a competitor for a project (idempotent)',
+		description:
+			'Idempotent ensure-and-refeed. If the competitor already exists for this project, returns the existing id with `created: false` and re-publishes the CompetitorAdded event so the auto-schedule handlers backfill any missing feeders (wayback, backlinks, ranked-keywords, domain-intersection). The downstream scheduler dedupes by systemParamKey, so healthy schedules are no-ops.',
 		tags: ['project-management'],
 		security: [{ [ApiTokenAuthHeader]: [] }],
 		request: {
@@ -209,11 +211,18 @@ export function buildOpenApiDocument(): unknown {
 			body: { content: { 'application/json': { schema: ProjectManagementContracts.AddCompetitorRequest } } },
 		},
 		responses: {
-			201: {
-				description: 'Competitor id',
-				content: { 'application/json': { schema: z.object({ competitorId: z.string().uuid() }) } },
+			200: {
+				description: 'Competitor id + whether the call created a new row or refed an existing one',
+				content: {
+					'application/json': {
+						schema: z.object({
+							competitorId: z.string().uuid(),
+							created: z.boolean(),
+						}),
+					},
+				},
 			},
-			...errorResponses([400, 401, 403, 404, 409]),
+			...errorResponses([400, 401, 403, 404]),
 		},
 	});
 
