@@ -147,12 +147,16 @@ const buildBody = (params: MessagesWithWebSearchParams): unknown => {
 				user_location: userLocation,
 			},
 		],
-		// Force web_search instead of `{ type: 'auto' }`. With `auto`, Claude
-		// can decide to answer from training data and skip the tool entirely
-		// — that silently zeroes the citation rate metric AND, for some
-		// locale × prompt combinations, surfaces as 400s on the messages
-		// endpoint when no tool is chosen.
-		tool_choice: { type: 'tool', name: 'web_search' },
+		// No `tool_choice` — Anthropic's documented examples for the
+		// `web_search_20250305` server tool omit it (the model auto-decides
+		// to call the tool when grounding the answer). Issue #173: forcing
+		// `tool_choice: { type: 'tool', name: 'web_search' }` returned HTTP
+		// 400 on every prompt because Anthropic does not accept that shape
+		// for built-in server tools. Letting the model auto-decide matches
+		// the docs and unblocks all locales × prompts. If a prompt comes
+		// back with zero citations because the model answered from training,
+		// that's still legitimate data — citationRate is computed from what
+		// the model returns.
 		messages: [{ role: 'user', content: params.prompt }],
 		metadata: {
 			user_id: params.brandPromptId,

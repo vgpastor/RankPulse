@@ -8,6 +8,13 @@ export class AiSearchResource {
 		return this.http.get(`/projects/${encodeURIComponent(projectId)}/brand-prompts`);
 	}
 
+	// #170 — detail by id. Same DTO as `items[]` of `listPrompts`.
+	getPrompt(projectId: string, promptId: string): Promise<AiSearchInsightsContracts.BrandPromptDtoSchema> {
+		return this.http.get(
+			`/projects/${encodeURIComponent(projectId)}/brand-prompts/${encodeURIComponent(promptId)}`,
+		);
+	}
+
 	createPrompt(
 		projectId: string,
 		body: AiSearchInsightsContracts.RegisterBrandPromptRequest,

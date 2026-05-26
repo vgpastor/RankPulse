@@ -61,7 +61,15 @@ export class RecordLlmAnswerUseCase {
 
 		const projectId = prompt.projectId;
 		const watchlist = await this.watchlist.resolveForProject(projectId);
-		const ownDomains = watchlist.flatMap((w) => w.ownDomains);
+		// #169: filter by `isOwnBrand` BEFORE flattening. A `BrandWatchEntry`
+		// stores the brand's owned domains in `ownDomains`, but the watchlist
+		// contains entries for BOTH the project's own brand AND its tracked
+		// competitors. Flattening without filtering caused competitor domains
+		// (silvertracsoftware.com, tracktik.com, qrpatrol.com, …) to flow
+		// into `Citation.fromUrl`'s ownDomains list, marking citations of
+		// competitor URLs as `isOwnDomain: true` and inflating `citationRate`
+		// above 1.0 in the presence read-model.
+		const ownDomains = watchlist.filter((w) => w.isOwnBrand).flatMap((w) => w.ownDomains);
 		const citations = cmd.response.citationUrls.map((url) =>
 			AiSearchInsights.Citation.fromUrl(url, ownDomains),
 		);

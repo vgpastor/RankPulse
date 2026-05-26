@@ -29,7 +29,7 @@ import { AnthropicApiError } from '@rankpulse/provider-anthropic';
 import { BingApiError } from '@rankpulse/provider-bing';
 import { BrevoApiError } from '@rankpulse/provider-brevo';
 import { CloudflareRadarApiError } from '@rankpulse/provider-cloudflare-radar';
-import type { ManifestProviderRegistry } from '@rankpulse/provider-core';
+import { type ManifestProviderRegistry, ProviderApiError } from '@rankpulse/provider-core';
 import {
 	DataForSeoApiError,
 	extractTop10Domains,
@@ -503,7 +503,17 @@ export class ProviderFetchProcessor {
 			await this.deps.jobDefRepo.save(definition);
 			await this.deps.jobRunRepo.save(run);
 		} catch (err) {
-			const message = err instanceof Error ? err.message : String(err);
+			// #173: surface upstream response bodies on provider failures. The
+			// `ProviderApiError.body` field has the truncated upstream payload
+			// (≤4KB); including it in both the persisted run.error.message AND
+			// the structured log line means the operator sees Anthropic /
+			// OpenAI / etc.'s actual rejection reason in `/runs?limit=N`
+			// instead of just `"anthropic POST /messages → 400"`.
+			const baseMessage = err instanceof Error ? err.message : String(err);
+			const message =
+				err instanceof ProviderApiError && err.body
+					? `${baseMessage} | body: ${err.body.slice(0, 1024)}`
+					: baseMessage;
 
 			if (isQuotaExhaustedError(err)) {
 				// Auto-pause the definition so the next cron tick is a no-op
@@ -525,19 +535,27 @@ export class ProviderFetchProcessor {
 				// ADR 0001 invariant violation — the entity-bound endpoint
 				// guards (gscPropertyId, ga4PropertyId, trackedPageId,
 				// wikipediaArticleId, bingPropertyId, clarityProjectId,
-				// monitoredDomainId) only fail when a schedule was created
-				// off-path (i.e. bypassing the Auto-Schedule handler). This
-				// is a programmer error — retrying via BullMQ would just
-				// loop. Mark the run failed with a distinct code so the
-				// dashboard can separate it from real upstream fetch
-				// failures, and do NOT re-throw.
-				run.fail({ code: 'INGEST_PRECONDITION_FAILED', message, retryable: false }, this.deps.clock.now());
+				// monitoredDomainId, brandPromptId) only fail when a schedule
+				// was created off-path (i.e. bypassing the Auto-Schedule
+				// handler) OR when the referenced entity was later deleted
+				// without cascading the schedule (#174). This is a permanent
+				// failure — retrying via BullMQ would just loop forever, and
+				// daily cron ticks waste API calls against the upstream.
+				//
+				// #174 defense-in-depth: auto-disable the definition so the
+				// next tick is a no-op. The cascade-delete in
+				// `DeleteBrandPromptUseCase` handles the prevention side;
+				// this handler is the safety net for legacy data and
+				// off-path deletes. The operator can re-enable from the
+				// dashboard if the underlying entity is restored.
+				definition.disable();
 				definition.markRan(this.deps.clock.now());
 				await this.deps.jobDefRepo.save(definition);
+				run.fail({ code: 'INGEST_PRECONDITION_FAILED', message, retryable: false }, this.deps.clock.now());
 				await this.deps.jobRunRepo.save(run);
 				runLog.error(
 					{ err: message },
-					'ingest precondition failed — schedule created off-path (see ADR 0001)',
+					'ingest precondition failed — referenced entity missing; definition auto-disabled (#174)',
 				);
 				return;
 			}
@@ -546,6 +564,17 @@ export class ProviderFetchProcessor {
 			definition.markRan(this.deps.clock.now());
 			await this.deps.jobDefRepo.save(definition);
 			await this.deps.jobRunRepo.save(run);
+			if (err instanceof ProviderApiError) {
+				runLog.error(
+					{
+						err: baseMessage,
+						providerId: err.providerId,
+						status: err.status,
+						body: err.body?.slice(0, 1024),
+					},
+					'provider fetch failed',
+				);
+			}
 			throw err;
 		}
 	}

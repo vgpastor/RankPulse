@@ -131,4 +131,101 @@ describe('RecordLlmAnswerUseCase', () => {
 		expect(extractor.lastInput?.watchlist).toBe(watchlist);
 		expect(extractor.lastInput?.location.toString()).toBe('es-ES');
 	});
+
+	it('#169 regression: competitor domains in the watchlist are NOT flagged as isOwnDomain=true', async () => {
+		// Real-world reproducer: ES project tracks patroltech.online + 4
+		// competitors. The bug flattened ALL entries' ownDomains into the
+		// "own" list, causing citations of tracktik.com / qrpatrol.com /
+		// silvertracsoftware.com to be marked isOwnDomain=true (which
+		// inflated citationRate above 1.0 — see issue #169).
+		const promptRepo = new InMemoryBrandPromptRepository();
+		const answerRepo = new InMemoryLlmAnswerRepository();
+		const events = new RecordingEventPublisher();
+
+		const orgId = Uuid.generate();
+		const projectId = Uuid.generate();
+		const promptId = '00000000-0000-0000-0000-000000000b01';
+
+		const register = new RegisterBrandPromptUseCase(
+			promptRepo,
+			fixedClock(new Date('2026-05-26T00:00:00Z')),
+			fixedIds([promptId]),
+			events,
+		);
+		await register.execute({
+			organizationId: orgId,
+			projectId,
+			text: 'best guard tour software',
+			kind: 'category',
+		});
+		events.clear();
+
+		const watchlist = [
+			AiSearchInsights.BrandWatchEntry.create({
+				name: 'Patroltech',
+				aliases: [],
+				ownDomains: ['patroltech.online', 'guardtour.app'],
+				isOwnBrand: true,
+			}),
+			AiSearchInsights.BrandWatchEntry.create({
+				name: 'TrackTik',
+				aliases: [],
+				ownDomains: ['tracktik.com'],
+				isOwnBrand: false,
+			}),
+			AiSearchInsights.BrandWatchEntry.create({
+				name: 'QR Patrol',
+				aliases: [],
+				ownDomains: ['qrpatrol.com'],
+				isOwnBrand: false,
+			}),
+		];
+
+		const useCase = new RecordLlmAnswerUseCase(
+			promptRepo,
+			answerRepo,
+			new StaticBrandWatchlistResolver(watchlist),
+			new ScriptedMentionExtractor(),
+			fixedClock(new Date('2026-05-26T07:00:00Z')),
+			fixedIds(['00000000-0000-0000-0000-000000000b02']),
+			events,
+		);
+
+		const result = await useCase.execute({
+			brandPromptId: promptId,
+			country: 'ES',
+			language: 'es',
+			rawPayloadId: null,
+			response: {
+				aiProvider: 'openai',
+				model: 'gpt-5-mini',
+				rawText: 'Top picks: Patroltech, TrackTik, QR Patrol.',
+				citationUrls: [
+					'https://patroltech.online/features',
+					'https://guardtour.app/pricing',
+					'https://tracktik.com/about',
+					'https://qrpatrol.com/blog/post',
+					'https://random-blog.example/article',
+				],
+				tokenUsage: AiSearchInsights.TokenUsage.zero(),
+				costCents: 3.0,
+			},
+		});
+
+		const stored = await answerRepo.findById(
+			result.llmAnswerId as ReturnType<typeof Uuid.generate> as AiSearchInsights.LlmAnswerId,
+		);
+		const byDomain = (domain: string) => stored?.citations.find((c) => c.domain === domain);
+
+		// Own aliases (primary + secondary): must be true.
+		expect(byDomain('patroltech.online')?.isOwnDomain).toBe(true);
+		expect(byDomain('guardtour.app')?.isOwnDomain).toBe(true);
+
+		// Competitors: must NOT be flagged as own.
+		expect(byDomain('tracktik.com')?.isOwnDomain).toBe(false);
+		expect(byDomain('qrpatrol.com')?.isOwnDomain).toBe(false);
+
+		// Random third-party: must be false (sanity).
+		expect(byDomain('random-blog.example')?.isOwnDomain).toBe(false);
+	});
 });

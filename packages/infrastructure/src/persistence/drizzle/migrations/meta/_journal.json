@@ -148,6 +148,13 @@
 			"when": 1779200000000,
 			"tag": "0020_competitor_page_audits",
 			"breakpoints": true
+		},
+		{
+			"idx": 21,
+			"version": "7",
+			"when": 1779300000000,
+			"tag": "0021_backfill_citations_is_own_domain",
+			"breakpoints": true
 		}
 	]
 }
