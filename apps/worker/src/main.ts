@@ -530,6 +530,9 @@ async function bootstrap(): Promise<void> {
 		apiUsageRepo,
 		trackedKeywordRepo,
 		competitorRepo,
+		// Defensive fallback for legacy JobDefinitions whose `params` JSON
+		// was persisted before PR #187 centralised the organizationId stamping.
+		projectRepo,
 		gscPropertyRepo,
 		wikipediaArticleRepo,
 		trackedPageRepo,
