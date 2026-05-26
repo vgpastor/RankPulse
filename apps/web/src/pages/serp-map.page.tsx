@@ -8,6 +8,7 @@ import {
 	CardTitle,
 	EmptyState,
 	Input,
+	Select,
 	Spinner,
 } from '@rankpulse/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -196,11 +197,10 @@ export const SerpMapPage = () => {
 											>
 												{t('serpMap:filterByCompetitor')}
 											</label>
-											<select
+											<Select
 												id="serp-map-competitor-filter"
 												value={competitorFilter ?? ''}
 												onChange={(e) => setCompetitorFilter(e.target.value || null)}
-												className="flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-sm"
 											>
 												<option value="">{t('serpMap:filterAllCompetitors')}</option>
 												{competitorOptions.map(([domain, label]) => (
@@ -208,7 +208,7 @@ export const SerpMapPage = () => {
 														{label} ({domain})
 													</option>
 												))}
-											</select>
+											</Select>
 										</div>
 									) : null}
 								</div>

@@ -3,18 +3,7 @@ import { InvalidInputError } from '@rankpulse/shared';
 import { and, desc, eq, gte, notInArray, sql } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { serpObservations } from '../../schema/index.js';
-
-// postgres-js driver returns either `{rows: [...]}` or the rows array
-// directly depending on the call site; unwrap to a typed array regardless.
-const unwrap = <T>(rows: unknown): T[] => ((rows as { rows?: unknown[] }).rows ?? (rows as unknown[])) as T[];
-
-// postgres-js (3.4.x) returns timestamptz from raw `db.execute()` as the
-// original ISO string (e.g. `"2026-04-27 00:00:00+00"`), NOT a Date — its
-// built-in type parsers only kick in for the schema-typed query builder.
-// `RankTracking.SerpObservation.rehydrate` + the use case both call
-// `.toISOString()` on `observedAt`, so coerce at the repo boundary. Mirrors
-// the helper in `gsc-cockpit-read-model.ts`.
-const toDate = (v: string | Date): Date => (v instanceof Date ? v : new Date(v));
+import { toDate, unwrap } from '../../utils/postgres-js-coercions.js';
 
 export class DrizzleSerpObservationRepository implements RankTracking.SerpObservationRepository {
 	constructor(private readonly db: DrizzleDatabase) {}

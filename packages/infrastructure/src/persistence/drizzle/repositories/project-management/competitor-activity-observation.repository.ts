@@ -2,17 +2,7 @@ import type { ProjectManagement } from '@rankpulse/domain';
 import { sql } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { competitorActivityObservations } from '../../schema/index.js';
-
-const unwrap = <T>(rows: unknown): T[] => ((rows as { rows?: unknown[] }).rows ?? (rows as unknown[])) as T[];
-
-// postgres-js (3.4.x) returns timestamptz from raw `db.execute()` as the
-// original ISO string (e.g. `"2026-04-27 00:00:00+00"`), NOT a Date — its
-// built-in type parsers only kick in for the schema-typed query builder.
-// Query-competitor-activity use case calls `.toISOString()` on
-// `latestObservedAt` and `latestSnapshotAt`, so coerce at the repo boundary.
-// Mirrors the helper in `gsc-cockpit-read-model.ts`.
-const toDate = (v: string | Date | null): Date | null =>
-	v === null ? null : v instanceof Date ? v : new Date(v);
+import { toDate, toDateOrNull, unwrap } from '../../utils/postgres-js-coercions.js';
 
 const VALID_SOURCES: readonly ProjectManagement.CompetitorActivitySource[] = [
 	'wayback-cdx',
@@ -152,8 +142,8 @@ export class DrizzleCompetitorActivityObservationRepository
 		for (const row of rows) {
 			if (!isValidSource(row.source)) continue;
 			const acc = byCompetitor.get(row.competitor_id) ?? seed(row.competitor_id);
-			const observedAt = toDate(row.observed_at) as Date;
-			const waybackLatestSnapshotAt = toDate(row.wayback_latest_snapshot_at);
+			const observedAt = toDate(row.observed_at);
+			const waybackLatestSnapshotAt = toDateOrNull(row.wayback_latest_snapshot_at);
 			if (acc.latestObservedAt === null || observedAt > acc.latestObservedAt) {
 				acc.latestObservedAt = observedAt;
 			}

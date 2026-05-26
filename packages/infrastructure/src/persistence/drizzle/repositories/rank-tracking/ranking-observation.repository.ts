@@ -3,8 +3,7 @@ import { InvalidInputError } from '@rankpulse/shared';
 import { and, between, desc, eq, gte, sql } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { rankingObservations } from '../../schema/index.js';
-
-const unwrap = <T>(rows: unknown): T[] => ((rows as { rows?: unknown[] }).rows ?? (rows as unknown[])) as T[];
+import { toDate, unwrap } from '../../utils/postgres-js-coercions.js';
 
 export class DrizzleRankingObservationRepository implements RankTracking.RankingObservationRepository {
 	constructor(private readonly db: DrizzleDatabase) {}
@@ -172,7 +171,7 @@ export class DrizzleRankingObservationRepository implements RankTracking.Ranking
 				device: r.device,
 				position,
 				url: r.url,
-				observedAt: r.observed_at instanceof Date ? r.observed_at : new Date(r.observed_at),
+				observedAt: toDate(r.observed_at),
 				previousPosition,
 				position1dAgo,
 				position7dAgo,

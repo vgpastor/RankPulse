@@ -2,13 +2,7 @@ import { type ProjectManagement, RankTracking } from '@rankpulse/domain';
 import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { rankedKeywordsObservations } from '../../schema/index.js';
-
-// postgres-js (3.4.x) returns timestamptz from raw `db.execute()` as the
-// original ISO string (e.g. `"2026-04-27 00:00:00+00"`), NOT a Date — its
-// built-in type parsers only kick in for the schema-typed query builder.
-// Use cases call `.toISOString()` on the resulting field, so coerce at
-// the repo boundary. Mirrors the helper in `gsc-cockpit-read-model.ts`.
-const toDate = (v: string | Date): Date => (v instanceof Date ? v : new Date(v));
+import { toDate, unwrap } from '../../utils/postgres-js-coercions.js';
 
 /**
  * Issue #127: persists snapshots of a target domain's ranked-keyword universe.
@@ -149,7 +143,7 @@ export class DrizzleRankedKeywordObservationRepository
 			total_volume: number | string | null;
 			distinct_keywords: number | null;
 		};
-		const rows = ((result as { rows?: unknown[] }).rows ?? (result as unknown[])) as Row[];
+		const rows = unwrap<Row>(result);
 		return rows.map((r) => ({
 			month: toDate(r.month),
 			totalVolume: Number(r.total_volume ?? 0),
