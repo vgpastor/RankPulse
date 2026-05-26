@@ -129,25 +129,64 @@ export const DataForSeoApiError = ProviderApiError;
 export type DataForSeoApiError = ProviderApiError;
 
 /**
- * DataForSEO returns HTTP 200 even when the task itself failed — the
- * real status lives in the body's `status_code`. Codes:
- *   - 20000          : task ok
- *   - 20100-20999    : informational (still success, no items)
+ * Shape of every DataForSEO response. Both the HTTP envelope AND each
+ * individual task in `tasks[]` carry their own `status_code` — and the
+ * envelope is misleading on its own (it reports 20000 whenever the HTTP
+ * service is up, even when every task underneath failed with 4xxxx).
+ */
+export interface DataForSeoTaskStatus {
+	readonly status_code: number;
+	readonly status_message: string;
+}
+
+export interface DataForSeoResponseEnvelope extends DataForSeoTaskStatus {
+	readonly tasks?: readonly DataForSeoTaskStatus[];
+}
+
+/**
+ * DataForSEO status code ranges per their API spec:
+ *   - 20000          : ok
+ *   - 20100-29999    : informational (still success, e.g. "no items found")
  *   - 40000-49999    : client/auth/quota error
  *   - 50000-59999    : provider-side error
- *
- * Without this check the processor persists an empty payload as a
- * successful run AND charges the operator's ledger. Failure budget +
- * silent data loss.
  */
-export const ensureTaskOk = (path: string, raw: { status_code: number; status_message: string }): void => {
-	if (raw.status_code === 20000 || (raw.status_code >= 20100 && raw.status_code < 30000)) return;
+const isDataForSeoSuccessStatus = (code: number): boolean =>
+	code === 20000 || (code >= 20100 && code < 30000);
+
+const raiseDataForSeoError = (
+	path: string,
+	level: 'envelope' | 'task',
+	status: DataForSeoTaskStatus,
+): never => {
 	throw new ProviderApiError(
 		PROVIDER_ID,
-		raw.status_code,
-		raw.status_message,
-		`DataForSEO ${path} task error ${raw.status_code}: ${raw.status_message}`,
+		status.status_code,
+		status.status_message,
+		`DataForSEO ${path} ${level} error ${status.status_code}: ${status.status_message}`,
 	);
+};
+
+/**
+ * Validates a DataForSEO response by checking BOTH the envelope and
+ * every task within. The envelope alone is insufficient: subscription,
+ * quota and per-target authorisation failures manifest as `20000` at the
+ * envelope with `4xxxx` on the offending task. Without per-task checks
+ * the processor persists an empty payload as a "succeeded" run AND
+ * charges the operator's ledger — silent data loss compounded by
+ * silent spend (issue #179).
+ *
+ * Throws on the first failing task; the rest are ignored. This matches
+ * the existing contract for envelope-level failures: one error per call.
+ */
+export const ensureTaskOk = (path: string, raw: DataForSeoResponseEnvelope): void => {
+	if (!isDataForSeoSuccessStatus(raw.status_code)) {
+		raiseDataForSeoError(path, 'envelope', raw);
+	}
+	for (const task of raw.tasks ?? []) {
+		if (!isDataForSeoSuccessStatus(task.status_code)) {
+			raiseDataForSeoError(path, 'task', task);
+		}
+	}
 };
 
 /**
