@@ -1,5 +1,6 @@
 import type { ProjectManagement, SharedKernel } from '@rankpulse/domain';
 import type { AutoScheduleConfig, AutoScheduleSpec } from '../../_core/auto-schedule.js';
+import type { SharedDeps } from '../../_core/module.js';
 
 /**
  * Default scheduling parameters for the competitor-activity feeders. Crons
@@ -9,11 +10,21 @@ import type { AutoScheduleConfig, AutoScheduleSpec } from '../../_core/auto-sche
  * Each spec uses `competitorId` as the idempotency key — one schedule per
  * competitor regardless of how many times the event fires (re-adding the
  * same competitor is a no-op at the JobDefinition layer).
+ *
+ * Date tokens `{{today-N}}` / `{{today}}` are accepted by the providers'
+ * Zod schemas (literal regex) and resolved at dispatch time by
+ * `resolveDateTokens` in the worker (BACKLOG #22).
  */
 const WAYBACK_DEFAULTS = {
 	providerId: 'wayback',
 	endpointId: 'wayback-cdx-snapshots',
 	cron: '0 5 * * 1', // Mondays 05:00 UTC
+	// 365-day rolling window — captures roughly a year of shipping cadence.
+	// `latestSnapshotAt` deltas don't need history beyond that for the
+	// activity score, and a shorter window would miss seasonally quiet
+	// competitors.
+	from: '{{today-365}}',
+	to: '{{today}}',
 };
 
 const BACKLINKS_DEFAULTS = {
@@ -41,6 +52,7 @@ const BACKLINKS_DEFAULTS = {
  */
 const buildCompetitorAddedSpecs = async (
 	event: SharedKernel.DomainEvent,
+	_deps: SharedDeps,
 ): Promise<readonly AutoScheduleSpec[]> => {
 	if (event.type !== 'project-management.CompetitorAdded') return [];
 	const e = event as ProjectManagement.CompetitorAdded;
@@ -54,9 +66,14 @@ const buildCompetitorAddedSpecs = async (
 			endpointId: WAYBACK_DEFAULTS.endpointId,
 			cron: WAYBACK_DEFAULTS.cron,
 			systemParamKey: 'competitorId',
+			// Wayback CDX `CdxSnapshotsParams` requires `domain`, `from`, `to`
+			// (not `target` — that's the DataForSEO contract). Mismatch here
+			// caused #185 review P0-1 (Zod safeParse fails → InvalidInputError
+			// → handler's catch swallows it → schedule never created).
 			paramsBuilder: () => ({
-				target: competitorDomain,
-				competitorId,
+				domain: competitorDomain,
+				from: WAYBACK_DEFAULTS.from,
+				to: WAYBACK_DEFAULTS.to,
 			}),
 			systemParamsBuilder: () => ({
 				competitorId,
@@ -67,9 +84,10 @@ const buildCompetitorAddedSpecs = async (
 			endpointId: BACKLINKS_DEFAULTS.endpointId,
 			cron: BACKLINKS_DEFAULTS.cron,
 			systemParamKey: 'competitorId',
+			// DataForSEO backlinks-summary uses `target`. Confirmed against
+			// the endpoint's Zod schema (BacklinksSummaryParams).
 			paramsBuilder: () => ({
 				target: competitorDomain,
-				competitorId,
 			}),
 			systemParamsBuilder: () => ({
 				competitorId,

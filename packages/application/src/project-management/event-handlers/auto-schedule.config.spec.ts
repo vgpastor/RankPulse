@@ -3,6 +3,16 @@ import type { Uuid } from '@rankpulse/shared';
 import { describe, expect, it } from 'vitest';
 import { projectManagementAutoScheduleConfigs } from './auto-schedule.config.js';
 
+// Field contracts the auto-schedule MUST satisfy for each provider. Kept
+// inline (not importing the provider Zod schemas) to honour CLAUDE.md §3
+// dependency rules — `application` can't import `providers/*`. Drift
+// between this list and the real schemas would only surface on a provider
+// change; the assertions below are narrow enough that a field rename
+// (the bug in PR #185 review P0-1: `target` vs `domain`) fails loudly.
+const WAYBACK_REQUIRED_FIELDS = ['domain', 'from', 'to'] as const;
+const WAYBACK_DATE_PATTERN = /^\d{8}(?:\d{2})?$|^\{\{today(?:-\d+)?\}\}$/;
+const BACKLINKS_REQUIRED_FIELDS = ['target'] as const;
+
 const PROJECT_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' as Uuid as ProjectManagement.ProjectId;
 const COMPETITOR_ID = 'cccccccc-cccc-cccc-cccc-cccccccccccc' as Uuid as ProjectManagement.CompetitorId;
 
@@ -51,20 +61,52 @@ describe('CompetitorAdded → wayback + backlinks schedules (#181, #184)', () =>
 		expect(backlinks?.systemParamsBuilder(event)).toEqual({ competitorId: COMPETITOR_ID });
 	});
 
-	it('stamps params.target with the competitor domain (provider input contract)', async () => {
+	it('stamps params with the competitor domain in the field name each provider expects', async () => {
 		const specs = await competitorAddedConfig?.dynamicSchedules?.(event, {} as never);
 
 		const wayback = specs?.find((s) => s.endpointId === 'wayback-cdx-snapshots');
 		const backlinks = specs?.find((s) => s.endpointId === 'dataforseo-backlinks-summary');
 
+		// Wayback CDX uses `domain` (NOT `target` — that's DataForSEO).
 		expect(wayback?.paramsBuilder(event)).toMatchObject({
-			target: 'silvertraconline.com',
-			competitorId: COMPETITOR_ID,
+			domain: 'silvertraconline.com',
 		});
+		// DataForSEO backlinks-summary uses `target`.
 		expect(backlinks?.paramsBuilder(event)).toMatchObject({
 			target: 'silvertraconline.com',
-			competitorId: COMPETITOR_ID,
 		});
+	});
+
+	// Regression guard for PR #185 review P0-1: the params built MUST contain
+	// each provider's required fields with the right names. Pre-fix the
+	// wayback paramsBuilder emitted {target, competitorId} which the provider
+	// Zod schema rejected → InvalidInputError → handler swallowed it →
+	// schedule never created. Failure mode invisible until empty tables.
+	it('wayback paramsBuilder uses {domain, from, to} (NOT {target}) and date tokens match the provider regex', async () => {
+		const specs = await competitorAddedConfig?.dynamicSchedules?.(event, {} as never);
+		const wayback = specs?.find((s) => s.endpointId === 'wayback-cdx-snapshots');
+		const params = wayback?.paramsBuilder(event) as Record<string, unknown>;
+
+		for (const field of WAYBACK_REQUIRED_FIELDS) {
+			expect(params).toHaveProperty(field);
+		}
+		expect(params.domain).toBe('silvertraconline.com');
+		// `target` would be a regression — that's the DataForSEO contract.
+		expect(params).not.toHaveProperty('target');
+		expect(params.from).toMatch(WAYBACK_DATE_PATTERN);
+		expect(params.to).toMatch(WAYBACK_DATE_PATTERN);
+	});
+
+	it('backlinks paramsBuilder uses {target} (NOT {domain})', async () => {
+		const specs = await competitorAddedConfig?.dynamicSchedules?.(event, {} as never);
+		const backlinks = specs?.find((s) => s.endpointId === 'dataforseo-backlinks-summary');
+		const params = backlinks?.paramsBuilder(event) as Record<string, unknown>;
+
+		for (const field of BACKLINKS_REQUIRED_FIELDS) {
+			expect(params).toHaveProperty(field);
+		}
+		expect(params.target).toBe('silvertraconline.com');
+		expect(params).not.toHaveProperty('domain');
 	});
 
 	it('uses competitorId as the idempotency key so re-firing the event is a no-op', async () => {

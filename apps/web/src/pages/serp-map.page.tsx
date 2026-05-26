@@ -52,13 +52,20 @@ export const SerpMapPage = () => {
 		queryFn: () => api.rankTracking.serpCompetitorSuggestions(projectId, { minDistinctKeywords: 2 }),
 	});
 
+	const [promoteError, setPromoteError] = useState<string | null>(null);
 	const promoteMutation = useMutation({
 		mutationFn: (input: { domain: string; label?: string }) =>
 			api.projects.addCompetitor(projectId, { domain: input.domain, label: input.label }),
+		onMutate: () => {
+			setPromoteError(null);
+		},
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ['project', projectId, 'serp-map'] });
 			qc.invalidateQueries({ queryKey: ['project', projectId, 'serp-map-suggestions'] });
 			qc.invalidateQueries({ queryKey: ['project', projectId, 'competitors'] });
+		},
+		onError: (err) => {
+			setPromoteError(err instanceof Error ? err.message : 'Failed to add competitor');
 		},
 	});
 
@@ -234,6 +241,14 @@ export const SerpMapPage = () => {
 								<p className="text-xs text-muted-foreground">{t('serpMap:suggestions.hint')}</p>
 							</CardHeader>
 							<CardContent>
+								{promoteError ? (
+									<p
+										role="alert"
+										className="mb-3 rounded border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive"
+									>
+										{promoteError}
+									</p>
+								) : null}
 								{suggestionsQuery.isLoading ? (
 									<Spinner />
 								) : suggestions.length === 0 ? (

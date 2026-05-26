@@ -488,9 +488,12 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	];
 	for (const handler of allHandlers) {
 		for (const eventType of handler.events) {
-			eventPublisher.on(eventType, (event) => {
-				void handler.handle(event);
-			});
+			// Return the Promise so EventEmitter's `captureRejections: true`
+			// (configured in InMemoryEventPublisher) catches asynchronous
+			// rejections. `void handler.handle(event)` discarded the Promise
+			// → rejections bubbled as UnhandledPromiseRejection without the
+			// event context, defeating the publisher's `'error'` listener.
+			eventPublisher.on(eventType, (event) => handler.handle(event));
 		}
 	}
 

@@ -81,6 +81,20 @@ export const SearchDemandTrendPage = () => {
 		);
 	}
 
+	if (projectQuery.isError || trendQuery.isError) {
+		return (
+			<AppShell>
+				<div className="mx-auto max-w-5xl px-4 py-10">
+					<EmptyState
+						icon={<TrendingUp size={32} />}
+						title={t('common:errorTitle')}
+						description={t('common:errorRetry')}
+					/>
+				</div>
+			</AppShell>
+		);
+	}
+
 	const project = projectQuery.data;
 
 	return (
