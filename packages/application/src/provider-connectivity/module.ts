@@ -1,4 +1,4 @@
-import type { ProviderConnectivity as PCDomain, SharedKernel } from '@rankpulse/domain';
+import type { ProviderConnectivity as PCDomain, ProjectManagement, SharedKernel } from '@rankpulse/domain';
 import type { Clock, IdGenerator } from '@rankpulse/shared';
 import type { ContextModule, ContextRegistrations, SharedDeps } from '../_core/module.js';
 import { ListJobRunsUseCase } from './use-cases/list-job-runs.use-case.js';
@@ -30,6 +30,14 @@ export interface ProviderConnectivityDeps {
 	readonly jobRunRepo: PCDomain.JobRunRepository;
 	readonly apiUsageRepo: PCDomain.ApiUsageRepository;
 	readonly jobScheduler: PCDomain.JobScheduler;
+	/**
+	 * Needed by `ScheduleEndpointFetchUseCase` to look up
+	 * `project.organizationId` and stamp it into `systemParams.organizationId`
+	 * automatically — the worker processor rejects runs without it.
+	 * Crossing the bounded-context boundary here is deliberate: there is no
+	 * cleaner way to share `organizationId` than reading the project itself.
+	 */
+	readonly projectRepo: ProjectManagement.ProjectRepository;
 	/**
 	 * Tiny adapter the composition root builds over the actual provider
 	 * registry. Keeps the application layer decoupled from
@@ -68,6 +76,7 @@ export const providerConnectivityModule: ContextModule = {
 					d.clock,
 					d.ids,
 					d.events,
+					d.projectRepo,
 				),
 				TriggerJobDefinitionRun: new TriggerJobDefinitionRunUseCase(d.jobDefRepo, d.jobScheduler, d.ids),
 				ListJobDefinitions: new ListJobDefinitionsUseCase(d.jobDefRepo),

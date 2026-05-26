@@ -1,5 +1,5 @@
 import { type ProjectManagement, ProviderConnectivity, type SharedKernel } from '@rankpulse/domain';
-import { type Clock, type IdGenerator, InvalidInputError } from '@rankpulse/shared';
+import { type Clock, type IdGenerator, InvalidInputError, NotFoundError } from '@rankpulse/shared';
 
 /**
  * Application-layer port over `ProviderRegistry.endpoint().paramsSchema` so
@@ -49,6 +49,7 @@ export class ScheduleEndpointFetchUseCase {
 		private readonly clock: Clock,
 		private readonly ids: IdGenerator,
 		private readonly events: SharedKernel.EventPublisher,
+		private readonly projects: ProjectManagement.ProjectRepository,
 	) {}
 
 	async execute(cmd: ScheduleEndpointFetchCommand): Promise<ScheduleEndpointFetchResult> {
@@ -77,16 +78,31 @@ export class ScheduleEndpointFetchUseCase {
 			if (existing) return { definitionId: existing.id };
 		}
 
+		// Look up the project once to derive `organizationId` — the worker
+		// processor (`provider-fetch.processor.ts`) requires it as a
+		// systemParam and fails the run with "missing organizationId in
+		// systemParams" before persisting the JobRun row. Centralising the
+		// stamping here means EVERY caller (direct controller route AND every
+		// per-context auto-schedule handler) gets it for free. Pre-fix only
+		// the controller stamped it, so auto-scheduled jobs (CompetitorAdded,
+		// DomainAdded, GscPropertyLinked, …) all failed silently on run-now.
+		const project = await this.projects.findById(projectId);
+		if (!project) {
+			throw new NotFoundError(`Project ${projectId} not found`);
+		}
+
 		// `projectId` is stamped here unconditionally so the worker IngestRouter
 		// path can scope persisted rows to the right project even when the
 		// caller (auto-schedule handler or direct API) did not include it in
 		// `cmd.systemParams`. Centralising this avoids the silent skip
 		// (`logger.warn + return`) the worker handlers do when the systemParam
-		// is missing — see #147.
+		// is missing — see #147. `organizationId` is centralised here for the
+		// same reason — see commit referencing this comment.
 		const finalParams: Record<string, unknown> = {
 			...validatedParams,
 			...(cmd.systemParams ?? {}),
 			projectId: projectId as unknown as string,
+			organizationId: project.organizationId as unknown as string,
 		};
 
 		const id = this.ids.generate() as ProviderConnectivity.ProviderJobDefinitionId;
