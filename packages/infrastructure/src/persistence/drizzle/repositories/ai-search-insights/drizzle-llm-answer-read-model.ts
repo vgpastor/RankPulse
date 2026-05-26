@@ -51,7 +51,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					CASE WHEN jsonb_typeof(mentions) = 'array' THEN mentions ELSE '[]'::jsonb END AS mentions,
 					CASE WHEN jsonb_typeof(citations) = 'array' THEN citations ELSE '[]'::jsonb END AS citations
 				FROM llm_answers
-				WHERE project_id = ${projectId}
+				WHERE project_id = ${projectId}::uuid
 				  AND captured_at BETWEEN ${fromIso} AND ${toIso}
 			)
 			SELECT
@@ -112,7 +112,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					CASE WHEN jsonb_typeof(mentions) = 'array' THEN mentions ELSE '[]'::jsonb END AS mentions,
 					CASE WHEN jsonb_typeof(citations) = 'array' THEN citations ELSE '[]'::jsonb END AS citations
 				FROM llm_answers
-				WHERE project_id = ${projectId}
+				WHERE project_id = ${projectId}::uuid
 				  AND captured_at BETWEEN ${fromIso} AND ${toIso}
 			),
 			totals AS (
@@ -215,7 +215,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 				CROSS JOIN LATERAL jsonb_array_elements(
 					CASE WHEN jsonb_typeof(a.citations) = 'array' THEN a.citations ELSE '[]'::jsonb END
 				) c
-				WHERE a.project_id = ${projectId}
+				WHERE a.project_id = ${projectId}::uuid
 				  AND a.captured_at BETWEEN ${fromIso} AND ${toIso}
 				  AND (${aiProvider}::text IS NULL OR a.ai_provider = ${aiProvider}::text)
 			)
@@ -273,7 +273,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					captured_at,
 					CASE WHEN jsonb_typeof(mentions) = 'array' THEN mentions ELSE '[]'::jsonb END AS mentions
 				FROM llm_answers
-				WHERE brand_prompt_id = ${brandPromptId}
+				WHERE brand_prompt_id = ${brandPromptId}::uuid
 				  AND captured_at BETWEEN ${fromIso} AND ${toIso}
 			)
 			SELECT
@@ -314,7 +314,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 					captured_at,
 					CASE WHEN jsonb_typeof(mentions) = 'array' THEN mentions ELSE '[]'::jsonb END AS mentions
 				FROM llm_answers
-				WHERE project_id = ${projectId}
+				WHERE project_id = ${projectId}::uuid
 				  AND captured_at BETWEEN ${fromIso} AND ${toIso}
 			)
 			SELECT
@@ -385,7 +385,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 				SELECT ai_provider, country, language, captured_at,
 					CASE WHEN jsonb_typeof(mentions) = 'array' THEN mentions ELSE '[]'::jsonb END AS mentions
 				FROM llm_answers
-				WHERE project_id = ${projectId}
+				WHERE project_id = ${projectId}::uuid
 				  AND captured_at >= ${lastWeekStartIso}
 				  AND captured_at <= ${asOfIso}
 			)
@@ -477,7 +477,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 				CROSS JOIN LATERAL jsonb_array_elements(
 					CASE WHEN jsonb_typeof(a.citations) = 'array' THEN a.citations ELSE '[]'::jsonb END
 				) c
-				WHERE a.project_id = ${projectId}
+				WHERE a.project_id = ${projectId}::uuid
 				  AND a.captured_at BETWEEN ${fromIso} AND ${toIso}
 				  AND COALESCE((c->>'isOwnDomain')::bool, false) = true
 				GROUP BY a.ai_provider, a.country, a.language, c->>'url', c->>'domain', day
@@ -501,7 +501,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 				SELECT ai_provider, country, language,
 					MAX(captured_at AT TIME ZONE 'UTC')::date AS last_capture_day
 				FROM llm_answers
-				WHERE project_id = ${projectId}
+				WHERE project_id = ${projectId}::uuid
 				  AND captured_at BETWEEN ${fromIso} AND ${toIso}
 				GROUP BY ai_provider, country, language
 			),
@@ -571,7 +571,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 				CROSS JOIN LATERAL jsonb_array_elements(
 					CASE WHEN jsonb_typeof(a.mentions) = 'array' THEN a.mentions ELSE '[]'::jsonb END
 				) m
-				WHERE a.project_id = ${projectId}
+				WHERE a.project_id = ${projectId}::uuid
 				  AND a.captured_at BETWEEN ${fromIso} AND ${toIso}
 			),
 			own_pos AS (
