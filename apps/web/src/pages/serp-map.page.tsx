@@ -8,6 +8,7 @@ import {
 	CardTitle,
 	EmptyState,
 	Input,
+	Select,
 	Spinner,
 } from '@rankpulse/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -51,13 +52,20 @@ export const SerpMapPage = () => {
 		queryFn: () => api.rankTracking.serpCompetitorSuggestions(projectId, { minDistinctKeywords: 2 }),
 	});
 
+	const [promoteError, setPromoteError] = useState<string | null>(null);
 	const promoteMutation = useMutation({
 		mutationFn: (input: { domain: string; label?: string }) =>
 			api.projects.addCompetitor(projectId, { domain: input.domain, label: input.label }),
+		onMutate: () => {
+			setPromoteError(null);
+		},
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: ['project', projectId, 'serp-map'] });
 			qc.invalidateQueries({ queryKey: ['project', projectId, 'serp-map-suggestions'] });
 			qc.invalidateQueries({ queryKey: ['project', projectId, 'competitors'] });
+		},
+		onError: (err) => {
+			setPromoteError(err instanceof Error ? err.message : 'Failed to add competitor');
 		},
 	});
 
@@ -196,11 +204,10 @@ export const SerpMapPage = () => {
 											>
 												{t('serpMap:filterByCompetitor')}
 											</label>
-											<select
+											<Select
 												id="serp-map-competitor-filter"
 												value={competitorFilter ?? ''}
 												onChange={(e) => setCompetitorFilter(e.target.value || null)}
-												className="flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-sm"
 											>
 												<option value="">{t('serpMap:filterAllCompetitors')}</option>
 												{competitorOptions.map(([domain, label]) => (
@@ -208,7 +215,7 @@ export const SerpMapPage = () => {
 														{label} ({domain})
 													</option>
 												))}
-											</select>
+											</Select>
 										</div>
 									) : null}
 								</div>
@@ -234,6 +241,14 @@ export const SerpMapPage = () => {
 								<p className="text-xs text-muted-foreground">{t('serpMap:suggestions.hint')}</p>
 							</CardHeader>
 							<CardContent>
+								{promoteError ? (
+									<p
+										role="alert"
+										className="mb-3 rounded border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive"
+									>
+										{promoteError}
+									</p>
+								) : null}
 								{suggestionsQuery.isLoading ? (
 									<Spinner />
 								) : suggestions.length === 0 ? (

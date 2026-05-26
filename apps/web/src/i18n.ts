@@ -20,6 +20,8 @@ const en = {
 		save: 'Save',
 		searchPlaceholder: 'Search…',
 		notRanked: 'Not ranked',
+		errorTitle: 'Could not load data',
+		errorRetry: 'Something went wrong. Refresh the page or try again later.',
 	},
 	auth: {
 		loginTitle: 'Sign in to RankPulse',
@@ -989,6 +991,8 @@ const es = {
 		save: 'Guardar',
 		searchPlaceholder: 'Buscar…',
 		notRanked: 'Sin ranking',
+		errorTitle: 'No se han podido cargar los datos',
+		errorRetry: 'Algo ha ido mal. Refresca la página o inténtalo más tarde.',
 	},
 	auth: {
 		loginTitle: 'Entra en RankPulse',
@@ -1969,6 +1973,8 @@ void i18next
 			'dailyActions',
 			'cannibalization',
 			'competitorIntelligence',
+			'cockpit',
+			'serpMap',
 		],
 		defaultNS: 'common',
 		resources: { en, es },

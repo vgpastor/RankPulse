@@ -2,6 +2,7 @@ import { type ProjectManagement, RankTracking } from '@rankpulse/domain';
 import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { rankedKeywordsObservations } from '../../schema/index.js';
+import { toDate, unwrap } from '../../utils/postgres-js-coercions.js';
 
 /**
  * Issue #127: persists snapshots of a target domain's ranked-keyword universe.
@@ -138,13 +139,13 @@ export class DrizzleRankedKeywordObservationRepository
 			ORDER BY month ASC
 		`);
 		type Row = {
-			month: Date;
+			month: string | Date;
 			total_volume: number | string | null;
 			distinct_keywords: number | null;
 		};
-		const rows = ((result as { rows?: unknown[] }).rows ?? (result as unknown[])) as Row[];
+		const rows = unwrap<Row>(result);
 		return rows.map((r) => ({
-			month: r.month,
+			month: toDate(r.month),
 			totalVolume: Number(r.total_volume ?? 0),
 			distinctKeywords: Number(r.distinct_keywords ?? 0),
 		}));

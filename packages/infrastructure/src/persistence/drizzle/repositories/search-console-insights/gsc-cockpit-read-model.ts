@@ -1,8 +1,7 @@
 import type { ProjectManagement, SearchConsoleInsights } from '@rankpulse/domain';
 import { sql } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
-
-const unwrap = <T>(rows: unknown): T[] => ((rows as { rows?: unknown[] }).rows ?? (rows as unknown[])) as T[];
+import { toDate, unwrap } from '../../utils/postgres-js-coercions.js';
 
 export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCockpitReadModel {
 	constructor(private readonly db: DrizzleDatabase) {}
@@ -159,5 +158,3 @@ export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCock
 		}));
 	}
 }
-
-const toDate = (v: string | Date): Date => (v instanceof Date ? v : new Date(v));

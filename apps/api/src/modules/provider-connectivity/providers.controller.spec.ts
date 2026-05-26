@@ -66,6 +66,13 @@ describe('ProvidersController.scheduleEndpoint — entity-bound gate', () => {
 		['meta', 'meta-pixel-events-stats', 'meta/pixels'],
 		['meta', 'meta-ads-insights', 'meta/ad-accounts'],
 		['meta', 'meta-custom-audiences', 'meta/ad-accounts'],
+		// #181 + #184 — competitor-bound feeders. Auto-scheduled when a
+		// competitor is added; the manual route used to silently create jobs
+		// that the worker ingest handlers later dropped.
+		['wayback', 'wayback-cdx-snapshots', 'competitors'],
+		['dataforseo', 'dataforseo-backlinks-summary', 'competitors'],
+		['dataforseo', 'dataforseo-labs-ranked-keywords', 'competitors'],
+		['dataforseo', 'dataforseo-labs-domain-intersection', 'competitors'],
 	])('rejects POST .../schedule for %s/%s with 400 pointing to %s', async (providerId, endpointId, hint) => {
 		const { controller, scheduleExecute } = buildController();
 		await expect(

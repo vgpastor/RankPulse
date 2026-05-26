@@ -126,6 +126,30 @@ const ENTITY_BOUND_ENDPOINTS: Record<string, { provider: string; preferredRoute:
 		provider: 'meta',
 		preferredRoute: '/api/v1/projects/:projectId/meta/ad-accounts',
 	},
+	// #181 + #184 — competitor-bound feeders. Auto-scheduled by
+	// `CompetitorAdded` event handlers in project-management (wayback +
+	// backlinks) and competitor-intelligence (ranked-keywords + domain-
+	// intersection). Manual schedule used to silently create jobs without
+	// `systemParams.competitorId` / `systemParams.targetDomain`; the worker
+	// then dropped every run on the floor (logger.warn + return). Blocking
+	// the route here forces the caller through `POST /projects/{id}/competitors`,
+	// where the event fan-out fills the right systemParam.
+	'wayback-cdx-snapshots': {
+		provider: 'wayback',
+		preferredRoute: '/api/v1/projects/:projectId/competitors',
+	},
+	'dataforseo-backlinks-summary': {
+		provider: 'dataforseo',
+		preferredRoute: '/api/v1/projects/:projectId/competitors',
+	},
+	'dataforseo-labs-ranked-keywords': {
+		provider: 'dataforseo',
+		preferredRoute: '/api/v1/projects/:projectId/competitors (and /domains for own-domain tracking)',
+	},
+	'dataforseo-labs-domain-intersection': {
+		provider: 'dataforseo',
+		preferredRoute: '/api/v1/projects/:projectId/competitors',
+	},
 };
 
 @Controller('providers')

@@ -2,8 +2,7 @@ import type { ProjectManagement } from '@rankpulse/domain';
 import { sql } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { competitorActivityObservations } from '../../schema/index.js';
-
-const unwrap = <T>(rows: unknown): T[] => ((rows as { rows?: unknown[] }).rows ?? (rows as unknown[])) as T[];
+import { toDate, toDateOrNull, unwrap } from '../../utils/postgres-js-coercions.js';
 
 const VALID_SOURCES: readonly ProjectManagement.CompetitorActivitySource[] = [
 	'wayback-cdx',
@@ -112,9 +111,9 @@ export class DrizzleCompetitorActivityObservationRepository
 			competitor_id: string;
 			source: string;
 			rank: number;
-			observed_at: Date;
+			observed_at: string | Date;
 			wayback_snapshot_count: number | null;
-			wayback_latest_snapshot_at: Date | null;
+			wayback_latest_snapshot_at: string | Date | null;
 			backlinks_total: number | null;
 			backlinks_referring_domains: number | null;
 		};
@@ -143,20 +142,22 @@ export class DrizzleCompetitorActivityObservationRepository
 		for (const row of rows) {
 			if (!isValidSource(row.source)) continue;
 			const acc = byCompetitor.get(row.competitor_id) ?? seed(row.competitor_id);
-			if (acc.latestObservedAt === null || row.observed_at > acc.latestObservedAt) {
-				acc.latestObservedAt = row.observed_at;
+			const observedAt = toDate(row.observed_at);
+			const waybackLatestSnapshotAt = toDateOrNull(row.wayback_latest_snapshot_at);
+			if (acc.latestObservedAt === null || observedAt > acc.latestObservedAt) {
+				acc.latestObservedAt = observedAt;
 			}
 			if (row.source === 'wayback-cdx') {
 				if (row.rank === 1 && row.wayback_snapshot_count !== null) {
 					acc.latestWayback = {
 						snapshotCount: Number(row.wayback_snapshot_count),
-						latestSnapshotAt: row.wayback_latest_snapshot_at,
-						observedAt: row.observed_at,
+						latestSnapshotAt: waybackLatestSnapshotAt,
+						observedAt,
 					};
 				} else if (row.rank === 2 && row.wayback_snapshot_count !== null) {
 					acc.priorWayback = {
 						snapshotCount: Number(row.wayback_snapshot_count),
-						observedAt: row.observed_at,
+						observedAt,
 					};
 				}
 			} else if (row.source === 'dataforseo-backlinks') {
@@ -164,13 +165,13 @@ export class DrizzleCompetitorActivityObservationRepository
 					acc.latestBacklinks = {
 						totalBacklinks: Number(row.backlinks_total),
 						referringDomains: Number(row.backlinks_referring_domains ?? 0),
-						observedAt: row.observed_at,
+						observedAt,
 					};
 				} else if (row.rank === 2 && row.backlinks_total !== null) {
 					acc.priorBacklinks = {
 						totalBacklinks: Number(row.backlinks_total),
 						referringDomains: Number(row.backlinks_referring_domains ?? 0),
-						observedAt: row.observed_at,
+						observedAt,
 					};
 				}
 			}

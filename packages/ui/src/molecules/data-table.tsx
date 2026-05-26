@@ -8,7 +8,11 @@ export interface DataTableColumn<T> {
 	cell: (row: T) => ReactNode;
 	/** Optional className applied to the `<td>`. */
 	className?: string;
-	/** Hide this column on mobile (md:table-cell). */
+	/**
+	 * Hide this column from the mobile stacked-card view. Desktop (`md+`)
+	 * still renders it. Used by dense tables (rankings, cockpit) where
+	 * secondary columns would crowd a 375px screen.
+	 */
 	hideOnMobile?: boolean;
 }
 
@@ -32,19 +36,23 @@ export const DataTable = <T,>({ columns, rows, rowKey, empty, className }: DataT
 
 	return (
 		<div className={cn('w-full', className)}>
-			{/* Mobile: stacked cards */}
+			{/* Mobile: stacked cards. Columns marked `hideOnMobile` are skipped
+			    so secondary signals (delta breakdowns, raw counts) don't bloat
+			    a 375px viewport. */}
 			<ul className="flex flex-col gap-3 md:hidden">
 				{rows.map((row) => (
 					<li key={rowKey(row)} className="rounded-lg border bg-card p-3 shadow-sm">
 						<dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-							{columns.map((col) => (
-								<div key={col.key} className="contents">
-									<dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-										{col.header}
-									</dt>
-									<dd className="break-words">{col.cell(row)}</dd>
-								</div>
-							))}
+							{columns
+								.filter((col) => !col.hideOnMobile)
+								.map((col) => (
+									<div key={col.key} className="contents">
+										<dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+											{col.header}
+										</dt>
+										<dd className="break-words">{col.cell(row)}</dd>
+									</div>
+								))}
 						</dl>
 					</li>
 				))}

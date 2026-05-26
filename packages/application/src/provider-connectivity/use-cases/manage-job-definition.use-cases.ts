@@ -83,8 +83,15 @@ export interface UpdateJobDefinitionCommand {
  *   - bingPropertyId            — bing-webmaster-insights
  *   - clarityProjectId          — experience-analytics
  *   - monitoredDomainId         — macro-context
+ *   - competitorId              — project-management (wayback + backlinks)
+ *   - targetDomain              — competitor-intelligence (ranked-keywords,
+ *                                 domain-intersection — opaque domain string
+ *                                 that the auto-schedule resolves; PATCH must
+ *                                 not "fix" this to a different domain or the
+ *                                 ingest re-keys to the wrong competitor)
  *
- * BACKLOG bug #51 (original 4-key whitelist), extended for ADR 0001.
+ * BACKLOG bug #51 (original 4-key whitelist), extended for ADR 0001
+ * and PR #185 review P1-3 (added competitorId + targetDomain).
  */
 const SYSTEM_PARAM_KEYS = [
 	'organizationId',
@@ -99,6 +106,8 @@ const SYSTEM_PARAM_KEYS = [
 	'monitoredDomainId',
 	'metaPixelId',
 	'metaAdAccountId',
+	'competitorId',
+	'targetDomain',
 ] as const;
 
 function mergeUserParamsPreservingSystem(

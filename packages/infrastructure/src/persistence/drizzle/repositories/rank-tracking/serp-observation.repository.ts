@@ -3,10 +3,7 @@ import { InvalidInputError } from '@rankpulse/shared';
 import { and, desc, eq, gte, notInArray, sql } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { serpObservations } from '../../schema/index.js';
-
-// postgres-js driver returns either `{rows: [...]}` or the rows array
-// directly depending on the call site; unwrap to a typed array regardless.
-const unwrap = <T>(rows: unknown): T[] => ((rows as { rows?: unknown[] }).rows ?? (rows as unknown[])) as T[];
+import { toDate, unwrap } from '../../utils/postgres-js-coercions.js';
 
 export class DrizzleSerpObservationRepository implements RankTracking.SerpObservationRepository {
 	constructor(private readonly db: DrizzleDatabase) {}
@@ -100,7 +97,7 @@ export class DrizzleSerpObservationRepository implements RankTracking.SerpObserv
 			ORDER BY s.phrase ASC, s.country ASC, s.language ASC, s.device ASC, s.rank ASC
 		`);
 		type Row = {
-			observed_at: Date;
+			observed_at: string | Date;
 			project_id: string;
 			phrase: string;
 			country: string;
@@ -130,9 +127,10 @@ export class DrizzleSerpObservationRepository implements RankTracking.SerpObserv
 			if (!RankTracking.isDevice(first.device)) {
 				throw new InvalidInputError(`Stored serp_observation has invalid device "${first.device}"`);
 			}
+			const observedAt = toDate(first.observed_at);
 			out.push(
 				RankTracking.SerpObservation.rehydrate({
-					id: `${first.observed_at.toISOString()}#${first.project_id}#${first.phrase}` as RankTracking.SerpObservationId,
+					id: `${observedAt.toISOString()}#${first.project_id}#${first.phrase}` as RankTracking.SerpObservationId,
 					projectId: first.project_id as ProjectManagement.ProjectId,
 					phrase: first.phrase,
 					country: first.country,
@@ -148,7 +146,7 @@ export class DrizzleSerpObservationRepository implements RankTracking.SerpObserv
 					),
 					sourceProvider: first.source_provider,
 					rawPayloadId: first.raw_payload_id,
-					observedAt: first.observed_at,
+					observedAt,
 				}),
 			);
 		}

@@ -2,15 +2,7 @@ import { AiSearchInsights, type ProjectManagement } from '@rankpulse/domain';
 import { InvalidInputError } from '@rankpulse/shared';
 import { sql } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
-
-/**
- * Bridges the two postgres-js result shapes drizzle-orm can return —
- * `pg-core`'s `Result` exposes the rows on a `.rows` property, while the
- * `postgres` driver returns the array directly. Each read-model method
- * needs the array shape; centralising the cast keeps the SQL focus on
- * what's interesting (the query).
- */
-const unwrap = <T>(rows: unknown): T[] => ((rows as { rows?: unknown[] }).rows ?? (rows as unknown[])) as T[];
+import { toDate, unwrap } from '../../utils/postgres-js-coercions.js';
 
 /**
  * On-the-fly aggregation queries against `llm_answers`. Each query relies on
@@ -259,8 +251,8 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			providers: (r.providers ?? []).filter((p): p is AiSearchInsights.AiProviderName =>
 				AiSearchInsights.isAiProviderName(p),
 			),
-			firstSeenAt: r.first_seen_at instanceof Date ? r.first_seen_at : new Date(r.first_seen_at),
-			lastSeenAt: r.last_seen_at instanceof Date ? r.last_seen_at : new Date(r.last_seen_at),
+			firstSeenAt: toDate(r.first_seen_at),
+			lastSeenAt: toDate(r.last_seen_at),
 		}));
 	}
 
@@ -550,7 +542,7 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 				country: r.country,
 				language: r.language,
 				streakDays: Number(r.streak_days ?? 0),
-				lastSeenAt: r.last_seen_at instanceof Date ? r.last_seen_at : new Date(r.last_seen_at),
+				lastSeenAt: toDate(r.last_seen_at),
 				currentlyCited: Boolean(r.currently_cited),
 			}));
 	}

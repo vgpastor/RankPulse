@@ -140,11 +140,25 @@ export const CompetitorActivityPage = () => {
 		},
 	];
 
-	if (projectQuery.isLoading) {
+	if (projectQuery.isLoading || dataQuery.isLoading) {
 		return (
 			<AppShell>
 				<div className="flex justify-center py-10">
 					<Spinner size="lg" />
+				</div>
+			</AppShell>
+		);
+	}
+
+	if (projectQuery.isError || dataQuery.isError) {
+		return (
+			<AppShell>
+				<div className="mx-auto max-w-5xl px-4 py-10">
+					<EmptyState
+						icon={<Activity size={32} />}
+						title={t('common:errorTitle')}
+						description={t('common:errorRetry')}
+					/>
 				</div>
 			</AppShell>
 		);

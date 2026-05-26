@@ -1,6 +1,7 @@
 import type { ProjectManagement } from '@rankpulse/domain';
 import { sql } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
+import { toDateOrNull, unwrap } from '../../utils/postgres-js-coercions.js';
 
 /**
  * #172 — single round-trip summary of when each upstream subsystem last
@@ -14,7 +15,6 @@ import type { DrizzleDatabase } from '../../client.js';
  * clarity_daily_metrics) — we project them to `timestamptz` at UTC
  * midnight so the API surface is uniform ISO 8601.
  */
-const unwrap = <T>(rows: unknown): T[] => ((rows as { rows?: unknown[] }).rows ?? (rows as unknown[])) as T[];
 
 interface FreshnessRow {
 	rankings_last: Date | string | null;
@@ -79,17 +79,16 @@ export class DrizzleProjectFreshnessReadModel implements ProjectManagement.Proje
 		`);
 
 		const row = unwrap<FreshnessRow>(result)[0];
-		const ts = (v: Date | string | null): Date | null => {
-			if (v == null) return null;
-			return v instanceof Date ? v : new Date(v);
-		};
 		return {
 			projectId,
 			checkedAt: new Date(),
 			sources: {
-				rankings: { lastSeenAt: ts(row?.rankings_last ?? null), count: Number(row?.rankings_count ?? 0) },
+				rankings: {
+					lastSeenAt: toDateOrNull(row?.rankings_last),
+					count: Number(row?.rankings_count ?? 0),
+				},
 				aiSearch: {
-					lastSeenAt: ts(row?.ai_search_last ?? null),
+					lastSeenAt: toDateOrNull(row?.ai_search_last),
 					count: Number(row?.ai_search_count ?? 0),
 					providers: row?.ai_providers ?? [],
 				},
@@ -97,15 +96,15 @@ export class DrizzleProjectFreshnessReadModel implements ProjectManagement.Proje
 					activeCount: Number(row?.brand_prompts_active ?? 0),
 					pausedCount: Number(row?.brand_prompts_paused ?? 0),
 				},
-				ga4: { lastSeenAt: ts(row?.ga4_last ?? null), count: Number(row?.ga4_count ?? 0) },
-				gsc: { lastSeenAt: ts(row?.gsc_last ?? null), count: Number(row?.gsc_count ?? 0) },
-				bing: { lastSeenAt: ts(row?.bing_last ?? null), count: Number(row?.bing_count ?? 0) },
+				ga4: { lastSeenAt: toDateOrNull(row?.ga4_last), count: Number(row?.ga4_count ?? 0) },
+				gsc: { lastSeenAt: toDateOrNull(row?.gsc_last), count: Number(row?.gsc_count ?? 0) },
+				bing: { lastSeenAt: toDateOrNull(row?.bing_last), count: Number(row?.bing_count ?? 0) },
 				pageSpeed: {
-					lastSeenAt: ts(row?.pagespeed_last ?? null),
+					lastSeenAt: toDateOrNull(row?.pagespeed_last),
 					count: Number(row?.pagespeed_count ?? 0),
 				},
 				clarity: {
-					lastSeenAt: ts(row?.clarity_last ?? null),
+					lastSeenAt: toDateOrNull(row?.clarity_last),
 					count: Number(row?.clarity_count ?? 0),
 				},
 			},

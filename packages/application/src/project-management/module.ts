@@ -1,6 +1,8 @@
 import type { ProjectManagement as PMDomain, SharedKernel } from '@rankpulse/domain';
 import type { Clock, IdGenerator } from '@rankpulse/shared';
+import { buildAutoScheduleHandlers } from '../_core/auto-schedule.js';
 import type { ContextModule, ContextRegistrations, IngestUseCase, SharedDeps } from '../_core/module.js';
+import { projectManagementAutoScheduleConfigs } from './event-handlers/auto-schedule.config.js';
 import { AddCompetitorUseCase } from './use-cases/add-competitor.use-case.js';
 import { AddDomainToProjectUseCase } from './use-cases/add-domain-to-project.use-case.js';
 import { AddProjectLocationUseCase } from './use-cases/change-project-locations.use-case.js';
@@ -66,6 +68,16 @@ export const projectManagementModule: ContextModule = {
 		// Issue #117 Sprint 2 — Wayback CDX + DataForSEO Backlinks ingest
 		// adapters. Each provider's ACL produces ONE summary row per fetch
 		// (`rows[0]` is `WaybackSnapshotSummary` / `BacklinksProfileSummary`).
+		//
+		// IMPORTANT — duplicated with apps/worker/src/main.ts (sections
+		// 'project-management:record-competitor-wayback-snapshot' and
+		// 'project-management:record-competitor-backlinks-profile'). The
+		// worker today builds its own ingest map instead of consuming
+		// `module.ingestUseCases`; this is the planned migration target
+		// (see docs/superpowers/plans/2026-05-06-eliminate-systemparamresolver-via-auto-schedule-handlers.md).
+		// Until the worker migrates, treat these as the canonical source of
+		// truth — any logic change MUST be mirrored in main.ts to avoid
+		// silent divergence.
 		const waybackIngest: IngestUseCase = {
 			async execute({ rawPayloadId, rows, systemParams }) {
 				const summary = rows[0] as
@@ -154,7 +166,7 @@ export const projectManagementModule: ContextModule = {
 				'project-management:record-competitor-wayback-snapshot': waybackIngest,
 				'project-management:record-competitor-backlinks-profile': backlinksIngest,
 			},
-			eventHandlers: [],
+			eventHandlers: buildAutoScheduleHandlers(deps, projectManagementAutoScheduleConfigs),
 			schemaTables: d.projectManagementSchemaTables,
 		};
 	},

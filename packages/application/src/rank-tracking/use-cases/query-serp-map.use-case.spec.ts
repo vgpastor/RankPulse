@@ -1,6 +1,10 @@
 import { type IdentityAccess, ProjectManagement, RankTracking } from '@rankpulse/domain';
 import { NotFoundError, type Uuid } from '@rankpulse/shared';
-import { InMemoryCompetitorRepository, InMemoryProjectRepository } from '@rankpulse/testing';
+import {
+	InMemoryCompetitorRepository,
+	InMemoryProjectRepository,
+	InMemorySerpObservationRepository,
+} from '@rankpulse/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { QuerySerpMapUseCase } from './query-serp-map.use-case.js';
 
@@ -9,23 +13,9 @@ const PROJECT_ID = '11111111-1111-1111-1111-111111111111' as Uuid as ProjectMana
 const OBS_ID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' as Uuid as RankTracking.SerpObservationId;
 const COMP_ID = 'dddddddd-dddd-dddd-dddd-dddddddddddd' as Uuid as ProjectManagement.CompetitorId;
 
-class InMemorySerpObsRepo implements RankTracking.SerpObservationRepository {
-	rows: RankTracking.SerpObservation[] = [];
-	async save(obs: RankTracking.SerpObservation): Promise<void> {
-		this.rows.push(obs);
-	}
-	async listLatestForProject(
-		projectId: ProjectManagement.ProjectId,
-	): Promise<readonly RankTracking.SerpObservation[]> {
-		return this.rows.filter((r) => r.projectId === projectId);
-	}
-	async listCompetitorSuggestions(): Promise<readonly RankTracking.CompetitorSuggestionRow[]> {
-		return [];
-	}
-}
-
 const buildObservation = (
 	results: { rank: number; domain: string; url: string | null; title: string | null }[],
+	now: Date = new Date(),
 ): RankTracking.SerpObservation =>
 	RankTracking.SerpObservation.record({
 		id: OBS_ID,
@@ -37,19 +27,19 @@ const buildObservation = (
 		results: results.map((r) => RankTracking.SerpResult.create(r)),
 		sourceProvider: 'dataforseo',
 		rawPayloadId: null,
-		now: new Date('2026-05-09T10:00:00Z'),
+		now,
 	});
 
 describe('QuerySerpMapUseCase', () => {
 	let projects: InMemoryProjectRepository;
 	let competitors: InMemoryCompetitorRepository;
-	let serp: InMemorySerpObsRepo;
+	let serp: InMemorySerpObservationRepository;
 	let useCase: QuerySerpMapUseCase;
 
 	beforeEach(async () => {
 		projects = new InMemoryProjectRepository();
 		competitors = new InMemoryCompetitorRepository();
-		serp = new InMemorySerpObsRepo();
+		serp = new InMemorySerpObservationRepository();
 		useCase = new QuerySerpMapUseCase(projects, competitors, serp);
 		await projects.save(
 			ProjectManagement.Project.create({
@@ -104,6 +94,6 @@ describe('QuerySerpMapUseCase', () => {
 	it('serialises observedAt as ISO string', async () => {
 		await serp.save(buildObservation([{ rank: 1, domain: 'silvertrac.com', url: null, title: null }]));
 		const result = await useCase.execute({ projectId: PROJECT_ID });
-		expect(result.rows[0]?.observedAt).toMatch(/^\d{4}-\d{2}-\d{2}T00:00:00\.000Z$/);
+		expect(result.rows[0]?.observedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 	});
 });
