@@ -441,6 +441,10 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		brandWatchlistResolver,
 		mentionExtractor,
 		aiSearchInsightsSchemaTables: DrizzlePersistence.schema.aiSearchInsightsSchemaTables,
+		// #174 — needed by DeleteBrandPromptUseCase to cascade the prompt
+		// removal into its scheduled JobDefinitions (no DB-level FK exists
+		// from job defs to brand prompts; the link is via JSONB params).
+		jobDefinitionRepo: jobDefRepo,
 		...autoScheduleSurface,
 		// dynamicSchedules in `aiSearchInsightsAutoScheduleConfigs` reads
 		// project locations + connected credentials at handle-time. These

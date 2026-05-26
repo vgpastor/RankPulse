@@ -912,6 +912,26 @@ export function buildOpenApiDocument(): unknown {
 	});
 
 	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/projects/{projectId}/brand-prompts/{promptId}',
+		summary: 'Get a single BrandPrompt by id',
+		description:
+			'Returns the same DTO that appears inside `items[]` of the list endpoint. Use for SDK consumers that need to drill into a single prompt without filtering the list client-side.',
+		tags: ['ai-search-insights'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: { params: z.object({ projectId: z.string().uuid(), promptId: z.string().uuid() }) },
+		responses: {
+			200: {
+				description: 'BrandPrompt',
+				content: {
+					'application/json': { schema: AiSearchInsightsContracts.BrandPromptDtoSchema },
+				},
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
 		method: 'patch',
 		path: '/api/v1/projects/{projectId}/brand-prompts/{promptId}',
 		summary: 'Pause or resume a BrandPrompt',

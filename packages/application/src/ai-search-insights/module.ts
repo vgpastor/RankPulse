@@ -1,4 +1,8 @@
-import type { AiSearchInsights as AISIDomain, SharedKernel } from '@rankpulse/domain';
+import type {
+	AiSearchInsights as AISIDomain,
+	ProviderConnectivity as PCDomain,
+	SharedKernel,
+} from '@rankpulse/domain';
 import type { Clock, IdGenerator } from '@rankpulse/shared';
 import { buildAutoScheduleHandlers } from '../_core/auto-schedule.js';
 import type { ContextModule, ContextRegistrations, SharedDeps } from '../_core/module.js';
@@ -30,6 +34,11 @@ export interface AiSearchInsightsDeps {
 	readonly brandWatchlistResolver: AISIDomain.BrandWatchlistResolver;
 	readonly mentionExtractor: AISIDomain.MentionExtractor;
 	readonly aiSearchInsightsSchemaTables: readonly unknown[];
+	// #174 — DeleteBrandPromptUseCase cascades the prompt removal into the
+	// JobDefinitions that reference it via `params.brandPromptId`. The
+	// brand_prompts ⇄ provider_job_definitions link is JSONB-based, so the
+	// database can't cascade for us.
+	readonly jobDefinitionRepo: PCDomain.JobDefinitionRepository;
 }
 
 export const aiSearchInsightsModule: ContextModule = {
@@ -50,7 +59,7 @@ export const aiSearchInsightsModule: ContextModule = {
 				RegisterBrandPrompt: new RegisterBrandPromptUseCase(d.brandPromptRepo, d.clock, d.ids, d.events),
 				PauseBrandPrompt: new PauseBrandPromptUseCase(d.brandPromptRepo, d.clock, d.events),
 				ResumeBrandPrompt: new ResumeBrandPromptUseCase(d.brandPromptRepo, d.clock, d.events),
-				DeleteBrandPrompt: new DeleteBrandPromptUseCase(d.brandPromptRepo),
+				DeleteBrandPrompt: new DeleteBrandPromptUseCase(d.brandPromptRepo, d.jobDefinitionRepo),
 				ListBrandPrompts: new ListBrandPromptsUseCase(d.brandPromptRepo),
 				RecordLlmAnswer: recordLlmAnswer,
 				QueryLlmAnswers: new QueryLlmAnswersUseCase(d.llmAnswerRepo),

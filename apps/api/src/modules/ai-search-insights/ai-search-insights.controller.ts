@@ -82,6 +82,31 @@ export class AiSearchInsightsController {
 		return { items: items.map((i) => ({ ...i })) };
 	}
 
+	/**
+	 * #170 — detail-by-id. Returns the same DTO shape that appears inside
+	 * `items[]` of the list endpoint, so SDK consumers and integrations can
+	 * drill into a single prompt without filtering the list client-side.
+	 * `requirePrompt` already enforces the project-scoped lookup + org
+	 * membership check, so a 404 here means "not found within this project"
+	 * (covers both wrong-project and missing-prompt cases).
+	 */
+	@Get('projects/:projectId/brand-prompts/:promptId')
+	async get(
+		@Principal() principal: AuthPrincipal,
+		@Param('projectId') projectId: string,
+		@Param('promptId') promptId: string,
+	): Promise<AiSearchInsightsContracts.BrandPromptDtoSchema> {
+		const prompt = await this.requirePrompt(principal, projectId, promptId);
+		return {
+			id: prompt.id,
+			projectId: prompt.projectId,
+			text: prompt.text.value,
+			kind: prompt.kind,
+			pausedAt: prompt.pausedAt?.toISOString() ?? null,
+			createdAt: prompt.createdAt.toISOString(),
+		};
+	}
+
 	@Patch('projects/:projectId/brand-prompts/:promptId')
 	async pauseOrResume(
 		@Principal() principal: AuthPrincipal,
