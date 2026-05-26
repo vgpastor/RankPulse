@@ -3,6 +3,13 @@ import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { rankedKeywordsObservations } from '../../schema/index.js';
 
+// postgres-js (3.4.x) returns timestamptz from raw `db.execute()` as the
+// original ISO string (e.g. `"2026-04-27 00:00:00+00"`), NOT a Date — its
+// built-in type parsers only kick in for the schema-typed query builder.
+// Use cases call `.toISOString()` on the resulting field, so coerce at
+// the repo boundary. Mirrors the helper in `gsc-cockpit-read-model.ts`.
+const toDate = (v: string | Date): Date => (v instanceof Date ? v : new Date(v));
+
 /**
  * Issue #127: persists snapshots of a target domain's ranked-keyword universe.
  * The natural-key PK on the hypertable absorbs idempotent re-runs at the
@@ -138,13 +145,13 @@ export class DrizzleRankedKeywordObservationRepository
 			ORDER BY month ASC
 		`);
 		type Row = {
-			month: Date;
+			month: string | Date;
 			total_volume: number | string | null;
 			distinct_keywords: number | null;
 		};
 		const rows = ((result as { rows?: unknown[] }).rows ?? (result as unknown[])) as Row[];
 		return rows.map((r) => ({
-			month: r.month,
+			month: toDate(r.month),
 			totalVolume: Number(r.total_volume ?? 0),
 			distinctKeywords: Number(r.distinct_keywords ?? 0),
 		}));

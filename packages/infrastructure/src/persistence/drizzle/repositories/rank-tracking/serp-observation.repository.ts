@@ -8,6 +8,14 @@ import { serpObservations } from '../../schema/index.js';
 // directly depending on the call site; unwrap to a typed array regardless.
 const unwrap = <T>(rows: unknown): T[] => ((rows as { rows?: unknown[] }).rows ?? (rows as unknown[])) as T[];
 
+// postgres-js (3.4.x) returns timestamptz from raw `db.execute()` as the
+// original ISO string (e.g. `"2026-04-27 00:00:00+00"`), NOT a Date — its
+// built-in type parsers only kick in for the schema-typed query builder.
+// `RankTracking.SerpObservation.rehydrate` + the use case both call
+// `.toISOString()` on `observedAt`, so coerce at the repo boundary. Mirrors
+// the helper in `gsc-cockpit-read-model.ts`.
+const toDate = (v: string | Date): Date => (v instanceof Date ? v : new Date(v));
+
 export class DrizzleSerpObservationRepository implements RankTracking.SerpObservationRepository {
 	constructor(private readonly db: DrizzleDatabase) {}
 
@@ -100,7 +108,7 @@ export class DrizzleSerpObservationRepository implements RankTracking.SerpObserv
 			ORDER BY s.phrase ASC, s.country ASC, s.language ASC, s.device ASC, s.rank ASC
 		`);
 		type Row = {
-			observed_at: Date;
+			observed_at: string | Date;
 			project_id: string;
 			phrase: string;
 			country: string;
@@ -130,9 +138,10 @@ export class DrizzleSerpObservationRepository implements RankTracking.SerpObserv
 			if (!RankTracking.isDevice(first.device)) {
 				throw new InvalidInputError(`Stored serp_observation has invalid device "${first.device}"`);
 			}
+			const observedAt = toDate(first.observed_at);
 			out.push(
 				RankTracking.SerpObservation.rehydrate({
-					id: `${first.observed_at.toISOString()}#${first.project_id}#${first.phrase}` as RankTracking.SerpObservationId,
+					id: `${observedAt.toISOString()}#${first.project_id}#${first.phrase}` as RankTracking.SerpObservationId,
 					projectId: first.project_id as ProjectManagement.ProjectId,
 					phrase: first.phrase,
 					country: first.country,
@@ -148,7 +157,7 @@ export class DrizzleSerpObservationRepository implements RankTracking.SerpObserv
 					),
 					sourceProvider: first.source_provider,
 					rawPayloadId: first.raw_payload_id,
-					observedAt: first.observed_at,
+					observedAt,
 				}),
 			);
 		}

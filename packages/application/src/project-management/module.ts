@@ -1,6 +1,8 @@
 import type { ProjectManagement as PMDomain, SharedKernel } from '@rankpulse/domain';
 import type { Clock, IdGenerator } from '@rankpulse/shared';
+import { buildAutoScheduleHandlers } from '../_core/auto-schedule.js';
 import type { ContextModule, ContextRegistrations, IngestUseCase, SharedDeps } from '../_core/module.js';
+import { projectManagementAutoScheduleConfigs } from './event-handlers/auto-schedule.config.js';
 import { AddCompetitorUseCase } from './use-cases/add-competitor.use-case.js';
 import { AddDomainToProjectUseCase } from './use-cases/add-domain-to-project.use-case.js';
 import { AddProjectLocationUseCase } from './use-cases/change-project-locations.use-case.js';
@@ -154,7 +156,7 @@ export const projectManagementModule: ContextModule = {
 				'project-management:record-competitor-wayback-snapshot': waybackIngest,
 				'project-management:record-competitor-backlinks-profile': backlinksIngest,
 			},
-			eventHandlers: [],
+			eventHandlers: buildAutoScheduleHandlers(deps, projectManagementAutoScheduleConfigs),
 			schemaTables: d.projectManagementSchemaTables,
 		};
 	},

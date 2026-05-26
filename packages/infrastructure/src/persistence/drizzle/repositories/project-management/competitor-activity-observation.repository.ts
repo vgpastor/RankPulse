@@ -5,6 +5,15 @@ import { competitorActivityObservations } from '../../schema/index.js';
 
 const unwrap = <T>(rows: unknown): T[] => ((rows as { rows?: unknown[] }).rows ?? (rows as unknown[])) as T[];
 
+// postgres-js (3.4.x) returns timestamptz from raw `db.execute()` as the
+// original ISO string (e.g. `"2026-04-27 00:00:00+00"`), NOT a Date — its
+// built-in type parsers only kick in for the schema-typed query builder.
+// Query-competitor-activity use case calls `.toISOString()` on
+// `latestObservedAt` and `latestSnapshotAt`, so coerce at the repo boundary.
+// Mirrors the helper in `gsc-cockpit-read-model.ts`.
+const toDate = (v: string | Date | null): Date | null =>
+	v === null ? null : v instanceof Date ? v : new Date(v);
+
 const VALID_SOURCES: readonly ProjectManagement.CompetitorActivitySource[] = [
 	'wayback-cdx',
 	'dataforseo-backlinks',
@@ -112,9 +121,9 @@ export class DrizzleCompetitorActivityObservationRepository
 			competitor_id: string;
 			source: string;
 			rank: number;
-			observed_at: Date;
+			observed_at: string | Date;
 			wayback_snapshot_count: number | null;
-			wayback_latest_snapshot_at: Date | null;
+			wayback_latest_snapshot_at: string | Date | null;
 			backlinks_total: number | null;
 			backlinks_referring_domains: number | null;
 		};
@@ -143,20 +152,22 @@ export class DrizzleCompetitorActivityObservationRepository
 		for (const row of rows) {
 			if (!isValidSource(row.source)) continue;
 			const acc = byCompetitor.get(row.competitor_id) ?? seed(row.competitor_id);
-			if (acc.latestObservedAt === null || row.observed_at > acc.latestObservedAt) {
-				acc.latestObservedAt = row.observed_at;
+			const observedAt = toDate(row.observed_at) as Date;
+			const waybackLatestSnapshotAt = toDate(row.wayback_latest_snapshot_at);
+			if (acc.latestObservedAt === null || observedAt > acc.latestObservedAt) {
+				acc.latestObservedAt = observedAt;
 			}
 			if (row.source === 'wayback-cdx') {
 				if (row.rank === 1 && row.wayback_snapshot_count !== null) {
 					acc.latestWayback = {
 						snapshotCount: Number(row.wayback_snapshot_count),
-						latestSnapshotAt: row.wayback_latest_snapshot_at,
-						observedAt: row.observed_at,
+						latestSnapshotAt: waybackLatestSnapshotAt,
+						observedAt,
 					};
 				} else if (row.rank === 2 && row.wayback_snapshot_count !== null) {
 					acc.priorWayback = {
 						snapshotCount: Number(row.wayback_snapshot_count),
-						observedAt: row.observed_at,
+						observedAt,
 					};
 				}
 			} else if (row.source === 'dataforseo-backlinks') {
@@ -164,13 +175,13 @@ export class DrizzleCompetitorActivityObservationRepository
 					acc.latestBacklinks = {
 						totalBacklinks: Number(row.backlinks_total),
 						referringDomains: Number(row.backlinks_referring_domains ?? 0),
-						observedAt: row.observed_at,
+						observedAt,
 					};
 				} else if (row.rank === 2 && row.backlinks_total !== null) {
 					acc.priorBacklinks = {
 						totalBacklinks: Number(row.backlinks_total),
 						referringDomains: Number(row.backlinks_referring_domains ?? 0),
-						observedAt: row.observed_at,
+						observedAt,
 					};
 				}
 			}

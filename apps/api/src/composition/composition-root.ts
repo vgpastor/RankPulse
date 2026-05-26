@@ -237,6 +237,16 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		}),
 	};
 
+	// Per-context deps with auto-schedule include `scheduleEndpointFetch` and
+	// `logger` so the module's `buildAutoScheduleHandlers` call has what it
+	// needs. Declared up here (before every auto-schedule consumer) because
+	// TDZ — adding a new consumer above its own declaration is a CLAUDE.md
+	// §13.6 trap.
+	const autoScheduleSurface = {
+		scheduleEndpointFetch,
+		logger: autoScheduleLogger,
+	};
+
 	// Sub-issue #61 of #27 — AI Brand Radar foundation.
 	// MentionExtractor: optional. If ANTHROPIC_API_KEY is missing, we wire a
 	// no-op extractor that returns empty mentions so the worker still
@@ -285,7 +295,13 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		// bing, pagespeed, clarity) for the daily-health-check endpoint.
 		projectFreshnessReadModel,
 		projectManagementSchemaTables: DrizzlePersistence.schema.projectManagementSchemaTables,
-	} satisfies PMUseCases.ProjectManagementDeps as unknown as SharedDeps);
+		// #181 + #184 — auto-schedule on CompetitorAdded creates wayback +
+		// dataforseo-backlinks-summary feeders with `systemParams.competitorId`
+		// stamped, so the worker ingest handlers find what they expect. Without
+		// these surface deps the handlers register but crash on first event
+		// (CLAUDE.md §13.4).
+		...autoScheduleSurface,
+	} as PMUseCases.ProjectManagementDeps as unknown as SharedDeps);
 
 	const providerConnectivity = PCUseCases.providerConnectivityModule.compose({
 		clock: SystemClock,
@@ -330,16 +346,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		rankTrackingSchemaTables: DrizzlePersistence.schema.rankTrackingSchemaTables,
 	} satisfies RTUseCases.RankTrackingDeps as unknown as SharedDeps);
 
-	// Per-context deps with auto-schedule include `scheduleEndpointFetch` and
-	// `logger` so the module's `buildAutoScheduleHandlers` call has what it
-	// needs. AI search additionally needs `projects` and `credentials` for
-	// its `dynamicSchedules` resolver. Defined here (before the
-	// `competitor-intelligence` compose) because that module also wires
-	// auto-schedule (#142).
-	const autoScheduleSurface = {
-		scheduleEndpointFetch,
-		logger: autoScheduleLogger,
-	};
+	// `autoScheduleSurface` is now declared higher up — see CLAUDE.md §13.6.
 
 	const competitorIntelligence = CIUseCases.competitorIntelligenceModule.compose({
 		clock: SystemClock,
