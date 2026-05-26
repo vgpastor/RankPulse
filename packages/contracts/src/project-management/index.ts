@@ -149,3 +149,33 @@ export const CompetitorActivityResponse = z.object({
 	maxScore: z.number().int().min(0).max(100),
 });
 export type CompetitorActivityResponse = z.infer<typeof CompetitorActivityResponse>;
+
+// --- Project freshness (issue #172) ---
+
+const FreshnessTimestampedCountDto = z.object({
+	lastSeenAt: z.string().datetime().nullable(),
+	count: z.number().int().nonnegative(),
+});
+
+export const ProjectFreshnessResponse = z.object({
+	projectId: z.string().uuid(),
+	checkedAt: z.string().datetime(),
+	sources: z.object({
+		rankings: FreshnessTimestampedCountDto,
+		aiSearch: z.object({
+			lastSeenAt: z.string().datetime().nullable(),
+			count: z.number().int().nonnegative(),
+			providers: z.array(z.string()),
+		}),
+		brandPrompts: z.object({
+			activeCount: z.number().int().nonnegative(),
+			pausedCount: z.number().int().nonnegative(),
+		}),
+		ga4: FreshnessTimestampedCountDto,
+		gsc: FreshnessTimestampedCountDto,
+		bing: FreshnessTimestampedCountDto,
+		pageSpeed: FreshnessTimestampedCountDto,
+		clarity: FreshnessTimestampedCountDto,
+	}),
+});
+export type ProjectFreshnessResponse = z.infer<typeof ProjectFreshnessResponse>;

@@ -19,6 +19,7 @@ export * from './ports/competitor-suggestion-repository.js';
 export * from './ports/keyword-list-repository.js';
 // Ports
 export * from './ports/portfolio-repository.js';
+export * from './ports/project-freshness-read-model.js';
 export * from './ports/project-repository.js';
 export * from './value-objects/domain-name.js';
 export * from './value-objects/identifiers.js';

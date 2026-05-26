@@ -62,6 +62,9 @@ class ObservationRepo implements RankTracking.RankingObservationRepository {
 	async listLatestForProject(): Promise<readonly RankTracking.RankingObservation[]> {
 		return [];
 	}
+	async listProjectRankingsWithDeltas(): Promise<readonly RankTracking.ProjectRankingSnapshot[]> {
+		return [];
+	}
 }
 
 class CapturingPublisher implements SharedKernel.EventPublisher {

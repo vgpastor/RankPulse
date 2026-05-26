@@ -181,6 +181,24 @@ export function buildOpenApiDocument(): unknown {
 	});
 
 	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/projects/{id}/freshness',
+		summary: '#172 — Data-freshness summary across all linked subsystems',
+		description:
+			'Single round-trip summary of when each upstream data subsystem (rankings, ai-search, gsc, ga4, bing, pagespeed, clarity) last ingested for the project. Each source returns `lastSeenAt` (null if no data yet) + `count` (rows / linked entities depending on source). Use this in daily health checks to answer "is everything fresh? what is stale?" without iterating per-subsystem endpoints.',
+		tags: ['project-management', 'observability'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: { params: z.object({ id: z.string().uuid() }) },
+		responses: {
+			200: {
+				description: 'Project freshness summary',
+				content: { 'application/json': { schema: ProjectManagementContracts.ProjectFreshnessResponse } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
 		method: 'post',
 		path: '/api/v1/projects/{id}/competitors',
 		summary: 'Track a competitor for a project',
@@ -511,7 +529,9 @@ export function buildOpenApiDocument(): unknown {
 	registry.registerPath({
 		method: 'get',
 		path: '/api/v1/projects/{projectId}/rankings',
-		summary: 'List the latest ranking observations for a project',
+		summary: 'List the latest ranking observations for a project (raw list)',
+		description:
+			'Returns up to 500 raw observations from the last 14 days. Multiple rows per tracked keyword — the SPA uses this for time-series charts. For a deduplicated per-keyword summary with 1d/7d position deltas, use `/rankings/summary` instead.',
 		tags: ['rank-tracking'],
 		security: [{ [ApiTokenAuthHeader]: [] }],
 		request: { params: z.object({ projectId: z.string().uuid() }) },
@@ -519,6 +539,24 @@ export function buildOpenApiDocument(): unknown {
 			200: {
 				description: 'Ranking observations',
 				content: { 'application/json': { schema: z.array(z.unknown()) } },
+			},
+			...errorResponses([401, 403, 404]),
+		},
+	});
+
+	registry.registerPath({
+		method: 'get',
+		path: '/api/v1/projects/{projectId}/rankings/summary',
+		summary: '#171 — Per-keyword ranking snapshot with 1d / 7d position deltas',
+		description:
+			'One row per tracked keyword. Each row carries the current `position`, the immediately previous observation (`previousPosition`), and positions from ~1d and ~7d ago for delta computation. `positionChange*` follow SEO convention: negative = improvement (e.g. 10 → 5 is delta -5), positive = worsening. Deltas are `null` when no comparison observation exists in the window (typical for keywords tracked < 7d). Use this for external integrations that need to detect rank movements without folding raw observations client-side.',
+		tags: ['rank-tracking'],
+		security: [{ [ApiTokenAuthHeader]: [] }],
+		request: { params: z.object({ projectId: z.string().uuid() }) },
+		responses: {
+			200: {
+				description: 'Project rankings with deltas',
+				content: { 'application/json': { schema: RankTrackingContracts.ProjectRankingsResponse } },
 			},
 			...errorResponses([401, 403, 404]),
 		},
@@ -569,7 +607,7 @@ export function buildOpenApiDocument(): unknown {
 		path: '/api/v1/projects/{projectId}/ranked-keywords',
 		summary: 'Ranked keywords — keyword universe of a target domain',
 		description:
-			'Returns the most recent snapshot of all keywords for which the given target domain ranks on Google, sourced from DataForSEO Labs `ranked_keywords/live` (issue #127). Optional filters: `minVolume` to drop low-volume tail; `limit` to cap row count. Snapshots are typically refreshed monthly via the auto-schedule, so the same response is served between snapshots.',
+			"**Required query**: `targetDomain` — fully-qualified domain (e.g. `tracktik.com`). Must match either the project's `primaryDomain`/aliases (`GET /projects/{projectId}` → `domains[]`) or a registered competitor (`GET /projects/{projectId}/competitors`). Returns the most recent snapshot of all keywords for which the target domain ranks on Google, sourced from DataForSEO Labs `ranked_keywords/live` (issue #127). Optional filters: `minVolume` to drop low-volume tail; `limit` to cap row count (default 500, max 1000). Snapshots are typically refreshed monthly via the auto-schedule, so the same response is served between snapshots. **Coverage caveat**: today only the US/en-US locale is wired by default; ES/MX/FR competitors may return empty until per-locale schedules are configured (#181).",
 		tags: ['rank-tracking'],
 		security: [{ [ApiTokenAuthHeader]: [] }],
 		request: {
@@ -581,7 +619,7 @@ export function buildOpenApiDocument(): unknown {
 				description: 'Ranked keywords for the target domain',
 				content: { 'application/json': { schema: RankTrackingContracts.RankedKeywordsResponse } },
 			},
-			...errorResponses([401, 403, 404]),
+			...errorResponses([400, 401, 403, 404]),
 		},
 	});
 
@@ -590,7 +628,7 @@ export function buildOpenApiDocument(): unknown {
 		path: '/api/v1/projects/{projectId}/keyword-gaps',
 		summary: 'Competitor keyword gaps — keywords competitor ranks for that we do not',
 		description:
-			'Returns the latest snapshot of keyword gaps between `ourDomain` and `competitorDomain` — keywords where the competitor ranks in Google top-100 and we either do not, or rank worse. Sourced from DataForSEO Labs `domain_intersection/live` (issue #128). Output is sorted by ROI score `(volume × cpc) / (kd + 1)` DESC so the highest-leverage "fagocitar" candidates surface first. Optional filters: `minVolume` to drop the long tail, `limit` to cap row count.',
+			'**Required query**: `ourDomain` and `competitorDomain`, both fully-qualified. `ourDomain` must be one of the project\'s tracked domains (`GET /projects/{projectId}` → `domains[]`); `competitorDomain` must be a registered competitor (`GET /projects/{projectId}/competitors`). Returns the latest snapshot of keyword gaps between the two — keywords where the competitor ranks in Google top-100 and we either do not, or rank worse. Sourced from DataForSEO Labs `domain_intersection/live` (issue #128). Output is sorted by ROI score `(volume × cpc) / (kd + 1)` DESC so the highest-leverage "fagocitar" candidates surface first. Optional filters: `minVolume` to drop the long tail, `limit` to cap row count (default 500, max 1000).',
 		tags: ['competitor-intelligence'],
 		security: [{ [ApiTokenAuthHeader]: [] }],
 		request: {
@@ -604,7 +642,7 @@ export function buildOpenApiDocument(): unknown {
 					'application/json': { schema: CompetitorIntelligenceContracts.KeywordGapsResponse },
 				},
 			},
-			...errorResponses([401, 403, 404]),
+			...errorResponses([400, 401, 403, 404]),
 		},
 	});
 

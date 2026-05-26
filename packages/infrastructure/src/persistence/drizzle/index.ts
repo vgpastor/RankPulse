@@ -27,6 +27,7 @@ export { DrizzleCompetitorSuggestionRepository } from './repositories/project-ma
 export { DrizzleKeywordListRepository } from './repositories/project-management/keyword-list.repository.js';
 export { DrizzlePortfolioRepository } from './repositories/project-management/portfolio.repository.js';
 export { DrizzleProjectRepository } from './repositories/project-management/project.repository.js';
+export { DrizzleProjectFreshnessReadModel } from './repositories/project-management/project-freshness.read-model.js';
 export { DrizzleApiUsageRepository } from './repositories/provider-connectivity/api-usage.repository.js';
 export { DrizzleCredentialRepository } from './repositories/provider-connectivity/credential.repository.js';
 export {

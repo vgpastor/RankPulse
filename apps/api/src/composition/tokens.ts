@@ -50,6 +50,7 @@ export const Tokens = {
 	RecordCompetitorWaybackSnapshot: Symbol('RecordCompetitorWaybackSnapshotUseCase'),
 	RecordCompetitorBacklinksProfile: Symbol('RecordCompetitorBacklinksProfileUseCase'),
 	QueryCompetitorActivity: Symbol('QueryCompetitorActivityUseCase'),
+	QueryProjectFreshness: Symbol('QueryProjectFreshnessUseCase'),
 
 	// Provider-Connectivity ports
 	CredentialRepository: Symbol('CredentialRepository'),

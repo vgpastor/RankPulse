@@ -65,7 +65,7 @@ export class DrizzleRankedKeywordObservationRepository
 						rankedKeywordsObservations.observedAt,
 						sql<Date>`(
 							SELECT MAX(observed_at) FROM ranked_keywords_observations
-							WHERE project_id = ${projectId} AND target_domain = ${targetDomain}
+							WHERE project_id = ${projectId}::uuid AND target_domain = ${targetDomain}
 						)`,
 					),
 					minVolume != null ? gte(rankedKeywordsObservations.searchVolume, minVolume) : sql`TRUE`,
@@ -124,7 +124,7 @@ export class DrizzleRankedKeywordObservationRepository
 					keyword,
 					search_volume
 				FROM ranked_keywords_observations
-				WHERE project_id = ${projectId}
+				WHERE project_id = ${projectId}::uuid
 					AND observed_at >= now() - (${months}::int * interval '1 month')
 					${targetDomain ? sql`AND target_domain = ${targetDomain}` : sql``}
 				ORDER BY date_trunc('month', observed_at), target_domain, keyword, observed_at DESC

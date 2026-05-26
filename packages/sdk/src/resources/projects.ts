@@ -25,6 +25,14 @@ export class ProjectsResource {
 		return this.http.get(`/projects/${encodeURIComponent(id)}`);
 	}
 
+	/**
+	 * #172 — data-freshness summary across rankings, ai-search, gsc, ga4,
+	 * bing, pagespeed, clarity. Single round-trip for daily health checks.
+	 */
+	getFreshness(id: string): Promise<ProjectManagementContracts.ProjectFreshnessResponse> {
+		return this.http.get(`/projects/${encodeURIComponent(id)}/freshness`);
+	}
+
 	create(
 		body: ProjectManagementContracts.CreateProjectRequest,
 	): Promise<ProjectManagementContracts.ProjectDto> {
