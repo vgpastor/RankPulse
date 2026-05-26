@@ -607,7 +607,7 @@ export function buildOpenApiDocument(): unknown {
 		path: '/api/v1/projects/{projectId}/ranked-keywords',
 		summary: 'Ranked keywords — keyword universe of a target domain',
 		description:
-			'Returns the most recent snapshot of all keywords for which the given target domain ranks on Google, sourced from DataForSEO Labs `ranked_keywords/live` (issue #127). Optional filters: `minVolume` to drop low-volume tail; `limit` to cap row count. Snapshots are typically refreshed monthly via the auto-schedule, so the same response is served between snapshots.',
+			"**Required query**: `targetDomain` — fully-qualified domain (e.g. `tracktik.com`). Must match either the project's `primaryDomain`/aliases (`GET /projects/{projectId}` → `domains[]`) or a registered competitor (`GET /projects/{projectId}/competitors`). Returns the most recent snapshot of all keywords for which the target domain ranks on Google, sourced from DataForSEO Labs `ranked_keywords/live` (issue #127). Optional filters: `minVolume` to drop low-volume tail; `limit` to cap row count (default 500, max 1000). Snapshots are typically refreshed monthly via the auto-schedule, so the same response is served between snapshots. **Coverage caveat**: today only the US/en-US locale is wired by default; ES/MX/FR competitors may return empty until per-locale schedules are configured (#181).",
 		tags: ['rank-tracking'],
 		security: [{ [ApiTokenAuthHeader]: [] }],
 		request: {
@@ -619,7 +619,7 @@ export function buildOpenApiDocument(): unknown {
 				description: 'Ranked keywords for the target domain',
 				content: { 'application/json': { schema: RankTrackingContracts.RankedKeywordsResponse } },
 			},
-			...errorResponses([401, 403, 404]),
+			...errorResponses([400, 401, 403, 404]),
 		},
 	});
 
@@ -628,7 +628,7 @@ export function buildOpenApiDocument(): unknown {
 		path: '/api/v1/projects/{projectId}/keyword-gaps',
 		summary: 'Competitor keyword gaps — keywords competitor ranks for that we do not',
 		description:
-			'Returns the latest snapshot of keyword gaps between `ourDomain` and `competitorDomain` — keywords where the competitor ranks in Google top-100 and we either do not, or rank worse. Sourced from DataForSEO Labs `domain_intersection/live` (issue #128). Output is sorted by ROI score `(volume × cpc) / (kd + 1)` DESC so the highest-leverage "fagocitar" candidates surface first. Optional filters: `minVolume` to drop the long tail, `limit` to cap row count.',
+			'**Required query**: `ourDomain` and `competitorDomain`, both fully-qualified. `ourDomain` must be one of the project\'s tracked domains (`GET /projects/{projectId}` → `domains[]`); `competitorDomain` must be a registered competitor (`GET /projects/{projectId}/competitors`). Returns the latest snapshot of keyword gaps between the two — keywords where the competitor ranks in Google top-100 and we either do not, or rank worse. Sourced from DataForSEO Labs `domain_intersection/live` (issue #128). Output is sorted by ROI score `(volume × cpc) / (kd + 1)` DESC so the highest-leverage "fagocitar" candidates surface first. Optional filters: `minVolume` to drop the long tail, `limit` to cap row count (default 500, max 1000).',
 		tags: ['competitor-intelligence'],
 		security: [{ [ApiTokenAuthHeader]: [] }],
 		request: {
@@ -642,7 +642,7 @@ export function buildOpenApiDocument(): unknown {
 					'application/json': { schema: CompetitorIntelligenceContracts.KeywordGapsResponse },
 				},
 			},
-			...errorResponses([401, 403, 404]),
+			...errorResponses([400, 401, 403, 404]),
 		},
 	});
 

@@ -80,7 +80,7 @@ export class DrizzleSerpObservationRepository implements RankTracking.SerpObserv
 			WITH latest AS (
 				SELECT project_id, phrase, country, language, device, MAX(observed_at) AS observed_at
 				FROM serp_observations
-				WHERE project_id = ${projectId}
+				WHERE project_id = ${projectId}::uuid
 					AND observed_at >= ${since}
 					${wherePhrase}
 					${whereCountry}

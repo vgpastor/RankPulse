@@ -230,6 +230,14 @@ export class DrizzleLlmAnswerReadModel implements AiSearchInsights.LlmAnswerRead
 			FROM expanded
 			WHERE (${onlyOwn}::bool = false OR is_own_domain)
 			  AND url IS NOT NULL
+			  -- #180: exclude LLM grounding wrappers that eclipse real domains
+			  -- in the top citations. vertexaisearch.cloud.google.com is the
+			  -- redirector Gemini wraps every cited URL with; the real URL is
+			  -- buried inside the grounding-api-redirect blob path. Until the
+			  -- ingest pipeline parses that blob and re-attributes to the
+			  -- canonical domain, we drop the wrapper here so the cluster
+			  -- top-N reflects actual competitor / own domains.
+			  AND domain NOT IN ('vertexaisearch.cloud.google.com')
 			GROUP BY url, domain
 			ORDER BY total_citations DESC
 			LIMIT 200

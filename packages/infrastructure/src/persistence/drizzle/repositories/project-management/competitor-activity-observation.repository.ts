@@ -92,7 +92,7 @@ export class DrizzleCompetitorActivityObservationRepository
 						ORDER BY observed_at DESC
 					) AS rank
 				FROM competitor_activity_observations
-				WHERE project_id = ${projectId}
+				WHERE project_id = ${projectId}::uuid
 					AND observed_at >= now() - (${windowDays}::int * interval '1 day')
 			)
 			SELECT

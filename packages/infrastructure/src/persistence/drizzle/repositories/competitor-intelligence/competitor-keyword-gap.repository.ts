@@ -64,7 +64,7 @@ export class DrizzleCompetitorKeywordGapRepository
 						competitorKeywordGaps.observedAt,
 						sql<Date>`(
 							SELECT MAX(observed_at) FROM competitor_keyword_gaps
-							WHERE project_id = ${projectId}
+							WHERE project_id = ${projectId}::uuid
 								AND our_domain = ${ourDomain}
 								AND competitor_domain = ${competitorDomain}
 						)`,
