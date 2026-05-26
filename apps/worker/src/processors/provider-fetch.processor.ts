@@ -263,14 +263,42 @@ export class ProviderFetchProcessor {
 					definition,
 					dateBucket,
 				});
+				run.complete(existing.id, this.deps.clock.now());
 				runLog.info({ requestHash }, 'idempotent skip — replayed ingest from cached payload');
 			} catch (err) {
-				runLog.warn(
-					{ requestHash, err: err instanceof Error ? err.message : String(err) },
-					'idempotent skip — ingest replay failed (raw payload preserved)',
-				);
+				if (err instanceof NotFoundError) {
+					// #176: a `NotFoundError` on the ingest replay is the SAME
+					// permanent failure the outer catch escalates — the
+					// referenced entity is gone (brand prompt deleted, GSC
+					// property unlinked, etc.). Without this branch the run
+					// silently marks `succeeded` and the def stays enabled
+					// forever, because the cache hit short-circuits past the
+					// outer catch. Mirror the outer NotFoundError handler:
+					// disable the def + record INGEST_PRECONDITION_FAILED.
+					definition.disable();
+					run.fail(
+						{
+							code: 'INGEST_PRECONDITION_FAILED',
+							message: err.message,
+							retryable: false,
+						},
+						this.deps.clock.now(),
+					);
+					runLog.error(
+						{ err: err.message, requestHash },
+						'idempotent ingest replay: referenced entity missing; definition auto-disabled (#176)',
+					);
+				} else {
+					// Transient ingest error on a cache hit — keep the raw
+					// payload, warn, and let the next tick try again. NOT a
+					// reason to disable the def or fail the run.
+					run.complete(existing.id, this.deps.clock.now());
+					runLog.warn(
+						{ requestHash, err: err instanceof Error ? err.message : String(err) },
+						'idempotent skip — ingest replay failed (raw payload preserved)',
+					);
+				}
 			}
-			run.complete(existing.id, this.deps.clock.now());
 			// #160: lastRunAt must update even on cache-hit so the dashboard
 			// stops reporting these defs as "never run".
 			definition.markRan(this.deps.clock.now());

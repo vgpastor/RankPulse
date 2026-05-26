@@ -263,6 +263,8 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		identityAccessSchemaTables: DrizzlePersistence.schema.identityAccessSchemaTables,
 	} satisfies IAUseCases.IdentityAccessDeps as unknown as SharedDeps);
 
+	const projectFreshnessReadModel = new DrizzlePersistence.DrizzleProjectFreshnessReadModel(drizzle.db);
+
 	const projectManagement = PMUseCases.projectManagementModule.compose({
 		clock: SystemClock,
 		ids: SystemIdGenerator,
@@ -279,6 +281,9 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		// over the tracked-keyword repo so suggestions stay project-management-pure.
 		trackedKeywordCountForProject: (projectId) =>
 			trackedKeywordRepo.countForProject(projectId as ProjectManagement.ProjectId),
+		// #172 — freshness summary read-model (rankings, ai-search, gsc, ga4,
+		// bing, pagespeed, clarity) for the daily-health-check endpoint.
+		projectFreshnessReadModel,
 		projectManagementSchemaTables: DrizzlePersistence.schema.projectManagementSchemaTables,
 	} satisfies PMUseCases.ProjectManagementDeps as unknown as SharedDeps);
 
@@ -542,6 +547,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.RecordCompetitorWaybackSnapshot, pm.RecordCompetitorWaybackSnapshot),
 		value(Tokens.RecordCompetitorBacklinksProfile, pm.RecordCompetitorBacklinksProfile),
 		value(Tokens.QueryCompetitorActivity, pm.QueryCompetitorActivity),
+		value(Tokens.QueryProjectFreshness, pm.QueryProjectFreshness),
 
 		// provider-connectivity
 		value(Tokens.CredentialRepository, credentialRepo),

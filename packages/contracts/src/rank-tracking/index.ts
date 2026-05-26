@@ -34,6 +34,36 @@ export const StartTrackingKeywordResponse = z.object({
 });
 export type StartTrackingKeywordResponse = z.infer<typeof StartTrackingKeywordResponse>;
 
+/**
+ * #171 — `/projects/{pid}/rankings` response shape: one entry per tracked
+ * keyword with current position + 1d / 7d deltas. `positionChange*` use
+ * SEO convention (negative = improvement, positive = worsening). `null`
+ * deltas indicate no historical observation in the comparison window —
+ * typical for keywords tracked < 7 days.
+ */
+export const ProjectRankingDto = z.object({
+	trackedKeywordId: z.string().uuid(),
+	phrase: z.string(),
+	domain: z.string(),
+	country: z.string(),
+	language: z.string(),
+	device: z.enum(['desktop', 'mobile']),
+	position: z.number().int().nullable(),
+	url: z.string().nullable(),
+	observedAt: z.string().datetime(),
+	previousPosition: z.number().int().nullable(),
+	position1dAgo: z.number().int().nullable(),
+	position7dAgo: z.number().int().nullable(),
+	positionChange1d: z.number().int().nullable(),
+	positionChange7d: z.number().int().nullable(),
+});
+export type ProjectRankingDto = z.infer<typeof ProjectRankingDto>;
+
+export const ProjectRankingsResponse = z.object({
+	items: z.array(ProjectRankingDto),
+});
+export type ProjectRankingsResponse = z.infer<typeof ProjectRankingsResponse>;
+
 export const RankingHistoryQuery = z.object({
 	from: z.string().datetime().optional(),
 	to: z.string().datetime().optional(),

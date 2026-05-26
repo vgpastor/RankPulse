@@ -71,6 +71,8 @@ export class ProjectsController {
 		private readonly promoteSuggestion: PMUseCases.PromoteCompetitorSuggestionUseCase,
 		@Inject(Tokens.DismissCompetitorSuggestion)
 		private readonly dismissSuggestion: PMUseCases.DismissCompetitorSuggestionUseCase,
+		@Inject(Tokens.QueryProjectFreshness)
+		private readonly queryFreshness: PMUseCases.QueryProjectFreshnessUseCase,
 		@Inject(Tokens.ProjectRepository) private readonly projects: ProjectManagement.ProjectRepository,
 		@Inject(Tokens.CompetitorRepository) private readonly competitors: ProjectManagement.CompetitorRepository,
 		@Inject(Tokens.CompetitorSuggestionRepository)
@@ -107,6 +109,54 @@ export class ProjectsController {
 		const project = await this.loadProject(id);
 		await this.orgMembership.require(principal, project.organizationId);
 		return this.serialize(project);
+	}
+
+	/**
+	 * #172 — single-round-trip data-freshness summary across rankings,
+	 * AI-search, GSC, GA4, Bing, PageSpeed, and Clarity. Used by external
+	 * integrations (daily health-check, status dashboards) to answer "is
+	 * everything fresh? what's stale?" without iterating per-subsystem
+	 * endpoints. Project membership is enforced as in `getProject`.
+	 */
+	@Get(':id/freshness')
+	async getFreshness(
+		@Principal() principal: AuthPrincipal,
+		@Param('id') id: string,
+	): Promise<ProjectManagementContracts.ProjectFreshnessResponse> {
+		const project = await this.loadProject(id);
+		await this.orgMembership.require(principal, project.organizationId);
+		const summary = await this.queryFreshness.execute({ projectId: id });
+		const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
+		return {
+			projectId: summary.projectId,
+			checkedAt: summary.checkedAt.toISOString(),
+			sources: {
+				rankings: {
+					lastSeenAt: iso(summary.sources.rankings.lastSeenAt),
+					count: summary.sources.rankings.count,
+				},
+				aiSearch: {
+					lastSeenAt: iso(summary.sources.aiSearch.lastSeenAt),
+					count: summary.sources.aiSearch.count,
+					providers: [...summary.sources.aiSearch.providers],
+				},
+				brandPrompts: {
+					activeCount: summary.sources.brandPrompts.activeCount,
+					pausedCount: summary.sources.brandPrompts.pausedCount,
+				},
+				ga4: { lastSeenAt: iso(summary.sources.ga4.lastSeenAt), count: summary.sources.ga4.count },
+				gsc: { lastSeenAt: iso(summary.sources.gsc.lastSeenAt), count: summary.sources.gsc.count },
+				bing: { lastSeenAt: iso(summary.sources.bing.lastSeenAt), count: summary.sources.bing.count },
+				pageSpeed: {
+					lastSeenAt: iso(summary.sources.pageSpeed.lastSeenAt),
+					count: summary.sources.pageSpeed.count,
+				},
+				clarity: {
+					lastSeenAt: iso(summary.sources.clarity.lastSeenAt),
+					count: summary.sources.clarity.count,
+				},
+			},
+		};
 	}
 
 	@Post(':id/domains')

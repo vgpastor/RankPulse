@@ -54,6 +54,9 @@ class InMemoryObsRepo implements RankTracking.RankingObservationRepository {
 	async listLatestForProject(): Promise<readonly RankTracking.RankingObservation[]> {
 		return [];
 	}
+	async listProjectRankingsWithDeltas(): Promise<readonly RankTracking.ProjectRankingSnapshot[]> {
+		return [];
+	}
 }
 
 const buildTracked = (id: RankTracking.TrackedKeywordId = TRACKED_ID): RankTracking.TrackedKeyword =>

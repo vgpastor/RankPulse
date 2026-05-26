@@ -26,6 +26,16 @@ export class RankTrackingResource {
 		return this.http.get(`/projects/${encodeURIComponent(projectId)}/rankings`);
 	}
 
+	/**
+	 * #171 — per-keyword summary with 1d / 7d position deltas. Kept
+	 * separate from `listProjectRankings` (raw observation list, used by
+	 * the SPA time-series charts) so external integrations can detect
+	 * rank movements without folding the raw list client-side.
+	 */
+	listProjectRankingsSummary(projectId: string): Promise<RankTrackingContracts.ProjectRankingsResponse> {
+		return this.http.get(`/projects/${encodeURIComponent(projectId)}/rankings/summary`);
+	}
+
 	history(
 		trackedKeywordId: string,
 		query?: RankTrackingContracts.RankingHistoryQuery,

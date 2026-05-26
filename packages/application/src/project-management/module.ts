@@ -19,6 +19,7 @@ import {
 	RenamePortfolioUseCase,
 } from './use-cases/manage-portfolios.use-cases.js';
 import { QueryCompetitorActivityUseCase } from './use-cases/query-competitor-activity.use-case.js';
+import { QueryProjectFreshnessUseCase } from './use-cases/query-project-freshness.use-case.js';
 import { RecordCompetitorBacklinksProfileUseCase } from './use-cases/record-competitor-backlinks-profile.use-case.js';
 import { RecordCompetitorWaybackSnapshotUseCase } from './use-cases/record-competitor-wayback-snapshot.use-case.js';
 import { RemoveCompetitorUseCase } from './use-cases/remove-competitor.use-case.js';
@@ -41,6 +42,8 @@ export interface ProjectManagementDeps {
 	 * composition root provides the actual `trackedKeywordRepo.countForProject`.
 	 */
 	readonly trackedKeywordCountForProject: (projectId: string) => Promise<number>;
+	/** #172 — multi-source freshness summary (rankings, ai-search, gsc, ga4, …). */
+	readonly projectFreshnessReadModel: PMDomain.ProjectFreshnessReadModel;
 	readonly projectManagementSchemaTables: readonly unknown[];
 }
 
@@ -145,6 +148,7 @@ export const projectManagementModule: ContextModule = {
 					d.competitorRepo,
 					d.competitorActivityRepo,
 				),
+				QueryProjectFreshness: new QueryProjectFreshnessUseCase(d.projectRepo, d.projectFreshnessReadModel),
 			},
 			ingestUseCases: {
 				'project-management:record-competitor-wayback-snapshot': waybackIngest,

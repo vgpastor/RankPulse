@@ -120,6 +120,47 @@ export class RankTrackingController {
 		}));
 	}
 
+	/**
+	 * #171 — per-keyword summary endpoint with 1d / 7d position deltas.
+	 *
+	 * Kept separate from `/rankings` (which returns the RAW observation
+	 * list, multi-row per keyword, used by the SPA's time-series charts)
+	 * to avoid breaking the SPA's grouping logic. External integrations —
+	 * specifically the daily health check that needs to detect rank
+	 * movements without accumulating its own snapshot history — should
+	 * call this endpoint instead.
+	 */
+	@Get('projects/:projectId/rankings/summary')
+	async rankingsSummary(
+		@Principal() principal: AuthPrincipal,
+		@Param('projectId') projectId: string,
+	): Promise<RankTrackingContracts.ProjectRankingsResponse> {
+		const project = await this.projects.findById(projectId as ProjectManagement.ProjectId);
+		if (!project) {
+			throw new NotFoundError(`Project ${projectId} not found`);
+		}
+		await this.orgMembership.require(principal, project.organizationId);
+		const snapshots = await this.obsRepo.listProjectRankingsWithDeltas(project.id);
+		return {
+			items: snapshots.map((s) => ({
+				trackedKeywordId: s.trackedKeywordId,
+				phrase: s.phrase,
+				domain: s.domain,
+				country: s.country,
+				language: s.language,
+				device: s.device,
+				position: s.position,
+				url: s.url,
+				observedAt: s.observedAt.toISOString(),
+				previousPosition: s.previousPosition,
+				position1dAgo: s.position1dAgo,
+				position7dAgo: s.position7dAgo,
+				positionChange1d: s.positionChange1d,
+				positionChange7d: s.positionChange7d,
+			})),
+		};
+	}
+
 	@Get('rank-tracking/keywords/:id/history')
 	async history(
 		@Principal() principal: AuthPrincipal,
