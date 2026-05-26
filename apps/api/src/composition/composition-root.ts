@@ -317,6 +317,8 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		jobRunRepo,
 		apiUsageRepo,
 		jobScheduler,
+		// project repo so ScheduleEndpointFetchUseCase can stamp organizationId
+		projectRepo,
 		credentialFormatValidator: {
 			validate: (providerId, plaintextSecret) => {
 				providerRegistry.get(providerId).validateCredentialPlaintext(plaintextSecret);
