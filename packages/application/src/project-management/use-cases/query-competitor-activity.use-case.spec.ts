@@ -80,7 +80,26 @@ describe('QueryCompetitorActivityUseCase', () => {
 		const result = await useCase.execute({ projectId: PROJECT_ID });
 		expect(result.rows).toHaveLength(2);
 		expect(result.rows.every((r) => r.activityScore === 0)).toBe(true);
-		expect(result.rows.every((r) => r.wayback === null && r.backlinks === null)).toBe(true);
+		expect(result.rows.every((r) => r.wayback === null)).toBe(true);
+	});
+
+	it('does not expose a backlinks field on the response (#179 — dropped DataForSEO Backlinks dependency)', async () => {
+		activity.rollups = [
+			{
+				competitorId: COMP_A,
+				latestObservedAt: NOW,
+				latestWayback: { snapshotCount: 50, latestSnapshotAt: NOW, observedAt: NOW },
+				priorWayback: { snapshotCount: 30, observedAt: PRIOR },
+				// Even if the repo still surfaces backlinks rollups (legacy rows in BD),
+				// the query layer must NOT propagate them — the field is gone from the contract.
+				latestBacklinks: { totalBacklinks: 999, referringDomains: 99, observedAt: NOW },
+				priorBacklinks: { totalBacklinks: 500, referringDomains: 50, observedAt: PRIOR },
+			},
+		];
+		const result = await useCase.execute({ projectId: PROJECT_ID });
+		const compA = result.rows.find((r) => r.competitorId === COMP_A);
+		expect(compA).toBeDefined();
+		expect(compA).not.toHaveProperty('backlinks');
 	});
 
 	it('computes wayback delta and exposes the latest snapshot', async () => {
@@ -121,30 +140,34 @@ describe('QueryCompetitorActivityUseCase', () => {
 		expect(compA?.wayback?.deltaSnapshots).toBe(-40);
 	});
 
-	it('normalises across competitors so the most-active hits 100', async () => {
+	it('wayback delta alone drives the activity score across the full 0-100 range', async () => {
 		activity.rollups = [
 			{
 				competitorId: COMP_A,
 				latestObservedAt: NOW,
 				latestWayback: { snapshotCount: 100, latestSnapshotAt: NOW, observedAt: NOW },
-				priorWayback: { snapshotCount: 50, observedAt: PRIOR },
-				latestBacklinks: { totalBacklinks: 1000, referringDomains: 100, observedAt: NOW },
-				priorBacklinks: { totalBacklinks: 500, referringDomains: 80, observedAt: PRIOR },
+				priorWayback: { snapshotCount: 50, observedAt: PRIOR }, // +50
+				latestBacklinks: null,
+				priorBacklinks: null,
 			},
 			{
 				competitorId: COMP_B,
 				latestObservedAt: NOW,
 				latestWayback: { snapshotCount: 30, latestSnapshotAt: NOW, observedAt: NOW },
-				priorWayback: { snapshotCount: 20, observedAt: PRIOR },
+				priorWayback: { snapshotCount: 20, observedAt: PRIOR }, // +10
 				latestBacklinks: null,
 				priorBacklinks: null,
 			},
 		];
 		const result = await useCase.execute({ projectId: PROJECT_ID });
+		// COMP_A leads the wayback delta → normalised to 1.0 → score 100.
+		// COMP_B has 10/50 = 0.2 of the top → score 20.
+		// Pre-fix the formula was `(wayback + backlinks) * 50` so wayback alone
+		// could never exceed 50 — the bar would have looked broken on the cockpit.
 		expect(result.maxScore).toBe(100);
 		expect(result.rows[0]?.competitorId).toBe(COMP_A);
 		expect(result.rows[0]?.activityScore).toBe(100);
 		expect(result.rows[1]?.competitorId).toBe(COMP_B);
-		expect(result.rows[1]?.activityScore).toBeLessThan(100);
+		expect(result.rows[1]?.activityScore).toBe(20);
 	});
 });

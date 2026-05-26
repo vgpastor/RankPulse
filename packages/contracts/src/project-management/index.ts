@@ -125,21 +125,17 @@ const CompetitorActivityWaybackDto = z.object({
 	deltaSnapshots: z.number().int().nullable(),
 });
 
-const CompetitorActivityBacklinksDto = z.object({
-	totalBacklinks: z.number().int().nonnegative(),
-	referringDomains: z.number().int().nonnegative(),
-	observedAt: z.string().datetime(),
-	deltaBacklinks: z.number().int().nullable(),
-	deltaReferringDomains: z.number().int().nullable(),
-});
-
+// Backlinks DTO removed in #179 follow-up — DataForSEO Backlinks API is a
+// paid-only subscription ($100/mo) and the activity radar now uses only the
+// free Wayback CDX signal. If/when a cheaper backlinks source ships
+// (SE Ranking, Common Crawl), re-add a {provider}Dto with explicit fields
+// rather than reviving the old generic shape.
 export const CompetitorActivityRowDto = z.object({
 	competitorId: z.string().uuid(),
 	domain: z.string(),
 	label: z.string(),
 	latestObservedAt: z.string().datetime().nullable(),
 	wayback: CompetitorActivityWaybackDto.nullable(),
-	backlinks: CompetitorActivityBacklinksDto.nullable(),
 	activityScore: z.number().int().min(0).max(100),
 });
 export type CompetitorActivityRowDto = z.infer<typeof CompetitorActivityRowDto>;

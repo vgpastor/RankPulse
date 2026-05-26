@@ -17,13 +17,6 @@ export interface CompetitorActivityRowDto {
 		observedAt: string;
 		deltaSnapshots: number | null;
 	} | null;
-	backlinks: {
-		totalBacklinks: number;
-		referringDomains: number;
-		observedAt: string;
-		deltaBacklinks: number | null;
-		deltaReferringDomains: number | null;
-	} | null;
 	activityScore: number;
 }
 
@@ -36,16 +29,23 @@ const DEFAULT_WINDOW_DAYS = 60;
 
 /**
  * Aggregates the latest competitor-activity observations into one row per
- * competitor. The activity score combines two normalised signals:
+ * competitor. The activity score is derived from a single normalised
+ * signal:
  *
  *   - Wayback snapshot delta (latest count − prior count) — proxy for
  *     "they are shipping site changes".
- *   - Backlinks delta (latest total − prior total) — proxy for
- *     "they are running outreach / content gaining links".
  *
- * Both are zero-clamped (we don't reward decreases) and normalised by the
- * project-wide maximum so the cockpit can render a 0-100 bar without
- * needing to know absolute numbers.
+ * Backlinks delta was dropped in the #179 follow-up: DataForSEO Backlinks
+ * API requires a paid subscription on top of the pay-as-you-go balance
+ * (~$100/mo) and the radar's job is to detect *activity*, not absolute
+ * link counts. The wayback signal captures the same "competitor is
+ * shipping" intent without recurring cost. If/when a cheaper backlinks
+ * source ships (SE Ranking, Common Crawl), re-introduce a second signal
+ * and blend the weights here.
+ *
+ * The signal is zero-clamped (we don't reward decreases) and normalised
+ * by the project-wide maximum so the cockpit can render a 0-100 bar
+ * without needing to know absolute numbers.
  */
 export class QueryCompetitorActivityUseCase {
 	constructor(
@@ -73,22 +73,10 @@ export class QueryCompetitorActivityUseCase {
 			const rollup = rollupByCompetitor.get(competitor.id);
 			const latestWayback = rollup?.latestWayback ?? null;
 			const priorWayback = rollup?.priorWayback ?? null;
-			const latestBacklinks = rollup?.latestBacklinks ?? null;
-			const priorBacklinks = rollup?.priorBacklinks ?? null;
 
 			const deltaSnapshots =
 				latestWayback && priorWayback ? latestWayback.snapshotCount - priorWayback.snapshotCount : null;
-			const deltaBacklinks =
-				latestBacklinks && priorBacklinks
-					? latestBacklinks.totalBacklinks - priorBacklinks.totalBacklinks
-					: null;
-			const deltaReferringDomains =
-				latestBacklinks && priorBacklinks
-					? latestBacklinks.referringDomains - priorBacklinks.referringDomains
-					: null;
-
 			const waybackSignal = Math.max(deltaSnapshots ?? 0, 0);
-			const backlinksSignal = Math.max(deltaBacklinks ?? 0, 0);
 
 			return {
 				competitorId: competitor.id,
@@ -96,27 +84,18 @@ export class QueryCompetitorActivityUseCase {
 				label: competitor.label,
 				latestObservedAt: rollup?.latestObservedAt ?? null,
 				latestWayback,
-				priorWayback,
-				latestBacklinks,
-				priorBacklinks,
 				deltaSnapshots,
-				deltaBacklinks,
-				deltaReferringDomains,
 				waybackSignal,
-				backlinksSignal,
 			};
 		});
 
-		// Normalise per signal so a competitor with 200k backlinks doesn't
-		// dwarf one with 12 new wayback snapshots — we want the activity bar
-		// to highlight the most-active rival across either dimension.
+		// Normalise the wayback signal across competitors so the most-active
+		// rival anchors the 100 mark and the rest read as a relative %.
 		const maxWayback = Math.max(0, ...rawRows.map((r) => r.waybackSignal));
-		const maxBacklinks = Math.max(0, ...rawRows.map((r) => r.backlinksSignal));
 
 		const rows: CompetitorActivityRowDto[] = rawRows.map((r) => {
 			const waybackNormalised = maxWayback === 0 ? 0 : r.waybackSignal / maxWayback;
-			const backlinksNormalised = maxBacklinks === 0 ? 0 : r.backlinksSignal / maxBacklinks;
-			const activityScore = Math.round((waybackNormalised + backlinksNormalised) * 50);
+			const activityScore = Math.round(waybackNormalised * 100);
 
 			return {
 				competitorId: r.competitorId,
@@ -131,15 +110,6 @@ export class QueryCompetitorActivityUseCase {
 								: null,
 							observedAt: r.latestWayback.observedAt.toISOString(),
 							deltaSnapshots: r.deltaSnapshots,
-						}
-					: null,
-				backlinks: r.latestBacklinks
-					? {
-							totalBacklinks: r.latestBacklinks.totalBacklinks,
-							referringDomains: r.latestBacklinks.referringDomains,
-							observedAt: r.latestBacklinks.observedAt.toISOString(),
-							deltaBacklinks: r.deltaBacklinks,
-							deltaReferringDomains: r.deltaReferringDomains,
 						}
 					: null,
 				activityScore,

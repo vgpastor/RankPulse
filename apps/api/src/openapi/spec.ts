@@ -203,7 +203,7 @@ export function buildOpenApiDocument(): unknown {
 		path: '/api/v1/projects/{id}/competitors',
 		summary: 'Track a competitor for a project (idempotent)',
 		description:
-			'Idempotent ensure-and-refeed. If the competitor already exists for this project, returns the existing id with `created: false` and re-publishes the CompetitorAdded event so the auto-schedule handlers backfill any missing feeders (wayback, backlinks, ranked-keywords, domain-intersection). The downstream scheduler dedupes by systemParamKey, so healthy schedules are no-ops.',
+			'Idempotent ensure-and-refeed. If the competitor already exists for this project, returns the existing id with `created: false` and re-publishes the CompetitorAdded event so the auto-schedule handlers backfill any missing feeders (wayback, ranked-keywords, domain-intersection). The downstream scheduler dedupes by systemParamKey, so healthy schedules are no-ops.',
 		tags: ['project-management'],
 		security: [{ [ApiTokenAuthHeader]: [] }],
 		request: {
@@ -830,9 +830,9 @@ export function buildOpenApiDocument(): unknown {
 	registry.registerPath({
 		method: 'get',
 		path: '/api/v1/projects/{projectId}/cockpit/competitor-activity',
-		summary: 'Competitor Activity Radar — Wayback CDX + Backlinks deltas per competitor',
+		summary: 'Competitor Activity Radar — Wayback CDX snapshot deltas per competitor',
 		description:
-			'For each registered competitor, returns the latest Wayback snapshot count and Backlinks summary plus week-over-week deltas. Activity score is normalised 0-100 across the project so the cockpit can render a comparable bar (issue #117 Sprint 2).',
+			'For each registered competitor, returns the latest Wayback snapshot count plus week-over-week deltas. Activity score is normalised 0-100 across the project so the cockpit can render a comparable bar (issue #117 Sprint 2). Backlinks signal dropped in the #179 follow-up — DataForSEO Backlinks API is a paid subscription and the wayback delta captures the same "competitor is shipping" intent at zero cost.',
 		tags: ['decision-cockpit'],
 		security: [{ [ApiTokenAuthHeader]: [] }],
 		request: {

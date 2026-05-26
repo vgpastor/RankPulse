@@ -86,38 +86,6 @@ export const CompetitorActivityPage = () => {
 			hideOnMobile: true,
 		},
 		{
-			key: 'backlinks',
-			header: t('cockpit:competitorActivityPage.backlinks'),
-			cell: (row) =>
-				row.backlinks ? (
-					<div className="text-sm">
-						<span className="font-mono">{formatNumber(row.backlinks.totalBacklinks)}</span>
-						<span className="ml-2 text-xs text-muted-foreground">
-							{formatDelta(row.backlinks.deltaBacklinks)}
-						</span>
-					</div>
-				) : (
-					<span className="text-xs text-muted-foreground">{t('cockpit:competitorActivityPage.noData')}</span>
-				),
-			hideOnMobile: true,
-		},
-		{
-			key: 'referringDomains',
-			header: t('cockpit:competitorActivityPage.referringDomains'),
-			cell: (row) =>
-				row.backlinks ? (
-					<div className="text-sm">
-						<span className="font-mono">{formatNumber(row.backlinks.referringDomains)}</span>
-						<span className="ml-2 text-xs text-muted-foreground">
-							{formatDelta(row.backlinks.deltaReferringDomains)}
-						</span>
-					</div>
-				) : (
-					<span className="text-xs text-muted-foreground">—</span>
-				),
-			hideOnMobile: true,
-		},
-		{
 			key: 'activityScore',
 			header: t('cockpit:competitorActivityPage.activityScore'),
 			cell: (row) => (
