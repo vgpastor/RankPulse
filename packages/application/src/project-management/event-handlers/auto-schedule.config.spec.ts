@@ -11,7 +11,6 @@ import { projectManagementAutoScheduleConfigs } from './auto-schedule.config.js'
 // (the bug in PR #185 review P0-1: `target` vs `domain`) fails loudly.
 const WAYBACK_REQUIRED_FIELDS = ['domain', 'from', 'to'] as const;
 const WAYBACK_DATE_PATTERN = /^\d{8}(?:\d{2})?$|^\{\{today(?:-\d+)?\}\}$/;
-const BACKLINKS_REQUIRED_FIELDS = ['target'] as const;
 
 const PROJECT_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' as Uuid as ProjectManagement.ProjectId;
 const COMPETITOR_ID = 'cccccccc-cccc-cccc-cccc-cccccccccccc' as Uuid as ProjectManagement.CompetitorId;
@@ -28,7 +27,7 @@ describe('project-management auto-schedule', () => {
 	});
 });
 
-describe('CompetitorAdded → wayback + backlinks schedules (#181, #184)', () => {
+describe('CompetitorAdded → wayback-only schedule (#179 — dropped DataForSEO Backlinks)', () => {
 	const event = new ProjectManagement.CompetitorAdded({
 		competitorId: COMPETITOR_ID,
 		projectId: PROJECT_ID,
@@ -37,43 +36,36 @@ describe('CompetitorAdded → wayback + backlinks schedules (#181, #184)', () =>
 		occurredAt: new Date('2026-05-09T12:00:00Z'),
 	});
 
-	it('emits exactly 1 wayback + 1 backlinks schedule per competitor (no locale fan-out)', async () => {
+	it('emits exactly 1 wayback schedule per competitor (no backlinks, no locale fan-out)', async () => {
 		const specs = await competitorAddedConfig?.dynamicSchedules?.(event, {} as never);
-		expect(specs).toHaveLength(2);
+		expect(specs).toHaveLength(1);
 
 		const wayback = specs?.find((s) => s.endpointId === 'wayback-cdx-snapshots');
-		const backlinks = specs?.find((s) => s.endpointId === 'dataforseo-backlinks-summary');
 		expect(wayback).toBeDefined();
-		expect(backlinks).toBeDefined();
 		expect(wayback?.providerId).toBe('wayback');
-		expect(backlinks?.providerId).toBe('dataforseo');
 	});
 
-	it('stamps systemParams.competitorId so the ingest handlers find it', async () => {
+	it('does NOT emit a dataforseo-backlinks-summary schedule (#179 — Backlinks API is paid and dropped)', async () => {
 		const specs = await competitorAddedConfig?.dynamicSchedules?.(event, {} as never);
+		expect(specs?.find((s) => s.endpointId === 'dataforseo-backlinks-summary')).toBeUndefined();
+		expect(specs?.find((s) => s.providerId === 'dataforseo')).toBeUndefined();
+	});
 
+	it('stamps systemParams.competitorId so the wayback ingest handler finds it', async () => {
+		const specs = await competitorAddedConfig?.dynamicSchedules?.(event, {} as never);
 		const wayback = specs?.find((s) => s.endpointId === 'wayback-cdx-snapshots');
-		const backlinks = specs?.find((s) => s.endpointId === 'dataforseo-backlinks-summary');
 
 		expect(wayback?.systemParamKey).toBe('competitorId');
 		expect(wayback?.systemParamsBuilder(event)).toEqual({ competitorId: COMPETITOR_ID });
-		expect(backlinks?.systemParamKey).toBe('competitorId');
-		expect(backlinks?.systemParamsBuilder(event)).toEqual({ competitorId: COMPETITOR_ID });
 	});
 
-	it('stamps params with the competitor domain in the field name each provider expects', async () => {
+	it('stamps params with the competitor domain in the wayback-expected field', async () => {
 		const specs = await competitorAddedConfig?.dynamicSchedules?.(event, {} as never);
-
 		const wayback = specs?.find((s) => s.endpointId === 'wayback-cdx-snapshots');
-		const backlinks = specs?.find((s) => s.endpointId === 'dataforseo-backlinks-summary');
 
 		// Wayback CDX uses `domain` (NOT `target` — that's DataForSEO).
 		expect(wayback?.paramsBuilder(event)).toMatchObject({
 			domain: 'silvertraconline.com',
-		});
-		// DataForSEO backlinks-summary uses `target`.
-		expect(backlinks?.paramsBuilder(event)).toMatchObject({
-			target: 'silvertraconline.com',
 		});
 	});
 
@@ -97,18 +89,6 @@ describe('CompetitorAdded → wayback + backlinks schedules (#181, #184)', () =>
 		expect(params.to).toMatch(WAYBACK_DATE_PATTERN);
 	});
 
-	it('backlinks paramsBuilder uses {target} (NOT {domain})', async () => {
-		const specs = await competitorAddedConfig?.dynamicSchedules?.(event, {} as never);
-		const backlinks = specs?.find((s) => s.endpointId === 'dataforseo-backlinks-summary');
-		const params = backlinks?.paramsBuilder(event) as Record<string, unknown>;
-
-		for (const field of BACKLINKS_REQUIRED_FIELDS) {
-			expect(params).toHaveProperty(field);
-		}
-		expect(params.target).toBe('silvertraconline.com');
-		expect(params).not.toHaveProperty('domain');
-	});
-
 	it('uses competitorId as the idempotency key so re-firing the event is a no-op', async () => {
 		const specs = await competitorAddedConfig?.dynamicSchedules?.(event, {} as never);
 		for (const spec of specs ?? []) {
@@ -117,15 +97,6 @@ describe('CompetitorAdded → wayback + backlinks schedules (#181, #184)', () =>
 			expect(typeof sysParams.competitorId).toBe('string');
 			expect(sysParams.competitorId).toBe(COMPETITOR_ID);
 		}
-	});
-
-	it('spreads crons across Monday morning to avoid same-second rate-limit collisions', async () => {
-		const specs = await competitorAddedConfig?.dynamicSchedules?.(event, {} as never);
-		const crons = (specs ?? []).map((s) => s.cron);
-		// Both Monday early morning, but different hours
-		expect(crons).toContain('0 5 * * 1');
-		expect(crons).toContain('0 6 * * 1');
-		expect(new Set(crons).size).toBe(crons.length);
 	});
 
 	it('returns empty array for unrelated events', async () => {

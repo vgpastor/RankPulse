@@ -3,17 +3,19 @@ import type { AutoScheduleConfig, AutoScheduleSpec } from '../../_core/auto-sche
 import type { SharedDeps } from '../../_core/module.js';
 
 /**
- * Default scheduling parameters for the competitor-activity feeders. Crons
- * spread across Monday morning so the per-provider rate limit doesn't
- * reject runs that all fire at the same second.
- *
- * Each spec uses `competitorId` as the idempotency key — one schedule per
+ * Default scheduling parameters for the competitor-activity feeder. The
+ * spec uses `competitorId` as the idempotency key — one schedule per
  * competitor regardless of how many times the event fires (re-adding the
  * same competitor is a no-op at the JobDefinition layer).
  *
- * Date tokens `{{today-N}}` / `{{today}}` are accepted by the providers'
- * Zod schemas (literal regex) and resolved at dispatch time by
+ * Date tokens `{{today-N}}` / `{{today}}` are accepted by the provider's
+ * Zod schema (literal regex) and resolved at dispatch time by
  * `resolveDateTokens` in the worker (BACKLOG #22).
+ *
+ * #179 follow-up: the second feeder (`dataforseo-backlinks-summary`) was
+ * dropped because DataForSEO's Backlinks API requires a paid subscription
+ * (~$100/mo) on top of the pay-as-you-go balance and the activity radar
+ * already captures "competitor is shipping" via wayback snapshots alone.
  */
 const WAYBACK_DEFAULTS = {
 	providerId: 'wayback',
@@ -27,28 +29,18 @@ const WAYBACK_DEFAULTS = {
 	to: '{{today}}',
 };
 
-const BACKLINKS_DEFAULTS = {
-	providerId: 'dataforseo',
-	endpointId: 'dataforseo-backlinks-summary',
-	cron: '0 6 * * 1', // Mondays 06:00 UTC (1h offset from wayback)
-};
-
 /**
- * Build the spec list for the `CompetitorAdded` event. Two feeders are
- * scheduled per competitor — both domain-level (NO per-locale fan-out):
+ * Build the spec list for the `CompetitorAdded` event. One feeder is
+ * scheduled per competitor (domain-level, NO per-locale fan-out):
  *
  *  • `wayback-cdx-snapshots` (free, ~30 req/s rate limit)
- *  • `dataforseo-backlinks-summary` (~$0.02 per call, weekly cadence)
  *
- * Both ingest into `competitor_activity_observations` keyed by
- * `(competitor_id, source)`, so the cockpit panel can show "snapshots +
- * backlinks" rollups without further joining.
- *
- * Idempotency key is `competitorId` for both — re-firing the event
- * (e.g. via competitor-suggestion promotion) MUST NOT create a duplicate
- * schedule. `ScheduleEndpointFetchUseCase` looks up
- * `params[systemParamKey]` via a string `equals` match, so we stamp it
- * into both `params` and `systemParams` for the lookup.
+ * Ingests into `competitor_activity_observations` keyed by
+ * `(competitor_id, source)`. Idempotency key is `competitorId` —
+ * re-firing the event (e.g. via competitor-suggestion promotion) MUST
+ * NOT create a duplicate schedule. `ScheduleEndpointFetchUseCase` looks
+ * up `params[systemParamKey]` via a string `equals` match, so we stamp
+ * it into both `params` and `systemParams` for the lookup.
  */
 const buildCompetitorAddedSpecs = async (
 	event: SharedKernel.DomainEvent,
@@ -74,20 +66,6 @@ const buildCompetitorAddedSpecs = async (
 				domain: competitorDomain,
 				from: WAYBACK_DEFAULTS.from,
 				to: WAYBACK_DEFAULTS.to,
-			}),
-			systemParamsBuilder: () => ({
-				competitorId,
-			}),
-		},
-		{
-			providerId: BACKLINKS_DEFAULTS.providerId,
-			endpointId: BACKLINKS_DEFAULTS.endpointId,
-			cron: BACKLINKS_DEFAULTS.cron,
-			systemParamKey: 'competitorId',
-			// DataForSEO backlinks-summary uses `target`. Confirmed against
-			// the endpoint's Zod schema (BacklinksSummaryParams).
-			paramsBuilder: () => ({
-				target: competitorDomain,
 			}),
 			systemParamsBuilder: () => ({
 				competitorId,

@@ -692,19 +692,17 @@ const en = {
 		},
 		competitorActivityPage: {
 			title: 'Competitor Activity Radar',
-			subtitle: 'Wayback snapshot frequency + backlinks delta per registered competitor.',
+			subtitle: 'Wayback snapshot frequency per registered competitor — proxy for "they are shipping".',
 			tableTitle: 'Competitor activity',
 			tableHint:
-				'Activity score is a 0-100 normalised composite of Wayback snapshot delta and backlinks delta — higher means the competitor is shipping more.',
+				'Activity score is a 0-100 normalised view of the week-over-week Wayback snapshot delta — higher means the competitor is shipping more pages.',
 			competitor: 'Competitor',
 			wayback: 'Wayback snapshots (Δ)',
-			backlinks: 'Backlinks (Δ)',
-			referringDomains: 'Ref. domains (Δ)',
 			activityScore: 'Activity score',
 			noData: 'No data yet',
 			empty: 'No competitor activity captured yet',
 			emptyDescription:
-				'Schedule a Wayback CDX or DataForSEO Backlinks fetch per competitor from the Schedules page to populate this view.',
+				'Schedule a Wayback CDX fetch per competitor from the Schedules page to populate this view.',
 			kpi: {
 				tracked: 'Competitors tracked',
 				trackedHint: 'Registered in this project',
@@ -1667,19 +1665,17 @@ const es = {
 		},
 		competitorActivityPage: {
 			title: 'Competitor Activity Radar',
-			subtitle: 'Frecuencia de snapshots de Wayback + delta de backlinks por competidor registrado.',
+			subtitle: 'Frecuencia de snapshots de Wayback por competidor registrado — proxy de "está publicando".',
 			tableTitle: 'Actividad de competidores',
 			tableHint:
-				'Activity score es un compuesto normalizado 0-100 entre delta de snapshots Wayback y delta de backlinks — más alto = el competidor está moviéndose más.',
+				'Activity score es una vista normalizada 0-100 del delta semanal de snapshots Wayback — más alto = el competidor está publicando más páginas.',
 			competitor: 'Competidor',
 			wayback: 'Snapshots Wayback (Δ)',
-			backlinks: 'Backlinks (Δ)',
-			referringDomains: 'Dominios ref. (Δ)',
 			activityScore: 'Activity score',
 			noData: 'Sin datos aún',
 			empty: 'Aún no se ha capturado actividad de competidores',
 			emptyDescription:
-				'Programa un fetch de Wayback CDX o DataForSEO Backlinks por competidor desde Schedules para poblar esta vista.',
+				'Programa un fetch de Wayback CDX por competidor desde Schedules para poblar esta vista.',
 			kpi: {
 				tracked: 'Competidores trackeados',
 				trackedHint: 'Registrados en este proyecto',
