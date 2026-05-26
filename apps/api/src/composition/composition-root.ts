@@ -210,6 +210,10 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		SystemClock,
 		SystemIdGenerator,
 		eventPublisher,
+		// project repo needed so the use case can stamp `organizationId`
+		// in systemParams without every caller (controller + every
+		// auto-schedule handler) doing the lookup itself.
+		projectRepo,
 	);
 
 	// ADR 0002 Phase 4a — the auto-schedule logger is shared across every
