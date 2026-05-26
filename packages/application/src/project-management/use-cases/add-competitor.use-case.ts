@@ -1,5 +1,5 @@
 import { ProjectManagement, type SharedKernel } from '@rankpulse/domain';
-import { type Clock, ConflictError, type IdGenerator, NotFoundError } from '@rankpulse/shared';
+import { type Clock, type IdGenerator, NotFoundError } from '@rankpulse/shared';
 
 export interface AddCompetitorCommand {
 	projectId: string;
@@ -9,8 +9,31 @@ export interface AddCompetitorCommand {
 
 export interface AddCompetitorResult {
 	competitorId: string;
+	/**
+	 * `true` when this call created a new competitor; `false` when the
+	 * competitor already existed and the call only re-emitted
+	 * `CompetitorAdded` to backfill any missing feeders. Lets the
+	 * controller pick the right HTTP status (201 vs 200).
+	 */
+	created: boolean;
 }
 
+/**
+ * Idempotent add. If the competitor already exists for this project,
+ * the call returns the existing id WITHOUT throwing — and re-publishes
+ * `CompetitorAdded` so the auto-schedule handlers can backfill any
+ * feeders missing from the JobDefinition table.
+ *
+ * Why re-publish on the idempotent path: `ScheduleEndpointFetchUseCase`
+ * has its own idempotency check via `systemParamKey + value`, so
+ * existing healthy schedules are no-ops. But schedules that were
+ * deleted (operator cleanup of broken jobs) or schedules whose
+ * auto-schedule handler didn't exist when the competitor was first
+ * added (e.g. wayback + backlinks were wired in PR #185) will be
+ * created. This makes `POST /competitors` a safe "ensure-and-refeed"
+ * operation, removing the need for a DELETE + POST cycle that would
+ * lose run history.
+ */
 export class AddCompetitorUseCase {
 	constructor(
 		private readonly projects: ProjectManagement.ProjectRepository,
@@ -30,7 +53,16 @@ export class AddCompetitorUseCase {
 		const domain = ProjectManagement.DomainName.create(cmd.domain);
 		const existing = await this.competitors.findByDomain(projectId, domain);
 		if (existing) {
-			throw new ConflictError(`Competitor "${domain.value}" already tracked for this project`);
+			await this.events.publish([
+				new ProjectManagement.CompetitorAdded({
+					competitorId: existing.id,
+					projectId,
+					domain: domain.value,
+					label: existing.label,
+					occurredAt: this.clock.now(),
+				}),
+			]);
+			return { competitorId: existing.id, created: false };
 		}
 
 		const competitorId = this.ids.generate() as ProjectManagement.CompetitorId;
@@ -43,15 +75,16 @@ export class AddCompetitorUseCase {
 		});
 		await this.competitors.save(competitor);
 
-		const event = new ProjectManagement.CompetitorAdded({
-			competitorId,
-			projectId,
-			domain: domain.value,
-			label: competitor.label,
-			occurredAt: this.clock.now(),
-		});
-		await this.events.publish([event]);
+		await this.events.publish([
+			new ProjectManagement.CompetitorAdded({
+				competitorId,
+				projectId,
+				domain: domain.value,
+				label: competitor.label,
+				occurredAt: this.clock.now(),
+			}),
+		]);
 
-		return { competitorId };
+		return { competitorId, created: true };
 	}
 }
