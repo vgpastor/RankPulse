@@ -135,17 +135,6 @@ export interface ProviderFetchProcessorDeps {
 	apiUsageRepo: ProviderConnectivity.ApiUsageRepository;
 	trackedKeywordRepo: RankTrackingDomain.TrackedKeywordRepository;
 	competitorRepo: ProjectManagement.CompetitorRepository;
-	/**
-	 * Defensive fallback: when a JobDefinition was persisted before PR #187
-	 * (which centralised organizationId stamping in ScheduleEndpointFetchUseCase)
-	 * its `params` JSON lacks `organizationId`. Without this repo the worker
-	 * rejects every run with "missing organizationId in systemParams" and never
-	 * persists a JobRun row — invisible from the outside.
-	 *
-	 * Used ONLY for the fallback lookup; the canonical source for new defs is
-	 * always the stamped `params.organizationId`.
-	 */
-	projectRepo: ProjectManagement.ProjectRepository;
 	gscPropertyRepo: SearchConsoleInsightsDomain.GscPropertyRepository;
 	wikipediaArticleRepo: EntityAwarenessDomain.WikipediaArticleRepository;
 	trackedPageRepo: WebPerformanceDomain.TrackedPageRepository;
@@ -217,28 +206,9 @@ export class ProviderFetchProcessor {
 		);
 		const params = definition.params as { organizationId?: string };
 
-		// Defensive fallback for JobDefinitions persisted before PR #187:
-		// their `params` JSON lacks `organizationId` because the legacy code
-		// path only stamped it in the manual schedule controller, not in the
-		// per-context auto-schedule handlers. New defs always have it (the
-		// use case centralised the stamping); old defs we recover here via
-		// `definition.projectId` → `project.organizationId`. Saves a costly
-		// migration that would otherwise have to PATCH every legacy def
-		// (and the PATCH whitelist already protects organizationId from
-		// user writes, so the migration would need a back-door anyway).
-		let orgId = params.organizationId;
+		const orgId = params.organizationId;
 		if (!orgId) {
-			const project = await this.deps.projectRepo.findById(definition.projectId);
-			if (!project) {
-				throw new NotFoundError(
-					`Job definition ${definition.id} has projectId=${definition.projectId} but the project no longer exists`,
-				);
-			}
-			orgId = project.organizationId as unknown as string;
-			log.warn(
-				{ projectId: definition.projectId },
-				'legacy job definition (pre-PR#187) missing organizationId in params — recovered from project',
-			);
+			throw new Error(`Job definition ${definition.id} missing organizationId in systemParams`);
 		}
 
 		const resolved = await this.deps.resolveCredentialUseCase.execute({
