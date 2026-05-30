@@ -35,17 +35,25 @@ export class BullMqJobScheduler implements ProviderConnectivity.JobScheduler {
 			return;
 		}
 		const queue = this.queueFor(definition.providerId.value);
-		const data: ProviderFetchJobData = { definitionId: definition.id };
-		await queue.add(PROVIDER_FETCH_JOB, data, {
-			repeat: this.repeatOptsFor(definition),
-			removeOnComplete: { count: 100 },
-			removeOnFail: { count: 500 },
-		});
+		// One BullMQ Job Scheduler per definition, keyed by `definition.id`.
+		// The id MUST be unique per definition: BullMQ identifies a repeatable
+		// by (queue, name, schedulerId | cron pattern), so omitting it collapses
+		// every definition that shares a provider + cron onto a single
+		// repeatable — only one ran per day and the rest silently froze (#194).
+		await queue.upsertJobScheduler(
+			definition.id,
+			{ pattern: definition.cron.value },
+			{
+				name: PROVIDER_FETCH_JOB,
+				data: { definitionId: definition.id } satisfies ProviderFetchJobData,
+				opts: { removeOnComplete: { count: 100 }, removeOnFail: { count: 500 } },
+			},
+		);
 	}
 
 	async unregister(definition: ProviderConnectivity.ProviderJobDefinition): Promise<void> {
 		const queue = this.queueFor(definition.providerId.value);
-		await queue.removeRepeatable(PROVIDER_FETCH_JOB, this.repeatOptsFor(definition));
+		await queue.removeJobScheduler(definition.id);
 	}
 
 	async enqueueOnce(definition: ProviderConnectivity.ProviderJobDefinition, runId: string): Promise<void> {
@@ -56,13 +64,6 @@ export class BullMqJobScheduler implements ProviderConnectivity.JobScheduler {
 			removeOnComplete: { count: 100 },
 			removeOnFail: { count: 500 },
 		});
-	}
-
-	private repeatOptsFor(definition: ProviderConnectivity.ProviderJobDefinition): { pattern: string } {
-		// BullMQ identifies a repeatable by the hash of (name + opts). Pass only
-		// the cron pattern so register/unregister produce the same hash for the
-		// same definition.
-		return { pattern: definition.cron.value };
 	}
 
 	getQueue(providerId: string): Queue {
