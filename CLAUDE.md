@@ -689,4 +689,45 @@ mover el bloque rompe el orden.
 del bloque "compose modules" si añades un consumer nuevo arriba. No
 asumas orden histórico.
 
-_Última actualización: 2026-05-09. Mantén este archivo vivo._
+### 13.7 Scheduler collapse: N JobDefinitions con (provider, cron) idéntico ejecutan solo 1
+
+**Síntoma**: varias `ProviderJobDefinition` del mismo provider con el
+mismo cron quedan congeladas mientras una sola sigue corriendo. Caso
+real (#194): la propiedad GSC `sc-domain:patroltech.online` enlazada a
+4 proyectos (ES/EN/FR/MX) — solo ES recibía datos frescos; EN/FR/MX se
+congelaron a principios de mayo. En producción: **15 defs GSC con cron
+`0 5 * * *` → 1 sola repeatable en Redis** (`ZCARD
+bull:provider-google-search-console:repeat = 1`). El mismo colapso
+afectaba a TODOS los providers (dataforseo ~390 defs → 20 repeatables,
+anthropic 52 → 1, openai 51 → 1, …): el nº de repeatables ≈ nº de crons
+distintos, no de defs.
+
+**Causa raíz**: `BullMqJobScheduler.register` encolaba la repeatable con
+`queue.add(name, data, { repeat: { pattern } })` **sin `jobId`**. BullMQ
+identifica una repeatable por `(queue, name, schedulerId | cron)`; al
+omitir el id, todas las defs que comparten `providerId` (misma cola) +
+mismo `name` (`provider-fetch`) + mismo `cron` colapsan a **una** entrada.
+El `definitionId` viajaba solo en `data`, que NO entra en la clave. El
+aislamiento de datos aguas abajo (requestHash, ingest, PK del read-model)
+era correcto — el bug era puramente que las defs nunca se encolaban.
+
+**Fix permanente** (#194): migrar a **Job Schedulers** de BullMQ —
+`queue.upsertJobScheduler(definition.id, { pattern }, { name, data, opts })`
+y `queue.removeJobScheduler(definition.id)`. Cada def tiene su propio
+scheduler keyeado por `definition.id`. Test de regresión: 2 defs con
+mismo provider+cron y distinto id → 2 schedulers (no colapso).
+
+**Recuperación de estado** (irrenunciable tras el deploy): el estado ya
+colapsado en Redis NO se auto-cura — **no hay reconciliación en boot**.
+Ejecutar `pnpm --filter @rankpulse/api reconcile:schedules` (re-registra
+todas las defs habilitadas + limpia las repeatables legacy). Idempotente
+y seguro en cada deploy.
+
+**Para el agente**: si añades scheduling, NUNCA encoles repeatables sin
+una identidad única por definición. Si N entidades comparten provider y
+cron, deben producir N schedulers. Verifica en Redis con `ZCARD
+bull:provider-<id>:repeat` que el nº de repeatables = nº de defs
+habilitadas de ese provider, no el nº de crons. Sigue pendiente (gap
+conocido): reconciliación automática en boot ante pérdida de estado Redis.
+
+_Última actualización: 2026-05-30. Mantén este archivo vivo._
