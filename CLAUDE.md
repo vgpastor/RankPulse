@@ -730,4 +730,37 @@ bull:provider-<id>:repeat` que el nº de repeatables = nº de defs
 habilitadas de ese provider, no el nº de crons. Sigue pendiente (gap
 conocido): reconciliación automática en boot ante pérdida de estado Redis.
 
-_Última actualización: 2026-05-30. Mantén este archivo vivo._
+### 13.8 Cockpit: agregaciones por proyecto que cruzan varias GSC properties
+
+**Síntoma**: en proyectos con varias GSC properties enlazadas, los
+widgets del Decision Cockpit (Lost-Opportunity, Quick-Win ROI,
+CTR-Anomaly) muestran casi solo las queries de la property dominante por
+volumen y **ocultan** las de las hermanas. Caso real (#196): PatrolTech
+EN con `sc-domain:patroltech.online` (~90% de impresiones, incluidas sus
+queries healthcare/hospitales) tapando a `guardtour.app` /
+`securityguardtour.com` / `rondasoffline.com`.
+
+**Causa raíz**: el read-model compartido
+`GscCockpitReadModel.aggregateByQuery` agregaba `gsc_observations` sobre
+**todas** las properties del proyecto y hacía `GROUP BY query` —
+mezclando dominios. Dos efectos: (1) el top-N global + `minImpressions`
+alto (100) filtraba a las hermanas de bajo tráfico por completo; (2) la
+posición impression-weighted se fundía entre dominios y `bestPage`
+apuntaba al de más clics. **No** era un fallo del pipeline de datos ni
+del scheduler (#194) — era puramente la capa de lectura del cockpit.
+
+**Fix permanente** (#196): `aggregateByQuery` agrupa por
+`(gsc_property_id, query)` y devuelve `siteUrl`; los use cases hacen
+top-N **por property** (`application/.../lib/top-n-per-property.ts`) con
+un `minImpressions` bajo (el filtro `lostClicks >= 1` es el umbral real);
+las 3 row DTOs llevan `siteUrl` y la web secciona por property.
+
+**Para el agente**: cualquier agregación read-model por proyecto que
+cruce varias GSC properties (o, en general, varias entidades del mismo
+tipo) debe agrupar **por la entidad**, no colapsar a la dimensión de
+negocio (`query`). Si un proyecto puede tener N properties, el widget
+debe representar a las N — nunca dejar que la de mayor volumen monopolice
+un top-N global. Verifícalo con un proyecto multi-property (PatrolTech EN
+= 5 properties): cada property debe aparecer con sus propias filas.
+
+_Última actualización: 2026-06-03. Mantén este archivo vivo._

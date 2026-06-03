@@ -655,7 +655,6 @@ const en = {
 			title: 'CTR Anomalies',
 			subtitle:
 				'Keywords ranking but earning zero clicks — likely broken snippet, AI Overviews takeover, or canonical drift.',
-			tableTitle: 'Anomalies sorted by impression volume',
 			tableHint:
 				'Each row is a search query that returned ≥ 50 impressions and 0 clicks at position ≤ 30 in the last 28 days.',
 			query: 'Query',
@@ -673,7 +672,6 @@ const en = {
 		lostOpportunityPage: {
 			title: 'Lost Opportunity Score',
 			subtitle: 'Click volume left on the table per keyword if you reached the top-3.',
-			tableTitle: 'Top opportunities by lost clicks',
 			tableHint:
 				'Lost clicks ≈ impressions × (CTR_top3 - CTR_current) using the AWR-2024 position-CTR curve.',
 			query: 'Query',
@@ -1628,7 +1626,6 @@ const es = {
 			title: 'Anomalías de CTR',
 			subtitle:
 				'Keywords posicionadas pero sin clicks — probablemente snippet roto, AI Overviews o canonical drift.',
-			tableTitle: 'Anomalías ordenadas por volumen de impresiones',
 			tableHint:
 				'Cada fila es una query con ≥ 50 impresiones y 0 clicks en posición ≤ 30 los últimos 28 días.',
 			query: 'Query',
@@ -1646,7 +1643,6 @@ const es = {
 		lostOpportunityPage: {
 			title: 'Lost Opportunity Score',
 			subtitle: 'Volumen de clicks que dejas sobre la mesa por keyword si llegaras al top-3.',
-			tableTitle: 'Top oportunidades por clicks perdidos',
 			tableHint:
 				'Lost clicks ≈ impresiones × (CTR_top3 - CTR_actual) usando la curva AWR-2024 de CTR por posición.',
 			query: 'Query',
