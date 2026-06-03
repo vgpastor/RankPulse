@@ -1,6 +1,7 @@
 import type { ProjectManagement, SearchConsoleInsights } from '@rankpulse/domain';
 import { NotFoundError } from '@rankpulse/shared';
 import { ctrForPosition, DEFAULT_TARGET_POSITION } from '../lib/ctr-curve.js';
+import { topNPerProperty } from '../lib/top-n-per-property.js';
 
 export interface QueryLostOpportunityCommand {
 	projectId: string;
@@ -8,10 +9,12 @@ export interface QueryLostOpportunityCommand {
 	minImpressions?: number;
 	/** Position used as the "what would top-X earn" baseline. Default = 3. */
 	targetPosition?: number;
+	/** Max rows returned PER linked GSC property (not a single global cap). */
 	limit?: number;
 }
 
 export interface LostOpportunityDto {
+	siteUrl: string;
 	query: string;
 	page: string | null;
 	impressions: number;
@@ -28,12 +31,16 @@ export interface QueryLostOpportunityResponse {
 }
 
 const DEFAULT_WINDOW_DAYS = 28;
-const DEFAULT_MIN_IMPRESSIONS = 100;
+// Low impression floor (just noise suppression): the `lostClicks >= 1` filter
+// below is the real significance gate (~14 impressions at pos 8). A high floor
+// here would hide low-traffic GSC properties entirely in multi-property
+// projects, which was the visible half of #196.
+const DEFAULT_MIN_IMPRESSIONS = 10;
 const DEFAULT_LIMIT = 50;
 
 /**
  * Quantifies the click volume left on the table per keyword: for each
- * (query) tuple we compute `lostClicks = impressions × (CTR_at_target -
+ * (property, query) tuple we compute `lostClicks = impressions × (CTR_at_target -
  * CTR_at_current)` using the AWR-2024 position-CTR curve. The issue's
  * formula is `vol × Δ-CTR × CPC`; the CPC factor is deferred until the
  * DataForSEO keyword-volume table lands (sub-issue), so the MVP returns
@@ -77,6 +84,7 @@ export class QueryLostOpportunityUseCase {
 			if (lostClicks < 1) continue;
 			totalLost += lostClicks;
 			out.push({
+				siteUrl: r.siteUrl,
 				query: r.query,
 				page: r.bestPage,
 				impressions: r.totalImpressions,
@@ -87,8 +95,12 @@ export class QueryLostOpportunityUseCase {
 				lostClicks: Math.round(lostClicks),
 			});
 		}
-		out.sort((a, b) => b.lostClicks - a.lostClicks);
-		return { rows: out.slice(0, limit), totalLostClicks: Math.round(totalLost) };
+		// Top-N PER PROPERTY (not a single global top-N): a project with
+		// several linked GSC properties must surface each property's
+		// opportunities; otherwise the highest-volume property monopolises the
+		// list and masks the market-specific siblings (#196).
+		const topRows = topNPerProperty(out, limit, (r) => r.lostClicks);
+		return { rows: topRows, totalLostClicks: Math.round(totalLost) };
 	}
 }
 

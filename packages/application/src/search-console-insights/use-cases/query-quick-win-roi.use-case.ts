@@ -1,15 +1,18 @@
 import type { ProjectManagement, SearchConsoleInsights } from '@rankpulse/domain';
 import { NotFoundError } from '@rankpulse/shared';
 import { ctrForPosition } from '../lib/ctr-curve.js';
+import { topNPerProperty } from '../lib/top-n-per-property.js';
 
 export interface QueryQuickWinRoiCommand {
 	projectId: string;
 	windowDays?: number;
 	minImpressions?: number;
+	/** Max rows returned PER linked GSC property (not a single global cap). */
 	limit?: number;
 }
 
 export interface QuickWinRoiDto {
+	siteUrl: string;
 	query: string;
 	page: string | null;
 	impressions: number;
@@ -24,7 +27,10 @@ export interface QueryQuickWinRoiResponse {
 }
 
 const DEFAULT_WINDOW_DAYS = 28;
-const DEFAULT_MIN_IMPRESSIONS = 100;
+// Low impression floor (noise suppression only): a high floor hid low-traffic
+// GSC properties entirely in multi-property projects (#196). Per-property
+// top-N (below) keeps the output bounded regardless.
+const DEFAULT_MIN_IMPRESSIONS = 10;
 const DEFAULT_LIMIT = 25;
 const QUICK_WIN_MIN_POS = 11;
 const QUICK_WIN_MAX_POS = 30;
@@ -80,6 +86,7 @@ export class QueryQuickWinRoiUseCase {
 			// keyword at #28 with 100 projected clicks.
 			const roiScore = (projectedGain * (31 - r.avgPosition)) / 20;
 			out.push({
+				siteUrl: r.siteUrl,
 				query: r.query,
 				page: r.bestPage,
 				impressions: r.totalImpressions,
@@ -89,8 +96,10 @@ export class QueryQuickWinRoiUseCase {
 				roiScore: Number(roiScore.toFixed(2)),
 			});
 		}
-		out.sort((a, b) => b.roiScore - a.roiScore);
-		return { rows: out.slice(0, limit) };
+		// Top-N PER PROPERTY so a dominant property doesn't crowd the siblings
+		// out of a single global list (#196).
+		const topRows = topNPerProperty(out, limit, (r) => r.roiScore);
+		return { rows: topRows };
 	}
 }
 

@@ -15,11 +15,18 @@ import type { ProjectId } from '../../project-management/value-objects/identifie
  */
 export interface GscCockpitReadModel {
 	/**
-	 * One row per distinct GSC query (search term) within the rolling
+	 * One row per distinct (GSC property, query) pair within the rolling
 	 * window, with summed impressions/clicks and impression-weighted average
 	 * position. Used by the CTR-Anomaly / Lost-Opportunity / Quick-Win
 	 * widgets that all need the same primitive view of "which keywords
 	 * matter, how big are they, where do we rank?"
+	 *
+	 * Aggregation is per-property (not collapsed to the bare query) so a
+	 * project with several linked GSC properties doesn't blend domains: a
+	 * dominant property (e.g. the main brand site) must not mask the
+	 * market-specific siblings, and a query that ranks well on one domain
+	 * must not dilute the same query ranking poorly on another. Each row
+	 * carries its `siteUrl` so callers can group/section by property.
 	 */
 	aggregateByQuery(
 		projectId: ProjectId,
@@ -48,6 +55,8 @@ export interface GscCockpitReadModel {
 }
 
 export interface QueryAggregateRow {
+	/** The GSC property (site URL) this aggregate belongs to. */
+	readonly siteUrl: string;
 	readonly query: string;
 	readonly totalImpressions: number;
 	readonly totalClicks: number;

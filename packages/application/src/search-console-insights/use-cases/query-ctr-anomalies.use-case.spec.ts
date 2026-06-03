@@ -7,8 +7,10 @@ import { QueryCtrAnomaliesUseCase } from './query-ctr-anomalies.use-case.js';
 const ORG_ID = 'cccccccc-cccc-cccc-cccc-cccccccccccc' as Uuid as IdentityAccess.OrganizationId;
 const PROJECT_ID = '11111111-1111-1111-1111-111111111111' as Uuid as ProjectManagement.ProjectId;
 
+type FakeRow = Omit<SearchConsoleInsights.QueryAggregateRow, 'siteUrl'> & { siteUrl?: string };
+
 class FakeCockpit implements SearchConsoleInsights.GscCockpitReadModel {
-	rows: SearchConsoleInsights.QueryAggregateRow[] = [];
+	rows: FakeRow[] = [];
 	requested: { windowDays: number; minImpressions: number | undefined } | null = null;
 	async aggregateByQuery(
 		_projectId: ProjectManagement.ProjectId,
@@ -16,7 +18,7 @@ class FakeCockpit implements SearchConsoleInsights.GscCockpitReadModel {
 		options?: { minImpressions?: number; limit?: number },
 	): Promise<readonly SearchConsoleInsights.QueryAggregateRow[]> {
 		this.requested = { windowDays, minImpressions: options?.minImpressions };
-		return this.rows;
+		return this.rows.map((r) => ({ siteUrl: 'sc-domain:controlrondas.com', ...r }));
 	}
 	async weeklyClicksByQuery(): Promise<readonly SearchConsoleInsights.WeeklyClicksByQueryRow[]> {
 		return [];
@@ -68,6 +70,31 @@ describe('QueryCtrAnomaliesUseCase', () => {
 		];
 		const result = await useCase.execute({ projectId: PROJECT_ID });
 		expect(result.anomalies.map((a) => a.query)).toEqual(['big', 'mid', 'small']);
+	});
+
+	it('attributes each anomaly to its GSC property and surfaces siblings (#196)', async () => {
+		cockpit.rows = [
+			{
+				siteUrl: 'sc-domain:patroltech.online',
+				query: 'control de acceso a hospitales',
+				totalImpressions: 500,
+				totalClicks: 0,
+				avgPosition: 18,
+				bestPage: 'https://patroltech.online/',
+			},
+			{
+				siteUrl: 'sc-domain:guardtour.app',
+				query: 'guard tour verification',
+				totalImpressions: 120,
+				totalClicks: 0,
+				avgPosition: 22,
+				bestPage: 'https://guardtour.app/',
+			},
+		];
+		const result = await useCase.execute({ projectId: PROJECT_ID });
+		const bySite = new Map(result.anomalies.map((a) => [a.siteUrl, a]));
+		expect(bySite.has('sc-domain:patroltech.online')).toBe(true);
+		expect(bySite.has('sc-domain:guardtour.app')).toBe(true);
 	});
 
 	it('passes minImpressions through to the read model with default 50', async () => {
