@@ -33,6 +33,7 @@ import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppShell } from '../components/app-shell.js';
 import { api } from '../lib/api.js';
+import { siteHost } from '../lib/gsc-property.js';
 
 /**
  * Issue #117 — Decision Cockpit landing.
@@ -290,12 +291,13 @@ export const CockpitPage = () => {
 							<ul className="flex flex-col gap-1.5 text-sm">
 								{lostOpportunity.rows.slice(0, 5).map((row) => (
 									<li
-										key={`${row.query}-${row.page ?? ''}`}
+										key={`${row.siteUrl}-${row.query}-${row.page ?? ''}`}
 										className="flex items-center justify-between gap-2"
 									>
 										<span className="min-w-0 break-words">
 											<span className="font-medium">{row.query}</span>{' '}
 											<span className="text-xs text-muted-foreground">#{row.currentPosition.toFixed(1)}</span>
+											<span className="block text-[10px] text-muted-foreground">{siteHost(row.siteUrl)}</span>
 										</span>
 										<span className="font-mono text-xs text-rose-600">+{formatNumber(row.lostClicks)}</span>
 									</li>
@@ -322,12 +324,13 @@ export const CockpitPage = () => {
 							<ul className="flex flex-col gap-1.5 text-sm">
 								{quickWins.rows.slice(0, 5).map((row) => (
 									<li
-										key={`${row.query}-${row.page ?? ''}`}
+										key={`${row.siteUrl}-${row.query}-${row.page ?? ''}`}
 										className="flex items-center justify-between gap-2"
 									>
 										<span className="min-w-0 break-words">
 											<span className="font-medium">{row.query}</span>{' '}
 											<span className="text-xs text-muted-foreground">#{row.currentPosition.toFixed(1)}</span>
+											<span className="block text-[10px] text-muted-foreground">{siteHost(row.siteUrl)}</span>
 										</span>
 										<span className="font-mono text-xs text-amber-700">
 											+{formatNumber(row.projectedClickGain)}
@@ -355,10 +358,14 @@ export const CockpitPage = () => {
 						) : (
 							<ul className="flex flex-col gap-1.5 text-sm">
 								{ctrAnomalies.anomalies.slice(0, 5).map((row) => (
-									<li key={row.query} className="flex items-center justify-between gap-2">
+									<li
+										key={`${row.siteUrl}-${row.query}-${row.page ?? ''}`}
+										className="flex items-center justify-between gap-2"
+									>
 										<span className="min-w-0 break-words">
 											<span className="font-medium">{row.query}</span>{' '}
 											<span className="text-xs text-muted-foreground">#{row.avgPosition.toFixed(1)}</span>
+											<span className="block text-[10px] text-muted-foreground">{siteHost(row.siteUrl)}</span>
 										</span>
 										<span className="font-mono text-xs text-rose-600">
 											{formatNumber(row.impressions)} impr · 0 clicks

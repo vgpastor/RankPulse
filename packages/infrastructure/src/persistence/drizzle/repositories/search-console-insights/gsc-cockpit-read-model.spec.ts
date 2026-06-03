@@ -12,6 +12,48 @@ const stubDbReturning = (rows: unknown[]): DrizzleDatabase => {
 };
 
 describe('DrizzleGscCockpitReadModel', () => {
+	describe('aggregateByQuery', () => {
+		// The query aggregates per (gsc_property_id, query) and returns the
+		// property `site_url` per row so the cockpit widgets can section by
+		// property instead of blending domains (#196).
+		it('maps site_url → siteUrl and coerces numeric columns', async () => {
+			const db = stubDbReturning([
+				{
+					site_url: 'sc-domain:guardtour.app',
+					query: 'guard tour',
+					total_impressions: '300',
+					total_clicks: '0',
+					avg_position: '20',
+					best_page: 'https://guardtour.app/',
+				},
+			]);
+			const repo = new DrizzleGscCockpitReadModel(db);
+			const [row] = await repo.aggregateByQuery(PROJECT_ID, 28, { minImpressions: 100, limit: 100 });
+			expect(row?.siteUrl).toBe('sc-domain:guardtour.app');
+			expect(row?.query).toBe('guard tour');
+			expect(row?.totalImpressions).toBe(300);
+			expect(row?.totalClicks).toBe(0);
+			expect(row?.avgPosition).toBe(20);
+			expect(row?.bestPage).toBe('https://guardtour.app/');
+		});
+
+		it('maps an empty best_page to null', async () => {
+			const db = stubDbReturning([
+				{
+					site_url: 'sc-domain:x.com',
+					query: 'q',
+					total_impressions: 10,
+					total_clicks: 0,
+					avg_position: 5,
+					best_page: '',
+				},
+			]);
+			const repo = new DrizzleGscCockpitReadModel(db);
+			const [row] = await repo.aggregateByQuery(PROJECT_ID, 28);
+			expect(row?.bestPage).toBeNull();
+		});
+	});
+
 	// postgres-js (3.4.x) returns timestamptz as ISO strings — not Date —
 	// for raw `db.execute()` queries. The two methods below feed those
 	// values to use cases that call `.toISOString()` / `.getTime()`, so

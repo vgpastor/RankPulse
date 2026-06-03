@@ -18,7 +18,14 @@ export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCock
 		// same weight, which under-weights high-traffic pages. The bestPage
 		// is whichever URL produced the most clicks for the query (tie-break
 		// on impressions) — used as the deep-link target in the SPA.
+		//
+		// Aggregation is keyed by (gsc_property_id, query) — NOT the bare
+		// query — so a project with several linked properties never blends
+		// domains: a query ranking well on the main brand site can't dilute
+		// the same query ranking poorly on a market sibling, and the dominant
+		// property can't mask the siblings (#196).
 		const result = await this.db.execute(sql<{
+			site_url: string;
 			query: string;
 			total_impressions: number;
 			total_clicks: number;
@@ -27,6 +34,7 @@ export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCock
 		}>`
 			WITH per_page AS (
 				SELECT
+					gsc_property_id,
 					query,
 					page,
 					SUM(clicks)::bigint AS clicks,
@@ -47,23 +55,26 @@ export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCock
 					)
 					AND observed_at >= now() - (${windowDays}::int * interval '1 day')
 					AND query <> ''
-				GROUP BY query, page
+				GROUP BY gsc_property_id, query, page
 			)
 			SELECT
-				query,
-				SUM(impressions)::bigint AS total_impressions,
-				SUM(clicks)::bigint AS total_clicks,
-				CASE WHEN SUM(impressions) > 0
-				     THEN SUM(weighted_position * impressions) / SUM(impressions)
+				p.site_url AS site_url,
+				pp.query,
+				SUM(pp.impressions)::bigint AS total_impressions,
+				SUM(pp.clicks)::bigint AS total_clicks,
+				CASE WHEN SUM(pp.impressions) > 0
+				     THEN SUM(pp.weighted_position * pp.impressions) / SUM(pp.impressions)
 				     ELSE 0 END AS avg_position,
-				(ARRAY_AGG(page ORDER BY clicks DESC, impressions DESC))[1] AS best_page
-			FROM per_page
-			GROUP BY query
-			HAVING SUM(impressions) >= ${minImpr}
+				(ARRAY_AGG(pp.page ORDER BY pp.clicks DESC, pp.impressions DESC))[1] AS best_page
+			FROM per_page pp
+			JOIN gsc_properties p ON p.id = pp.gsc_property_id
+			GROUP BY pp.gsc_property_id, p.site_url, pp.query
+			HAVING SUM(pp.impressions) >= ${minImpr}
 			ORDER BY total_impressions DESC
 			LIMIT ${limit}
 		`);
 		type Row = {
+			site_url: string;
 			query: string;
 			total_impressions: number;
 			total_clicks: number;
@@ -72,6 +83,7 @@ export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCock
 		};
 		const rows = unwrap<Row>(result);
 		return rows.map((r) => ({
+			siteUrl: r.site_url,
 			query: r.query,
 			totalImpressions: Number(r.total_impressions),
 			totalClicks: Number(r.total_clicks),

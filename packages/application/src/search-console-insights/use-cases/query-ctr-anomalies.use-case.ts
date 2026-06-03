@@ -8,6 +8,7 @@ export interface QueryCtrAnomaliesCommand {
 }
 
 export interface CtrAnomalyDto {
+	siteUrl: string;
 	query: string;
 	page: string | null;
 	impressions: number;
@@ -54,6 +55,7 @@ export class QueryCtrAnomaliesUseCase {
 			if (r.totalClicks > 0) continue;
 			if (r.avgPosition <= 0 || r.avgPosition > POSITION_CAP) continue;
 			anomalies.push({
+				siteUrl: r.siteUrl,
 				query: r.query,
 				page: r.bestPage,
 				impressions: r.totalImpressions,

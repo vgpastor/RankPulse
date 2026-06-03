@@ -58,6 +58,7 @@ export const CtrAnomaliesQuery = CockpitWindowQuery.extend({
 export type CtrAnomaliesQuery = z.infer<typeof CtrAnomaliesQuery>;
 
 export const CtrAnomalyDto = z.object({
+	siteUrl: z.string(),
 	query: z.string(),
 	page: z.string().nullable(),
 	impressions: z.number().int(),
@@ -79,6 +80,7 @@ export const LostOpportunityQuery = CockpitWindowQuery.extend({
 export type LostOpportunityQuery = z.infer<typeof LostOpportunityQuery>;
 
 export const LostOpportunityRowDto = z.object({
+	siteUrl: z.string(),
 	query: z.string(),
 	page: z.string().nullable(),
 	impressions: z.number().int(),
@@ -103,6 +105,7 @@ export const QuickWinRoiQuery = CockpitWindowQuery.extend({
 export type QuickWinRoiQuery = z.infer<typeof QuickWinRoiQuery>;
 
 export const QuickWinRoiRowDto = z.object({
+	siteUrl: z.string(),
 	query: z.string(),
 	page: z.string().nullable(),
 	impressions: z.number().int(),

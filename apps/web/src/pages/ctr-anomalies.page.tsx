@@ -11,12 +11,14 @@ import {
 } from '@rankpulse/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
-import { ArrowLeft, ExternalLink, MousePointerClick } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Globe, MousePointerClick } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { AppShell } from '../components/app-shell.js';
 import { api } from '../lib/api.js';
+import { groupBySiteUrl, siteHost } from '../lib/gsc-property.js';
 
 interface AnomalyRow {
+	siteUrl: string;
 	query: string;
 	page: string | null;
 	impressions: number;
@@ -130,20 +132,28 @@ export const CtrAnomaliesPage = () => {
 						description={t('cockpit:widgets.ctrAnomaly.emptyDescription')}
 					/>
 				) : (
-					<Card>
-						<CardHeader>
-							<CardTitle className="text-base">{t('cockpit:ctrAnomaliesPage.tableTitle')}</CardTitle>
-							<p className="text-xs text-muted-foreground">{t('cockpit:ctrAnomaliesPage.tableHint')}</p>
-						</CardHeader>
-						<CardContent>
-							<DataTable
-								columns={columns}
-								rows={rows}
-								rowKey={(row) => `${row.query}-${row.page ?? ''}`}
-								empty={t('cockpit:ctrAnomaliesPage.empty')}
-							/>
-						</CardContent>
-					</Card>
+					<div className="flex flex-col gap-4">
+						<p className="text-xs text-muted-foreground">{t('cockpit:ctrAnomaliesPage.tableHint')}</p>
+						{groupBySiteUrl(rows).map((group) => (
+							<Card key={group.siteUrl}>
+								<CardHeader>
+									<CardTitle className="flex items-center gap-2 text-base">
+										<Globe size={14} className="shrink-0 text-muted-foreground" />
+										<span className="break-all">{siteHost(group.siteUrl)}</span>
+										<span className="text-xs font-normal text-muted-foreground">({group.rows.length})</span>
+									</CardTitle>
+								</CardHeader>
+								<CardContent>
+									<DataTable
+										columns={columns}
+										rows={group.rows}
+										rowKey={(row) => `${row.query}-${row.page ?? ''}`}
+										empty={t('cockpit:ctrAnomaliesPage.empty')}
+									/>
+								</CardContent>
+							</Card>
+						))}
+					</div>
 				)}
 			</div>
 		</AppShell>

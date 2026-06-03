@@ -7,10 +7,12 @@ import { QueryQuickWinRoiUseCase } from './query-quick-win-roi.use-case.js';
 const ORG_ID = 'cccccccc-cccc-cccc-cccc-cccccccccccc' as Uuid as IdentityAccess.OrganizationId;
 const PROJECT_ID = '11111111-1111-1111-1111-111111111111' as Uuid as ProjectManagement.ProjectId;
 
+type FakeRow = Omit<SearchConsoleInsights.QueryAggregateRow, 'siteUrl'> & { siteUrl?: string };
+
 class FakeCockpit implements SearchConsoleInsights.GscCockpitReadModel {
-	rows: SearchConsoleInsights.QueryAggregateRow[] = [];
+	rows: FakeRow[] = [];
 	async aggregateByQuery(): Promise<readonly SearchConsoleInsights.QueryAggregateRow[]> {
-		return this.rows;
+		return this.rows.map((r) => ({ siteUrl: 'sc-domain:controlrondas.com', ...r }));
 	}
 	async weeklyClicksByQuery(): Promise<readonly SearchConsoleInsights.WeeklyClicksByQueryRow[]> {
 		return [];
@@ -73,7 +75,7 @@ describe('QueryQuickWinRoiUseCase', () => {
 		expect(result.rows).toHaveLength(0);
 	});
 
-	it('respects custom limit', async () => {
+	it('respects custom limit (per property)', async () => {
 		cockpit.rows = Array.from({ length: 30 }, (_, i) => ({
 			query: `kw-${i}`,
 			totalImpressions: 1000,
@@ -83,6 +85,32 @@ describe('QueryQuickWinRoiUseCase', () => {
 		}));
 		const result = await useCase.execute({ projectId: PROJECT_ID, limit: 5 });
 		expect(result.rows).toHaveLength(5);
+	});
+
+	it('does not let a high-volume property mask its siblings (#196)', async () => {
+		const dominant = Array.from({ length: 30 }, (_, i) => ({
+			siteUrl: 'sc-domain:patroltech.online',
+			query: `brand-kw-${i}`,
+			totalImpressions: 1000,
+			totalClicks: 5,
+			avgPosition: 12,
+			bestPage: '/p',
+		}));
+		const sibling = {
+			siteUrl: 'sc-domain:guardtour.app',
+			query: 'guard tour',
+			totalImpressions: 300,
+			totalClicks: 1,
+			avgPosition: 12,
+			bestPage: 'https://guardtour.app/',
+		};
+		cockpit.rows = [...dominant, sibling];
+
+		const result = await useCase.execute({ projectId: PROJECT_ID, limit: 25 });
+
+		const siteUrls = new Set(result.rows.map((r) => r.siteUrl));
+		expect(siteUrls.has('sc-domain:guardtour.app')).toBe(true);
+		expect(siteUrls.has('sc-domain:patroltech.online')).toBe(true);
 	});
 
 	it('throws NotFoundError for unknown project', async () => {
