@@ -20,7 +20,11 @@ export const GSC_AUTO_SCHEDULE_DEFAULTS = {
 	providerId: 'google-search-console',
 	endpointId: 'gsc-search-analytics',
 	cron: '0 5 * * *',
-	dimensions: ['date', 'query', 'page'] as const,
+	// `country` (#199) lets the cockpit segment a property's traffic by the
+	// project's target market — without it, a shared hub linked to several
+	// market projects shows the same (dominant-country) data everywhere. GSC
+	// allows up to 4 dimensions; this is exactly 4.
+	dimensions: ['date', 'query', 'page', 'country'] as const,
 	rowLimit: 25_000,
 	startDateToken: '{{today-30}}',
 	endDateToken: '{{today-2}}',

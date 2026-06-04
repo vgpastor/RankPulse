@@ -43,7 +43,7 @@ describe('searchConsoleInsightsAutoScheduleConfigs', () => {
 			siteUrl: SITE_URL,
 			startDate: '{{today-30}}',
 			endDate: '{{today-2}}',
-			dimensions: ['date', 'query', 'page'],
+			dimensions: ['date', 'query', 'page', 'country'],
 			rowLimit: 25_000,
 		});
 	});
