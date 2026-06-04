@@ -7,7 +7,11 @@ export const SerpGoogleOrganicLiveParams = z.object({
 	locationCode: z.number().int().min(1).max(99_999_999),
 	languageCode: z.string().regex(/^[a-z]{2}(?:-[A-Z]{2})?$/),
 	device: z.enum(['desktop', 'mobile']).default('desktop'),
-	depth: z.number().int().min(10).max(100).default(20),
+	// Depth 100 (DataForSEO's max for one request, same cost tier) so
+	// rank-tracking catches domains ranking 31-100. depth 20-30 made new,
+	// low-authority domains (e.g. the English/French satellites) show as
+	// `null` even when they rank deep in the SERP (#200).
+	depth: z.number().int().min(10).max(100).default(100),
 });
 export type SerpGoogleOrganicLiveParams = z.infer<typeof SerpGoogleOrganicLiveParams>;
 
