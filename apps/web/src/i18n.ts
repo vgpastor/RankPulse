@@ -72,6 +72,9 @@ const en = {
 		device: 'Device',
 		position: 'Pos.',
 		observedAt: 'Observed',
+		gscBadge: 'GSC',
+		gscHint:
+			'Average position from Google Search Console — the live SERP scrape does not rank this domain in the top 100',
 	},
 	aiSearch: {
 		title: 'AI Brand Radar',
@@ -1039,6 +1042,9 @@ const es = {
 		device: 'Dispositivo',
 		position: 'Pos.',
 		observedAt: 'Observado',
+		gscBadge: 'GSC',
+		gscHint:
+			'Posición media en Google Search Console — el scrape del SERP en vivo no rankea este dominio en el top 100',
 	},
 	aiSearch: {
 		title: 'AI Brand Radar',

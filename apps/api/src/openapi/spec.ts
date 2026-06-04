@@ -540,7 +540,7 @@ export function buildOpenApiDocument(): unknown {
 		path: '/api/v1/projects/{projectId}/rankings',
 		summary: 'List the latest ranking observations for a project (raw list)',
 		description:
-			'Returns up to 500 raw observations from the last 14 days. Multiple rows per tracked keyword — the SPA uses this for time-series charts. For a deduplicated per-keyword summary with 1d/7d position deltas, use `/rankings/summary` instead.',
+			'Returns up to 500 raw observations from the last 14 days. Multiple rows per tracked keyword — the SPA uses this for time-series charts. Each row also carries `gscPosition` (number|null): the GSC-reported average position for the (domain, query), used as a fallback when the live SERP `position` is null — e.g. brand-new domains that earn impressions but do not rank in the top-100 scrape (#200). For a deduplicated per-keyword summary with 1d/7d position deltas, use `/rankings/summary` instead.',
 		tags: ['rank-tracking'],
 		security: [{ [ApiTokenAuthHeader]: [] }],
 		request: { params: z.object({ projectId: z.string().uuid() }) },

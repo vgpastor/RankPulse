@@ -114,6 +114,7 @@ export const Tokens = {
 	QueryCtrAnomalies: Symbol('QueryCtrAnomaliesUseCase'),
 	QueryLostOpportunity: Symbol('QueryLostOpportunityUseCase'),
 	QueryQuickWinRoi: Symbol('QueryQuickWinRoiUseCase'),
+	QueryGscKeywordPositions: Symbol('QueryGscKeywordPositionsUseCase'),
 	QueryBrandDecay: Symbol('QueryBrandDecayUseCase'),
 	QueryClicksForecast: Symbol('QueryClicksForecastUseCase'),
 

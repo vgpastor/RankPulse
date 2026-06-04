@@ -1,6 +1,10 @@
 import { Body, Controller, Get, Inject, Param, Post, Query } from '@nestjs/common';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
-import type { ProviderConnectivity as PCUseCases, RankTracking as RTUseCases } from '@rankpulse/application';
+import type {
+	ProviderConnectivity as PCUseCases,
+	RankTracking as RTUseCases,
+	SearchConsoleInsights as SCIUseCases,
+} from '@rankpulse/application';
 import { RankTrackingContracts } from '@rankpulse/contracts';
 import type { IdentityAccess, ProjectManagement, RankTracking } from '@rankpulse/domain';
 import { NotFoundError } from '@rankpulse/shared';
@@ -9,6 +13,7 @@ import { OrgMembership } from '../../common/auth/org-membership.guard.js';
 import { Principal } from '../../common/auth/principal.decorator.js';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe.js';
 import { Tokens } from '../../composition/tokens.js';
+import { attachGscPositions } from './enrich-rankings-with-gsc.js';
 
 type StartTrackingKeywordRequest = RankTrackingContracts.StartTrackingKeywordRequest;
 type StartTrackingKeywordResponse = RankTrackingContracts.StartTrackingKeywordResponse;
@@ -28,6 +33,8 @@ export class RankTrackingController {
 		private readonly querySerpSuggestions: RTUseCases.QuerySerpCompetitorSuggestionsUseCase,
 		@Inject(Tokens.QueryRankedKeywords)
 		private readonly queryRankedKeywords: RTUseCases.QueryRankedKeywordsUseCase,
+		@Inject(Tokens.QueryGscKeywordPositions)
+		private readonly queryGscPositions: SCIUseCases.QueryGscKeywordPositionsUseCase,
 		@Inject(Tokens.TrackedKeywordRepository)
 		private readonly trackedRepo: RankTracking.TrackedKeywordRepository,
 		@Inject(Tokens.RankingObservationRepository)
@@ -107,7 +114,7 @@ export class RankTrackingController {
 		}
 		await this.orgMembership.require(principal, project.organizationId);
 		const observations = await this.obsRepo.listLatestForProject(project.id);
-		return observations.map((o) => ({
+		const rows = observations.map((o) => ({
 			trackedKeywordId: o.trackedKeywordId,
 			phrase: o.phrase,
 			domain: o.domain,
@@ -118,6 +125,12 @@ export class RankTrackingController {
 			url: o.url,
 			observedAt: o.observedAt.toISOString(),
 		}));
+		// #200: fall back to the GSC-reported average position for keywords the
+		// live SERP scrape never ranks (e.g. brand-new domains that earn
+		// impressions but don't crack the top-100). Merged here in the API
+		// layer so rank-tracking stays decoupled from search-console-insights.
+		const { rows: gscPositions } = await this.queryGscPositions.execute({ projectId });
+		return attachGscPositions(rows, gscPositions);
 	}
 
 	/**
