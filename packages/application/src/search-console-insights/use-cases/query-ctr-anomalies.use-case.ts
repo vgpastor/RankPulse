@@ -1,5 +1,6 @@
 import type { ProjectManagement, SearchConsoleInsights } from '@rankpulse/domain';
 import { NotFoundError } from '@rankpulse/shared';
+import { resolveGscCountries } from '../lib/gsc-country.js';
 
 export interface QueryCtrAnomaliesCommand {
 	projectId: string;
@@ -49,6 +50,7 @@ export class QueryCtrAnomaliesUseCase {
 		const rows = await this.cockpit.aggregateByQuery(projectId, windowDays, {
 			minImpressions,
 			limit: 1000,
+			countries: resolveGscCountries(project.locations),
 		});
 		const anomalies: CtrAnomalyDto[] = [];
 		for (const r of rows) {

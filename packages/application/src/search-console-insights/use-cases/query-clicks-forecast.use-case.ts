@@ -58,6 +58,9 @@ export class QueryClicksForecastUseCase {
 		}
 		const historyDays = cmd.historyDays ?? DEFAULT_HISTORY_DAYS;
 		const forecastDays = cmd.forecastDays ?? DEFAULT_FORECAST_DAYS;
+		// NOT country-scoped: the forecast needs 90d of history but country data
+		// only goes back as far as the daily fetch window (~30d), so filtering
+		// would truncate the series. Forecast = project total traffic (#199).
 		const rows = await this.cockpit.dailyTotalsForProject(project.id, historyDays);
 
 		const observedSeries = fillDailyGaps(rows, historyDays);
