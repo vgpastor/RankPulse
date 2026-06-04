@@ -1,5 +1,6 @@
 import type { ProjectManagement, SearchConsoleInsights } from '@rankpulse/domain';
 import { NotFoundError } from '@rankpulse/shared';
+import { resolveGscCountries } from '../lib/gsc-country.js';
 
 export interface QueryBrandDecayCommand {
 	projectId: string;
@@ -62,7 +63,11 @@ export class QueryBrandDecayUseCase {
 		const dropAlertPct = Math.max(1, cmd.dropAlertPct ?? DEFAULT_DROP_ALERT_PCT);
 
 		const brandTokens = this.brandTokensFor(project);
-		const rows = await this.cockpit.weeklyClicksByQuery(projectId, windowDays);
+		const rows = await this.cockpit.weeklyClicksByQuery(
+			projectId,
+			windowDays,
+			resolveGscCountries(project.locations),
+		);
 
 		// Group by week → branded/non-branded bucket.
 		const byWeek = new Map<

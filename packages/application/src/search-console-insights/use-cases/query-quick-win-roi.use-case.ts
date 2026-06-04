@@ -1,6 +1,7 @@
 import type { ProjectManagement, SearchConsoleInsights } from '@rankpulse/domain';
 import { NotFoundError } from '@rankpulse/shared';
 import { ctrForPosition } from '../lib/ctr-curve.js';
+import { resolveGscCountries } from '../lib/gsc-country.js';
 import { topNPerProperty } from '../lib/top-n-per-property.js';
 
 export interface QueryQuickWinRoiCommand {
@@ -71,6 +72,7 @@ export class QueryQuickWinRoiUseCase {
 		const rows = await this.cockpit.aggregateByQuery(projectId, windowDays, {
 			minImpressions,
 			limit: 2000,
+			countries: resolveGscCountries(project.locations),
 		});
 
 		const out: QuickWinRoiDto[] = [];

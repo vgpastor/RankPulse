@@ -3,13 +3,26 @@ import { sql } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { toDate, unwrap } from '../../utils/postgres-js-coercions.js';
 
+/**
+ * `AND country IN (...)` when countries are given (GSC alpha-3 lowercase, e.g.
+ * `fra`), else an empty fragment. Scopes the cockpit to a project's market so a
+ * shared hub property doesn't surface another market's traffic (#199).
+ */
+const countryFilterSql = (countries?: readonly string[]) =>
+	countries && countries.length > 0
+		? sql`AND country IN (${sql.join(
+				countries.map((c) => sql`${c}`),
+				sql`, `,
+			)})`
+		: sql``;
+
 export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCockpitReadModel {
 	constructor(private readonly db: DrizzleDatabase) {}
 
 	async aggregateByQuery(
 		projectId: ProjectManagement.ProjectId,
 		windowDays: number,
-		options?: { minImpressions?: number; limit?: number },
+		options?: { minImpressions?: number; limit?: number; countries?: readonly string[] },
 	): Promise<readonly SearchConsoleInsights.QueryAggregateRow[]> {
 		const minImpr = Math.max(0, options?.minImpressions ?? 0);
 		const limit = Math.min(Math.max(options?.limit ?? 500, 1), 5000);
@@ -55,6 +68,7 @@ export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCock
 					)
 					AND observed_at >= now() - (${windowDays}::int * interval '1 day')
 					AND query <> ''
+					${countryFilterSql(options?.countries)}
 				GROUP BY gsc_property_id, query, page
 			)
 			SELECT
@@ -95,6 +109,7 @@ export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCock
 	async weeklyClicksByQuery(
 		projectId: ProjectManagement.ProjectId,
 		windowDays: number,
+		countries?: readonly string[],
 	): Promise<readonly SearchConsoleInsights.WeeklyClicksByQueryRow[]> {
 		const result = await this.db.execute(sql<{
 			week_start: string;
@@ -114,6 +129,7 @@ export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCock
 				)
 				AND observed_at >= now() - (${windowDays}::int * interval '1 day')
 				AND query <> ''
+				${countryFilterSql(countries)}
 			GROUP BY week_start, query
 			ORDER BY week_start ASC, clicks DESC
 		`);
@@ -135,6 +151,7 @@ export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCock
 	async dailyTotalsForProject(
 		projectId: ProjectManagement.ProjectId,
 		windowDays: number,
+		countries?: readonly string[],
 	): Promise<readonly SearchConsoleInsights.DailyClicksImpressionsRow[]> {
 		// One row per UTC day, summed across every dimension (query, page,
 		// country, device, GSC property). We DON'T filter `query <> ''` here
@@ -155,6 +172,7 @@ export class DrizzleGscCockpitReadModel implements SearchConsoleInsights.GscCock
 					SELECT id FROM gsc_properties WHERE project_id = ${projectId}::uuid AND unlinked_at IS NULL
 				)
 				AND observed_at >= now() - (${windowDays}::int * interval '1 day')
+				${countryFilterSql(countries)}
 			GROUP BY day
 			ORDER BY day ASC
 		`);

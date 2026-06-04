@@ -31,7 +31,16 @@ export interface GscCockpitReadModel {
 	aggregateByQuery(
 		projectId: ProjectId,
 		windowDays: number,
-		options?: { minImpressions?: number; limit?: number },
+		options?: {
+			minImpressions?: number;
+			limit?: number;
+			/**
+			 * GSC country codes (ISO-3166 alpha-3 lowercase, e.g. `fra`) to scope
+			 * the aggregate to. Empty/undefined = all countries. Lets the cockpit
+			 * show a market project only its country's traffic (#199).
+			 */
+			countries?: readonly string[];
+		},
 	): Promise<readonly QueryAggregateRow[]>;
 
 	/**
@@ -39,7 +48,11 @@ export interface GscCockpitReadModel {
 	 * Brand-vs-No-Brand decay alert: the use case classifies each query as
 	 * branded or not, sums weekly, and compares week-over-week.
 	 */
-	weeklyClicksByQuery(projectId: ProjectId, windowDays: number): Promise<readonly WeeklyClicksByQueryRow[]>;
+	weeklyClicksByQuery(
+		projectId: ProjectId,
+		windowDays: number,
+		countries?: readonly string[],
+	): Promise<readonly WeeklyClicksByQueryRow[]>;
 
 	/**
 	 * Project-level daily totals (clicks + impressions) over the trailing
@@ -51,6 +64,7 @@ export interface GscCockpitReadModel {
 	dailyTotalsForProject(
 		projectId: ProjectId,
 		windowDays: number,
+		countries?: readonly string[],
 	): Promise<readonly DailyClicksImpressionsRow[]>;
 }
 

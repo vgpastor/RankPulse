@@ -11,7 +11,13 @@ type FakeRow = Omit<SearchConsoleInsights.QueryAggregateRow, 'siteUrl'> & { site
 
 class FakeCockpit implements SearchConsoleInsights.GscCockpitReadModel {
 	rows: FakeRow[] = [];
-	async aggregateByQuery(): Promise<readonly SearchConsoleInsights.QueryAggregateRow[]> {
+	lastOptions: { minImpressions?: number; limit?: number; countries?: readonly string[] } | undefined;
+	async aggregateByQuery(
+		_projectId: ProjectManagement.ProjectId,
+		_windowDays: number,
+		options?: { minImpressions?: number; limit?: number; countries?: readonly string[] },
+	): Promise<readonly SearchConsoleInsights.QueryAggregateRow[]> {
+		this.lastOptions = options;
 		// Default siteUrl for the single-property cases; multi-property tests
 		// set it explicitly per row.
 		return this.rows.map((r) => ({ siteUrl: 'sc-domain:controlrondas.com', ...r }));
@@ -148,5 +154,22 @@ describe('QueryLostOpportunityUseCase', () => {
 		await expect(
 			useCase.execute({ projectId: '99999999-9999-9999-9999-999999999999' }),
 		).rejects.toBeInstanceOf(NotFoundError);
+	});
+
+	it('scopes the GSC aggregate to the project target countries (#199)', async () => {
+		const FR_ID = '44444444-4444-4444-4444-444444444444' as Uuid as ProjectManagement.ProjectId;
+		await projects.save(
+			ProjectManagement.Project.create({
+				id: FR_ID,
+				organizationId: ORG_ID,
+				portfolioId: null,
+				name: 'PatrolTech FR',
+				primaryDomain: ProjectManagement.DomainName.create('patroltech.online'),
+				initialLocations: [ProjectManagement.LocationLanguage.create({ country: 'FR', language: 'fr-FR' })],
+				now: new Date('2026-04-01T00:00:00Z'),
+			}),
+		);
+		await useCase.execute({ projectId: FR_ID });
+		expect(cockpit.lastOptions?.countries).toEqual(['fra']);
 	});
 });
