@@ -623,6 +623,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.QueryCtrAnomalies, sci.QueryCtrAnomalies),
 		value(Tokens.QueryLostOpportunity, sci.QueryLostOpportunity),
 		value(Tokens.QueryQuickWinRoi, sci.QueryQuickWinRoi),
+		value(Tokens.QueryGscKeywordPositions, sci.QueryGscKeywordPositions),
 		value(Tokens.QueryBrandDecay, sci.QueryBrandDecay),
 		value(Tokens.QueryClicksForecast, sci.QueryClicksForecast),
 

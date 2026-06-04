@@ -12,6 +12,7 @@ import { LinkGscPropertyUseCase } from './use-cases/link-gsc-property.use-case.j
 import { QueryBrandDecayUseCase } from './use-cases/query-brand-decay.use-case.js';
 import { QueryClicksForecastUseCase } from './use-cases/query-clicks-forecast.use-case.js';
 import { QueryCtrAnomaliesUseCase } from './use-cases/query-ctr-anomalies.use-case.js';
+import { QueryGscKeywordPositionsUseCase } from './use-cases/query-gsc-keyword-positions.use-case.js';
 import { QueryGscPerformanceUseCase } from './use-cases/query-gsc-performance.use-case.js';
 import { QueryLostOpportunityUseCase } from './use-cases/query-lost-opportunity.use-case.js';
 import { QueryQuickWinRoiUseCase } from './use-cases/query-quick-win-roi.use-case.js';
@@ -48,6 +49,7 @@ export const searchConsoleInsightsModule: ContextModule = {
 				QueryCtrAnomalies: new QueryCtrAnomaliesUseCase(d.projectRepo, d.gscCockpitReadModel),
 				QueryLostOpportunity: new QueryLostOpportunityUseCase(d.projectRepo, d.gscCockpitReadModel),
 				QueryQuickWinRoi: new QueryQuickWinRoiUseCase(d.projectRepo, d.gscCockpitReadModel),
+				QueryGscKeywordPositions: new QueryGscKeywordPositionsUseCase(d.projectRepo, d.gscCockpitReadModel),
 				QueryBrandDecay: new QueryBrandDecayUseCase(d.projectRepo, d.gscCockpitReadModel),
 				QueryClicksForecast: new QueryClicksForecastUseCase(d.projectRepo, d.gscCockpitReadModel),
 			},

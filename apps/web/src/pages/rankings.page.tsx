@@ -154,7 +154,7 @@ const buildLatestTable = (rows: readonly ProjectRankingItem[]): DeltaRow[] => {
 		const delta = lp === null || pp === null ? null : pp - lp;
 		out.push({ ...latest, previousPosition: pp, delta });
 	}
-	return out.sort((a, b) => (a.position ?? 999) - (b.position ?? 999));
+	return out.sort((a, b) => (a.position ?? a.gscPosition ?? 999) - (b.position ?? b.gscPosition ?? 999));
 };
 
 export const RankingsPage = () => {
@@ -262,12 +262,7 @@ export const RankingsPage = () => {
 		{
 			key: 'position',
 			header: t('rankings:position'),
-			cell: (row) =>
-				row.position === null ? (
-					<span className="text-muted-foreground">{t('common:notRanked')}</span>
-				) : (
-					<span className="font-mono font-semibold">#{row.position}</span>
-				),
+			cell: (row) => <PositionCell position={row.position} gscPosition={row.gscPosition} t={t} />,
 		},
 		{
 			key: 'delta',
@@ -526,12 +521,7 @@ const rawObservationColumns = (
 	{
 		key: 'position',
 		header: t('rankings:position'),
-		cell: (row) =>
-			row.position === null ? (
-				<span className="text-muted-foreground">{t('common:notRanked')}</span>
-			) : (
-				<span className="font-mono font-semibold">#{row.position}</span>
-			),
+		cell: (row) => <PositionCell position={row.position} gscPosition={row.gscPosition} t={t} />,
 	},
 	{
 		key: 'observedAt',
@@ -542,6 +532,28 @@ const rawObservationColumns = (
 		hideOnMobile: true,
 	},
 ];
+
+const PositionCell = ({
+	position,
+	gscPosition,
+	t,
+}: {
+	position: number | null;
+	gscPosition: number | null;
+	t: Translator;
+}) => {
+	if (position !== null) return <span className="font-mono font-semibold">#{position}</span>;
+	if (gscPosition !== null)
+		return (
+			<span className="inline-flex items-center gap-1">
+				<span className="font-mono font-semibold">#{gscPosition.toFixed(1)}</span>
+				<span title={t('rankings:gscHint')}>
+					<Badge variant="secondary">{t('rankings:gscBadge')}</Badge>
+				</span>
+			</span>
+		);
+	return <span className="text-muted-foreground">{t('common:notRanked')}</span>;
+};
 
 const DeltaCell = ({ delta }: { delta: number | null }) => {
 	if (delta === null) return <span className="text-xs text-muted-foreground">—</span>;

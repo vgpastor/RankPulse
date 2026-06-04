@@ -11,6 +11,13 @@ export interface ProjectRankingItem {
 	position: number | null;
 	url: string | null;
 	observedAt: string;
+	/**
+	 * GSC-reported average position for this (domain, phrase), or `null`. Used
+	 * as a fallback in the UI when the live SERP `position` is `null` — e.g.
+	 * brand-new domains that earn impressions but don't rank in the top-100
+	 * scrape (#200). Keyword-level value, repeated across the keyword's rows.
+	 */
+	gscPosition: number | null;
 }
 
 export class RankTrackingResource {

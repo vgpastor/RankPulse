@@ -68,7 +68,15 @@ describe('QueryAiSearchCitationsUseCase', () => {
 			},
 		]);
 		const useCase = new QueryAiSearchCitationsUseCase(readModel);
-		const items = await useCase.execute({ projectId, onlyOwnDomains: true });
+		// Pin the window around `capturedAt` — without explicit from/to the use
+		// case defaults to the last 30 days, which made this a date-bomb that
+		// started failing once "now" drifted >30d past the fixed 2026-05-05 row.
+		const items = await useCase.execute({
+			projectId,
+			from: new Date('2026-05-01T00:00:00Z'),
+			to: new Date('2026-05-06T00:00:00Z'),
+			onlyOwnDomains: true,
+		});
 		expect(items).toHaveLength(1);
 		expect(items[0]?.isOwnDomain).toBe(true);
 	});
