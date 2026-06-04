@@ -164,7 +164,7 @@ export const OnboardingPage = () => {
 						locationCode: country.dataforseoCode,
 						languageCode: country.defaultLanguage,
 						device: 'desktop',
-						depth: 20,
+						depth: 100,
 					},
 				},
 			});

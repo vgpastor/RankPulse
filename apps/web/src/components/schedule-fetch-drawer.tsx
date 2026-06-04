@@ -12,7 +12,7 @@ export interface ScheduleFetchDrawerProps {
 
 const DEFAULT_PARAMS_HINT: Record<string, string> = {
 	'serp-google-organic-live': JSON.stringify(
-		{ keyword: 'control de rondas', locationCode: 2724, languageCode: 'es', device: 'desktop', depth: 20 },
+		{ keyword: 'control de rondas', locationCode: 2724, languageCode: 'es', device: 'desktop', depth: 100 },
 		null,
 		2,
 	),
