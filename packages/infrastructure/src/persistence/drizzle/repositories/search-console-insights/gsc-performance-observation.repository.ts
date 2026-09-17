@@ -3,6 +3,22 @@ import { and, between, desc, eq, gte, sql } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { gscObservations } from '../../schema/index.js';
 
+/**
+ * Postgres accepts at most 65 535 bind parameters per statement. Each
+ * observation binds twelve columns, so a single multi-row INSERT tops out at
+ * 5 461 rows — and a busy property's search-analytics window runs well past
+ * that (patroltech.online: 5 773 rows, 69 276 parameters, refused since
+ * 2026-07-08). One thousand rows a statement keeps a comfortable margin and
+ * costs nothing measurable per round-trip.
+ */
+export const GSC_INSERT_BATCH_ROWS = 1_000;
+
+const chunk = <T>(items: readonly T[], size: number): T[][] => {
+	const out: T[][] = [];
+	for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+	return out;
+};
+
 export class DrizzleGscPerformanceObservationRepository
 	implements SearchConsoleInsights.GscPerformanceObservationRepository
 {
@@ -12,6 +28,16 @@ export class DrizzleGscPerformanceObservationRepository
 		observations: readonly SearchConsoleInsights.GscPerformanceObservation[],
 	): Promise<{ inserted: number }> {
 		if (observations.length === 0) return { inserted: 0 };
+		let inserted = 0;
+		for (const batch of chunk(observations, GSC_INSERT_BATCH_ROWS)) {
+			inserted += await this.insertBatch(batch);
+		}
+		return { inserted };
+	}
+
+	private async insertBatch(
+		observations: readonly SearchConsoleInsights.GscPerformanceObservation[],
+	): Promise<number> {
 		// Domain models the absence of a dimension as `null`; the table
 		// stores `''` so the natural-key PK can cover every row without
 		// COALESCE indexes. Bridge between the two here.
@@ -44,7 +70,7 @@ export class DrizzleGscPerformanceObservationRepository
 				],
 			})
 			.returning({ id: gscObservations.observedAt });
-		return { inserted: inserted.length };
+		return inserted.length;
 	}
 
 	async listForProperty(
