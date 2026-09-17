@@ -1,6 +1,7 @@
 import type { ProviderConnectivity as PCDomain, ProjectManagement, SharedKernel } from '@rankpulse/domain';
 import type { Clock, IdGenerator } from '@rankpulse/shared';
 import type { ContextModule, ContextRegistrations, SharedDeps } from '../_core/module.js';
+import { GetRunPayloadUseCase } from './use-cases/get-run-payload.use-case.js';
 import { ListJobRunsUseCase } from './use-cases/list-job-runs.use-case.js';
 import {
 	DeleteJobDefinitionUseCase,
@@ -28,6 +29,7 @@ export interface ProviderConnectivityDeps {
 	readonly credentialVault: PCDomain.CredentialVault;
 	readonly jobDefRepo: PCDomain.JobDefinitionRepository;
 	readonly jobRunRepo: PCDomain.JobRunRepository;
+	readonly rawPayloadRepo: PCDomain.RawPayloadRepository;
 	readonly apiUsageRepo: PCDomain.ApiUsageRepository;
 	readonly jobScheduler: PCDomain.JobScheduler;
 	/**
@@ -83,6 +85,7 @@ export const providerConnectivityModule: ContextModule = {
 				GetJobDefinition: new GetJobDefinitionUseCase(d.jobDefRepo),
 				UpdateJobDefinition: new UpdateJobDefinitionUseCase(d.jobDefRepo, d.jobScheduler),
 				DeleteJobDefinition: new DeleteJobDefinitionUseCase(d.jobDefRepo, d.jobScheduler),
+				GetRunPayload: new GetRunPayloadUseCase(d.jobRunRepo, d.rawPayloadRepo),
 				ListJobRuns: new ListJobRunsUseCase(d.jobRunRepo),
 				RecordApiUsage: new RecordApiUsageUseCase(d.apiUsageRepo, d.clock, d.ids, d.events),
 			},

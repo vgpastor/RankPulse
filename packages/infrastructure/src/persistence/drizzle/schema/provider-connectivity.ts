@@ -99,6 +99,9 @@ export const rawPayloads = pgTable(
 		providerId: text('provider_id').notNull(),
 		endpointId: text('endpoint_id').notNull(),
 		requestHash: text('request_hash').notNull(),
+		// The params `request_hash` was computed from. Nullable: rows written
+		// before this column existed keep the hash but not its inputs.
+		requestParams: jsonb('request_params').$type<Record<string, unknown>>(),
 		// Generic provider response — each upstream has its own shape so the
 		// `unknown` projection is intentional. Specific repositories cast to
 		// the provider's typed payload at read time.

@@ -43,6 +43,7 @@ const buildController = () => {
 		noop as PCUseCases.UpdateJobDefinitionUseCase,
 		noop as PCUseCases.DeleteJobDefinitionUseCase,
 		noop as PCUseCases.ListJobRunsUseCase,
+		noop as PCUseCases.GetRunPayloadUseCase,
 		noop as ProviderConnectivity.JobDefinitionRepository,
 		memberships,
 		projects,

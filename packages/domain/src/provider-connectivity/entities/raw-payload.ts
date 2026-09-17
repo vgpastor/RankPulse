@@ -11,6 +11,13 @@ export interface RawPayloadProps {
 	providerId: ProviderId;
 	endpointId: EndpointId;
 	requestHash: string;
+	/**
+	 * The params the request was built from — the same subset that feeds
+	 * `requestHash`. Stored alongside the response so an operator can read
+	 * back *what was asked*, not just an opaque hash. Nullable because rows
+	 * written before this column existed cannot be reconstructed.
+	 */
+	requestParams: Record<string, unknown> | null;
 	payload: unknown;
 	payloadSize: number;
 	fetchedAt: Date;
@@ -52,6 +59,7 @@ export class RawPayload extends AggregateRoot {
 			providerId: input.providerId,
 			endpointId: input.endpointId,
 			requestHash,
+			requestParams: input.params,
 			payload: input.payload,
 			payloadSize: Buffer.byteLength(serialized, 'utf8'),
 			fetchedAt: input.now,
@@ -83,6 +91,9 @@ export class RawPayload extends AggregateRoot {
 	}
 	get requestHash(): string {
 		return this.props.requestHash;
+	}
+	get requestParams(): Record<string, unknown> | null {
+		return this.props.requestParams;
 	}
 	get payload(): unknown {
 		return this.props.payload;
