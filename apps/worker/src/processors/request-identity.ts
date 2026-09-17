@@ -44,13 +44,28 @@ export const deriveRequestIdentity = (
 	log: { warn: (meta: object, msg: string) => void },
 ): Record<string, unknown> => {
 	const parsed = descriptor.paramsSchema.safeParse(resolvedParams);
-	if (parsed.success) {
-		return parsed.data as Record<string, unknown>;
+	if (!parsed.success) {
+		log.warn(
+			{ endpointId: descriptor.id, issues: parsed.error.issues.map((i) => i.path.join('.')) },
+			'params do not satisfy paramsSchema; hashing raw params (no dedup for this call)',
+		);
+		return resolvedParams;
 	}
 
-	log.warn(
-		{ endpointId: descriptor.id, issues: parsed.error.issues.map((i) => i.path.join('.')) },
-		'params do not satisfy paramsSchema; hashing raw params (no dedup for this call)',
-	);
-	return resolvedParams;
+	const identity = parsed.data as Record<string, unknown>;
+
+	// A schema whose fields are all optional would parse a populated params
+	// object down to `{}`, and every call through that endpoint would then
+	// share one hash — each one served the first call's response. No current
+	// endpoint can do this, but the failure is silent and serves wrong data
+	// rather than erroring, so refuse to dedup on an empty identity.
+	if (Object.keys(identity).length === 0 && Object.keys(resolvedParams).length > 0) {
+		log.warn(
+			{ endpointId: descriptor.id },
+			'paramsSchema stripped every param; hashing raw params (no dedup for this endpoint)',
+		);
+		return resolvedParams;
+	}
+
+	return identity;
 };

@@ -2,6 +2,7 @@ import { ProviderConnectivity } from '@rankpulse/domain';
 import type { EndpointDescriptor } from '@rankpulse/provider-core';
 import { serpGoogleOrganicLiveDescriptor } from '@rankpulse/provider-dataforseo';
 import { describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 import { deriveRequestIdentity } from './request-identity.js';
 
 const PROVIDER_ID = ProviderConnectivity.ProviderId.create('dataforseo');
@@ -103,6 +104,21 @@ describe('deriveRequestIdentity', () => {
 		const identity = deriveRequestIdentity(serpGoogleOrganicLiveDescriptor, broken, log);
 
 		expect(identity).toBe(broken);
+		expect(log.warn).toHaveBeenCalledOnce();
+	});
+
+	it('refuses to dedup when the schema strips every param', () => {
+		// An all-optional schema would collapse populated params to `{}` and
+		// give every call the same hash — each one served the first response.
+		const log = silentLog();
+		const allOptional = {
+			...serpGoogleOrganicLiveDescriptor,
+			paramsSchema: z.object({ nothingWeSend: z.string().optional() }),
+		} as EndpointDescriptor;
+
+		const identity = deriveRequestIdentity(allOptional, definitionParams({}), log);
+
+		expect(identity).not.toEqual({});
 		expect(log.warn).toHaveBeenCalledOnce();
 	});
 
