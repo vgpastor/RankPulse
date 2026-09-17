@@ -73,6 +73,7 @@ export const Tokens = {
 	DeleteJobDefinition: Symbol('DeleteJobDefinitionUseCase'),
 	ListJobRuns: Symbol('ListJobRunsUseCase'),
 	GetRunPayload: Symbol('GetRunPayloadUseCase'),
+	ReportProviderUsage: Symbol('ReportProviderUsageUseCase'),
 	RecordApiUsage: Symbol('RecordApiUsageUseCase'),
 
 	// Rank-Tracking ports

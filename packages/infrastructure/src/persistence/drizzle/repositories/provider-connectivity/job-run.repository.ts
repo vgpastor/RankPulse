@@ -1,8 +1,9 @@
+import type { IdentityAccess } from '@rankpulse/domain';
 import { ProviderConnectivity } from '@rankpulse/domain';
 import { InvalidInputError } from '@rankpulse/shared';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
-import { providerJobRuns } from '../../schema/index.js';
+import { projects, providerJobDefinitions, providerJobRuns } from '../../schema/index.js';
 
 const isStatus = (value: string): value is ProviderConnectivity.JobRunStatus =>
 	value === 'running' || value === 'succeeded' || value === 'failed' || value === 'skipped';
@@ -21,6 +22,7 @@ export class DrizzleJobRunRepository implements ProviderConnectivity.JobRunRepos
 				startedAt: run.startedAt,
 				finishedAt: run.finishedAt,
 				rawPayloadId: run.rawPayloadId,
+				cacheHit: run.cacheHit,
 				errorJson: run.error,
 			})
 			.onConflictDoUpdate({
@@ -29,9 +31,40 @@ export class DrizzleJobRunRepository implements ProviderConnectivity.JobRunRepos
 					status: run.status,
 					finishedAt: run.finishedAt,
 					rawPayloadId: run.rawPayloadId,
+					cacheHit: run.cacheHit,
 					errorJson: run.error,
 				},
 			});
+	}
+
+	async countExecutions(
+		organizationId: IdentityAccess.OrganizationId,
+		from: Date,
+		to: Date,
+	): Promise<ProviderConnectivity.RunExecutionCounts> {
+		// Runs carry no organization of their own; they belong to one through
+		// their definition. Joining keeps the org boundary enforced in SQL
+		// rather than trusting the caller to filter afterwards.
+		const [row] = await this.db
+			.select({
+				billed: sql<string>`COUNT(*) FILTER (WHERE ${providerJobRuns.cacheHit} = FALSE)`,
+				fromCache: sql<string>`COUNT(*) FILTER (WHERE ${providerJobRuns.cacheHit} = TRUE)`,
+			})
+			.from(providerJobRuns)
+			.innerJoin(providerJobDefinitions, eq(providerJobRuns.definitionId, providerJobDefinitions.id))
+			.innerJoin(projects, eq(providerJobDefinitions.projectId, projects.id))
+			.where(
+				and(
+					eq(projects.organizationId, organizationId),
+					eq(providerJobRuns.status, 'succeeded'),
+					// `[from, to)`, per the port. `between` would be closed at both
+					// ends and double-count a run starting exactly on the boundary
+					// shared by two adjoining report windows.
+					gte(providerJobRuns.startedAt, from),
+					lt(providerJobRuns.startedAt, to),
+				),
+			);
+		return { billed: Number(row?.billed ?? 0), fromCache: Number(row?.fromCache ?? 0) };
 	}
 
 	async findById(
@@ -66,6 +99,7 @@ export class DrizzleJobRunRepository implements ProviderConnectivity.JobRunRepos
 			startedAt: row.startedAt,
 			finishedAt: row.finishedAt,
 			rawPayloadId: (row.rawPayloadId as ProviderConnectivity.RawPayloadId | null) ?? null,
+			cacheHit: row.cacheHit,
 			error: row.errorJson ?? null,
 		});
 	}

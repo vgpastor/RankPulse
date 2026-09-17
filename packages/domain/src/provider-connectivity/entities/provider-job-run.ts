@@ -29,6 +29,12 @@ export interface ProviderJobRunProps {
 	startedAt: Date;
 	finishedAt: Date | null;
 	rawPayloadId: RawPayloadId | null;
+	/**
+	 * True when this run reused a payload an earlier run had already fetched.
+	 * The upstream call — and its charge — belongs to that first run, so a
+	 * cache hit succeeds without producing an `ApiUsageEntry`.
+	 */
+	cacheHit: boolean;
 	error: JobRunError | null;
 }
 
@@ -52,6 +58,7 @@ export class ProviderJobRun extends AggregateRoot {
 			startedAt: input.now,
 			finishedAt: null,
 			rawPayloadId: null,
+			cacheHit: false,
 			error: null,
 		});
 	}
@@ -61,6 +68,19 @@ export class ProviderJobRun extends AggregateRoot {
 	}
 
 	complete(rawPayloadId: RawPayloadId, now: Date): void {
+		this.succeed(rawPayloadId, now, false);
+	}
+
+	/**
+	 * Succeed off a payload an earlier run fetched. Separate from
+	 * {@link complete} so the ledger can tell a billed call from a replayed
+	 * one: both end `succeeded` with a payload, only the former costs money.
+	 */
+	completeFromCache(rawPayloadId: RawPayloadId, now: Date): void {
+		this.succeed(rawPayloadId, now, true);
+	}
+
+	private succeed(rawPayloadId: RawPayloadId, now: Date, cacheHit: boolean): void {
 		if (this.props.status !== JobRunStatuses.RUNNING) {
 			throw new ConflictError(`Cannot complete a job run in status "${this.props.status}"`);
 		}
@@ -69,6 +89,7 @@ export class ProviderJobRun extends AggregateRoot {
 			status: JobRunStatuses.SUCCEEDED,
 			finishedAt: now,
 			rawPayloadId,
+			cacheHit,
 		};
 	}
 
@@ -111,6 +132,9 @@ export class ProviderJobRun extends AggregateRoot {
 	}
 	get rawPayloadId(): RawPayloadId | null {
 		return this.props.rawPayloadId;
+	}
+	get cacheHit(): boolean {
+		return this.props.cacheHit;
 	}
 	get error(): JobRunError | null {
 		return this.props.error;

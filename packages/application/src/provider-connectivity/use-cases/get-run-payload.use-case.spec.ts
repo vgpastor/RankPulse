@@ -38,6 +38,7 @@ const repos = (
 ) => {
 	const runs = {
 		save: async () => {},
+		countExecutions: async () => ({ billed: 0, fromCache: 0 }),
 		findById: async () => run,
 		listForDefinition: async () => [],
 	} satisfies ProviderConnectivity.JobRunRepository;

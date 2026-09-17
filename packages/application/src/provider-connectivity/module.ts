@@ -14,6 +14,7 @@ import {
 	type CredentialFormatValidator,
 	RegisterProviderCredentialUseCase,
 } from './use-cases/register-provider-credential.use-case.js';
+import { ReportProviderUsageUseCase } from './use-cases/report-provider-usage.use-case.js';
 import { ResolveProviderCredentialUseCase } from './use-cases/resolve-provider-credential.use-case.js';
 import {
 	type EndpointParamsValidator,
@@ -87,6 +88,7 @@ export const providerConnectivityModule: ContextModule = {
 				DeleteJobDefinition: new DeleteJobDefinitionUseCase(d.jobDefRepo, d.jobScheduler),
 				GetRunPayload: new GetRunPayloadUseCase(d.jobRunRepo, d.rawPayloadRepo),
 				ListJobRuns: new ListJobRunsUseCase(d.jobRunRepo),
+				ReportProviderUsage: new ReportProviderUsageUseCase(d.apiUsageRepo, d.jobRunRepo),
 				RecordApiUsage: new RecordApiUsageUseCase(d.apiUsageRepo, d.clock, d.ids, d.events),
 			},
 			ingestUseCases: {},

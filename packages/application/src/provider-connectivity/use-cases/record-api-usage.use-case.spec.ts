@@ -11,6 +11,10 @@ const PROJECT_ID = '11111111-1111-1111-1111-111111111111' as Uuid as ProjectMana
 const USAGE_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' as Uuid;
 
 class InMemoryApiUsageRepo implements ProviderConnectivity.ApiUsageRepository {
+	async breakdown(): Promise<readonly ProviderConnectivity.UsageBreakdownRow[]> {
+		return [];
+	}
+
 	readonly entries: ProviderConnectivity.ApiUsageEntry[] = [];
 	async save(entry: ProviderConnectivity.ApiUsageEntry): Promise<void> {
 		this.entries.push(entry);

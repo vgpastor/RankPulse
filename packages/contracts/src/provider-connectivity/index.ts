@@ -142,3 +142,33 @@ export const RunPayloadDto = z.object({
 		.nullable(),
 });
 export type RunPayloadDto = z.infer<typeof RunPayloadDto>;
+
+export const UsageGrouping = z.enum(['provider', 'endpoint', 'project']);
+export type UsageGrouping = z.infer<typeof UsageGrouping>;
+
+export const ProviderUsageQuery = z.object({
+	from: z.string().datetime(),
+	to: z.string().datetime(),
+	groupBy: UsageGrouping.default('provider'),
+});
+export type ProviderUsageQuery = z.infer<typeof ProviderUsageQuery>;
+
+export const ProviderUsageDto = z.object({
+	from: z.string(),
+	to: z.string(),
+	groupBy: UsageGrouping,
+	totalCostCents: z.number(),
+	upstreamCalls: z.number(),
+	cachedRuns: z.number(),
+	/** Null when no run executed in the window. */
+	cacheHitRatio: z.number().nullable(),
+	rows: z.array(
+		z.object({
+			key: z.string(),
+			providerId: z.string(),
+			calls: z.number(),
+			costCents: z.number(),
+		}),
+	),
+});
+export type ProviderUsageDto = z.infer<typeof ProviderUsageDto>;
