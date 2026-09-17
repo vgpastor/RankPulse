@@ -28,6 +28,7 @@ type UpdateJobDefinitionRequest = ProviderConnectivityContracts.UpdateJobDefinit
 type ProviderDto = ProviderConnectivityContracts.ProviderDto;
 type JobDefinitionDto = ProviderConnectivityContracts.JobDefinitionDto;
 type JobRunDto = ProviderConnectivityContracts.JobRunDto;
+type RunPayloadDto = ProviderConnectivityContracts.RunPayloadDto;
 
 /**
  * Entity-bound endpoints — these are auto-scheduled by their bounded
@@ -173,6 +174,8 @@ export class ProvidersController {
 		private readonly deleteJob: PCUseCases.DeleteJobDefinitionUseCase,
 		@Inject(Tokens.ListJobRuns)
 		private readonly listRuns: PCUseCases.ListJobRunsUseCase,
+		@Inject(Tokens.GetRunPayload)
+		private readonly getPayload: PCUseCases.GetRunPayloadUseCase,
 		@Inject(Tokens.JobDefinitionRepository)
 		private readonly jobDefs: ProviderConnectivity.JobDefinitionRepository,
 		@Inject(Tokens.MembershipRepository) memberships: IdentityAccess.MembershipRepository,
@@ -314,6 +317,22 @@ export class ProvidersController {
 	): Promise<JobRunDto[]> {
 		await this.loadDefinitionAndAuthorize(principal, providerId, definitionId);
 		return this.listRuns.execute({ definitionId });
+	}
+
+	/**
+	 * What this run asked upstream and what came back. Reads from the stored
+	 * payload, so inspecting a past result costs nothing — the provider is
+	 * never called again.
+	 */
+	@Get(':providerId/job-definitions/:definitionId/runs/:runId/payload')
+	async getRunPayload(
+		@Principal() principal: AuthPrincipal,
+		@Param('providerId') providerId: string,
+		@Param('definitionId') definitionId: string,
+		@Param('runId') runId: string,
+	): Promise<RunPayloadDto> {
+		await this.loadDefinitionAndAuthorize(principal, providerId, definitionId);
+		return this.getPayload.execute({ definitionId, runId });
 	}
 
 	@SkipThrottle({ default: true, auth: true })

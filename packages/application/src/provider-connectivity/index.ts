@@ -1,4 +1,5 @@
 export * from './module.js';
+export * from './use-cases/get-run-payload.use-case.js';
 export * from './use-cases/list-job-runs.use-case.js';
 export * from './use-cases/manage-job-definition.use-cases.js';
 export * from './use-cases/record-api-usage.use-case.js';

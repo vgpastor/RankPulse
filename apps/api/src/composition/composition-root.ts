@@ -315,6 +315,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		credentialVault,
 		jobDefRepo,
 		jobRunRepo,
+		rawPayloadRepo,
 		apiUsageRepo,
 		jobScheduler,
 		// project repo so ScheduleEndpointFetchUseCase can stamp organizationId
@@ -587,6 +588,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.UpdateJobDefinition, pc.UpdateJobDefinition),
 		value(Tokens.DeleteJobDefinition, pc.DeleteJobDefinition),
 		value(Tokens.ListJobRuns, pc.ListJobRuns),
+		value(Tokens.GetRunPayload, pc.GetRunPayload),
 		value(Tokens.RecordApiUsage, pc.RecordApiUsage),
 
 		// rank-tracking

@@ -117,3 +117,28 @@ export const JobRunDto = z.object({
 		.nullable(),
 });
 export type JobRunDto = z.infer<typeof JobRunDto>;
+
+export const RunPayloadDto = z.object({
+	runId: z.string(),
+	definitionId: z.string(),
+	status: z.enum(['running', 'succeeded', 'failed', 'skipped']),
+	startedAt: z.string(),
+	finishedAt: z.string().nullable(),
+	error: z.object({ code: z.string(), message: z.string(), retryable: z.boolean() }).nullable(),
+	/** Null when the run failed before storing a payload, or it was pruned. */
+	payload: z
+		.object({
+			id: z.string(),
+			providerId: z.string(),
+			endpointId: z.string(),
+			requestHash: z.string(),
+			/** Null for payloads written before migration 0022. */
+			requestParams: z.record(z.string(), z.unknown()).nullable(),
+			response: z.unknown(),
+			payloadSize: z.number(),
+			fetchedAt: z.string(),
+			reusedFromEarlierRun: z.boolean(),
+		})
+		.nullable(),
+});
+export type RunPayloadDto = z.infer<typeof RunPayloadDto>;
