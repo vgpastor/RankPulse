@@ -13,8 +13,14 @@ export interface ProviderUsageView {
 	to: string;
 	groupBy: ProviderConnectivity.UsageGrouping;
 	totalCostCents: number;
-	/** Upstream calls that were actually billed. */
-	billedCalls: number;
+	/**
+	 * Calls that actually reached a provider, counted from the usage ledger.
+	 * Not every one of them cost money — free providers record an entry at
+	 * zero — so this is the volume figure and `totalCostCents` is the money
+	 * figure. It comes from a different table than `cachedRuns`, so treat
+	 * the two as neighbouring measurements rather than parts of one total.
+	 */
+	upstreamCalls: number;
 	/** Succeeded runs that replayed a payload instead of calling upstream. */
 	cachedRuns: number;
 	/**
@@ -74,7 +80,7 @@ export class ReportProviderUsageUseCase {
 			// table below it; a separate SUM query could disagree if a row
 			// were filtered out of one and not the other.
 			totalCostCents: rows.reduce((sum, r) => sum + r.costCents, 0),
-			billedCalls: rows.reduce((sum, r) => sum + r.calls, 0),
+			upstreamCalls: rows.reduce((sum, r) => sum + r.calls, 0),
 			cachedRuns: counts.fromCache,
 			cacheHitRatio: ratioOf(counts),
 			rows,

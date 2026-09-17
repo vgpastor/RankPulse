@@ -1,11 +1,19 @@
 import type { IdentityAccess, ProviderConnectivity } from '@rankpulse/domain';
-import { and, between, eq, sql } from 'drizzle-orm';
+import { and, eq, gte, lt, sql } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { apiUsageEntries } from '../../schema/index.js';
 
 const CENTS_PRECISION = 1_000_000n;
 const toMillicents = (cents: number): bigint => BigInt(Math.round(cents * Number(CENTS_PRECISION)));
 const fromMillicents = (millicents: bigint): number => Number(millicents) / Number(CENTS_PRECISION);
+
+/**
+ * The port specifies `[from, to)`. `between` is closed at both ends, so two
+ * adjoining windows — September as `[Sep 1, Oct 1)` and October as
+ * `[Oct 1, Nov 1)` — would both claim an entry landing exactly on Oct 1.
+ */
+const occurredWithin = (from: Date, to: Date) =>
+	and(gte(apiUsageEntries.occurredAt, from), lt(apiUsageEntries.occurredAt, to));
 
 export class DrizzleApiUsageRepository implements ProviderConnectivity.ApiUsageRepository {
 	constructor(private readonly db: DrizzleDatabase) {}
@@ -28,7 +36,7 @@ export class DrizzleApiUsageRepository implements ProviderConnectivity.ApiUsageR
 		const [row] = await this.db
 			.select({ total: sql<string>`COALESCE(SUM(${apiUsageEntries.costMillicents}), 0)` })
 			.from(apiUsageEntries)
-			.where(and(eq(apiUsageEntries.organizationId, orgId), between(apiUsageEntries.occurredAt, from, to)));
+			.where(and(eq(apiUsageEntries.organizationId, orgId), occurredWithin(from, to)));
 		const millicents = row?.total ? BigInt(row.total) : 0n;
 		return fromMillicents(millicents);
 	}
@@ -57,9 +65,9 @@ export class DrizzleApiUsageRepository implements ProviderConnectivity.ApiUsageR
 				costMillicents: sql<string>`COALESCE(SUM(${apiUsageEntries.costMillicents}), 0)`,
 			})
 			.from(apiUsageEntries)
-			.where(and(eq(apiUsageEntries.organizationId, orgId), between(apiUsageEntries.occurredAt, from, to)))
+			.where(and(eq(apiUsageEntries.organizationId, orgId), occurredWithin(from, to)))
 			.groupBy(keyColumn, apiUsageEntries.providerId)
-			.orderBy(sql`SUM(${apiUsageEntries.costMillicents}) DESC`);
+			.orderBy(sql`SUM(${apiUsageEntries.costMillicents}) DESC`, keyColumn);
 
 		return rows.map((r) => ({
 			key: r.key,

@@ -158,7 +158,7 @@ export const ProviderUsageDto = z.object({
 	to: z.string(),
 	groupBy: UsageGrouping,
 	totalCostCents: z.number(),
-	billedCalls: z.number(),
+	upstreamCalls: z.number(),
 	cachedRuns: z.number(),
 	/** Null when no run executed in the window. */
 	cacheHitRatio: z.number().nullable(),

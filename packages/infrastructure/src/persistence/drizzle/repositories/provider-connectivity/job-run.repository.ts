@@ -1,7 +1,7 @@
 import type { IdentityAccess } from '@rankpulse/domain';
 import { ProviderConnectivity } from '@rankpulse/domain';
 import { InvalidInputError } from '@rankpulse/shared';
-import { and, between, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import type { DrizzleDatabase } from '../../client.js';
 import { projects, providerJobDefinitions, providerJobRuns } from '../../schema/index.js';
 
@@ -57,7 +57,11 @@ export class DrizzleJobRunRepository implements ProviderConnectivity.JobRunRepos
 				and(
 					eq(projects.organizationId, organizationId),
 					eq(providerJobRuns.status, 'succeeded'),
-					between(providerJobRuns.startedAt, from, to),
+					// `[from, to)`, per the port. `between` would be closed at both
+					// ends and double-count a run starting exactly on the boundary
+					// shared by two adjoining report windows.
+					gte(providerJobRuns.startedAt, from),
+					lt(providerJobRuns.startedAt, to),
 				),
 			);
 		return { billed: Number(row?.billed ?? 0), fromCache: Number(row?.fromCache ?? 0) };

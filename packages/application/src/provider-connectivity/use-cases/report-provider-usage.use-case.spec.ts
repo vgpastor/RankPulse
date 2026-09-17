@@ -39,7 +39,7 @@ describe('ReportProviderUsageUseCase', () => {
 		});
 
 		expect(view.totalCostCents).toBe(2_278.5);
-		expect(view.billedCalls).toBe(626);
+		expect(view.upstreamCalls).toBe(626);
 		expect(view.rows).toHaveLength(2);
 	});
 
