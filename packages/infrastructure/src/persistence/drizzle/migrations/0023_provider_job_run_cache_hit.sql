@@ -15,9 +15,11 @@
 ALTER TABLE provider_job_runs
 	ADD COLUMN IF NOT EXISTS cache_hit BOOLEAN NOT NULL DEFAULT FALSE;
 
+--> statement-breakpoint
 COMMENT ON COLUMN provider_job_runs.cache_hit IS
 	'True when the run reused a payload fetched by an earlier run; no upstream call, no ApiUsageEntry.';
 
+--> statement-breakpoint
 -- Usage reporting filters succeeded runs by window and groups by this flag.
 CREATE INDEX IF NOT EXISTS provider_job_runs_cache_hit_idx
 	ON provider_job_runs (started_at, cache_hit)

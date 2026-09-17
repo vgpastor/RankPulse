@@ -13,5 +13,6 @@
 ALTER TABLE raw_payloads
 	ADD COLUMN IF NOT EXISTS request_params JSONB;
 
+--> statement-breakpoint
 COMMENT ON COLUMN raw_payloads.request_params IS
 	'Params the request was built from (the same subset hashed into request_hash). NULL for rows predating migration 0022.';
