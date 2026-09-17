@@ -104,6 +104,14 @@ jobs:
             pm2 start $APP/ops/ecosystem.config.cjs
             echo ">>> Drizzle migrate (loads .env + .env.local via Node --env-file)"
             pnpm --filter @rankpulse/infrastructure db:migrate
+            # Redis holds one BullMQ scheduler per definition and never learns
+            # about a definition disabled, re-cronned or deleted behind its
+            # back. Left alone it drifts: disabled providers keep firing daily,
+            # and a cron changed in Postgres keeps its old pattern in Redis.
+            # Rebuilding from the DB on every deploy keeps Postgres the single
+            # source of truth. Idempotent; see apps/api/scripts/reconcile-schedules.ts.
+            echo ">>> Reconcile BullMQ schedulers with enabled definitions"
+            pnpm --filter @rankpulse/api reconcile:schedules
             echo ">>> Health check API"
             sleep 5
             curl --fail --silent --show-error --max-time 5 --retry 8 --retry-delay 2 --retry-all-errors http://127.0.0.1:3200/healthz
