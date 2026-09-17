@@ -100,9 +100,7 @@ export class GetRunPayloadUseCase {
 	 * meaningful: the caller is authorized against the definition, so a run
 	 * belonging to a different one must read as absent rather than leak.
 	 */
-	private async loadRunOfDefinition(
-		cmd: GetRunPayloadCommand,
-	): Promise<ProviderConnectivity.ProviderJobRun> {
+	private async loadRunOfDefinition(cmd: GetRunPayloadCommand): Promise<ProviderConnectivity.ProviderJobRun> {
 		const run = await this.runs.findById(cmd.runId as ProviderConnectivity.ProviderJobRunId);
 		if (!run || run.definitionId !== cmd.definitionId) {
 			throw new NotFoundError(`Run ${cmd.runId} not found for definition ${cmd.definitionId}`);
