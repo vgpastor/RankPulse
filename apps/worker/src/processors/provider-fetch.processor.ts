@@ -54,6 +54,7 @@ import { type Clock, type IdGenerator, NotFoundError, resolveDateTokens } from '
 import type { Logger } from 'pino';
 import { extractMultiDomainRankings, isMultiDomainSerpJob } from './extract-multi-domain-rankings.js';
 import type { IngestRouter } from './ingest-router.js';
+import { deriveRequestIdentity } from './request-identity.js';
 
 /**
  * BACKLOG #14: detect provider-side "out of quota / payment required" so the
@@ -239,10 +240,16 @@ export class ProviderFetchProcessor {
 			definition.params as Record<string, unknown>,
 			this.deps.clock.now(),
 		);
+		// The hash must identify the UPSTREAM REQUEST, not the definition that
+		// triggered it. `resolvedParams` still carries bookkeeping keys
+		// (`domain`, `trackedKeywordId`, `projectId`, …) that never reach the
+		// provider; including them gave every fan-out sibling its own hash and
+		// billed each one separately. See `deriveRequestIdentity`.
+		const identityParams = deriveRequestIdentity(endpointDescriptor, resolvedParams, runLog);
 		const requestHash = ProviderConnectivity.computeRequestHashFor(
 			definition.providerId,
 			definition.endpointId,
-			resolvedParams,
+			identityParams,
 			dateBucket,
 		);
 		const existing = await this.deps.rawPayloadRepo.findByRequestHash(requestHash);
