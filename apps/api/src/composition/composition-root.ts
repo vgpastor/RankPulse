@@ -589,6 +589,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.DeleteJobDefinition, pc.DeleteJobDefinition),
 		value(Tokens.ListJobRuns, pc.ListJobRuns),
 		value(Tokens.GetRunPayload, pc.GetRunPayload),
+		value(Tokens.ReportProviderUsage, pc.ReportProviderUsage),
 		value(Tokens.RecordApiUsage, pc.RecordApiUsage),
 
 		// rank-tracking

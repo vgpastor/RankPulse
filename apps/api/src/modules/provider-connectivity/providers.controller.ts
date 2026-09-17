@@ -9,6 +9,7 @@ import {
 	Param,
 	Patch,
 	Post,
+	Query,
 } from '@nestjs/common';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import type { ProviderConnectivity as PCUseCases } from '@rankpulse/application';
@@ -29,6 +30,7 @@ type ProviderDto = ProviderConnectivityContracts.ProviderDto;
 type JobDefinitionDto = ProviderConnectivityContracts.JobDefinitionDto;
 type JobRunDto = ProviderConnectivityContracts.JobRunDto;
 type RunPayloadDto = ProviderConnectivityContracts.RunPayloadDto;
+type ProviderUsageDto = ProviderConnectivityContracts.ProviderUsageDto;
 
 /**
  * Entity-bound endpoints — these are auto-scheduled by their bounded
@@ -176,6 +178,8 @@ export class ProvidersController {
 		private readonly listRuns: PCUseCases.ListJobRunsUseCase,
 		@Inject(Tokens.GetRunPayload)
 		private readonly getPayload: PCUseCases.GetRunPayloadUseCase,
+		@Inject(Tokens.ReportProviderUsage)
+		private readonly reportUsage: PCUseCases.ReportProviderUsageUseCase,
 		@Inject(Tokens.JobDefinitionRepository)
 		private readonly jobDefs: ProviderConnectivity.JobDefinitionRepository,
 		@Inject(Tokens.MembershipRepository) memberships: IdentityAccess.MembershipRepository,
@@ -324,6 +328,30 @@ export class ProvidersController {
 	 * payload, so inspecting a past result costs nothing — the provider is
 	 * never called again.
 	 */
+	/**
+	 * Measured spend for an organization in a window, plus how much of its
+	 * workload avoided an upstream call. Cost comes from the usage ledger —
+	 * what endpoints reported per call — not from the catalog's list price.
+	 */
+	@Get('usage')
+	async getUsage(
+		@Principal() principal: AuthPrincipal,
+		@Query('organizationId') organizationId: string,
+		@Query(new ZodValidationPipe(ProviderConnectivityContracts.ProviderUsageQuery))
+		query: ProviderConnectivityContracts.ProviderUsageQuery,
+	): Promise<ProviderUsageDto> {
+		await this.orgMembership.require(principal, organizationId as IdentityAccess.OrganizationId);
+		const view = await this.reportUsage.execute({
+			organizationId,
+			from: new Date(query.from),
+			to: new Date(query.to),
+			groupBy: query.groupBy,
+		});
+		// The use case hands back a readonly list so callers cannot mutate a
+		// result they do not own; the wire DTO is a plain array.
+		return { ...view, rows: [...view.rows] };
+	}
+
 	@Get(':providerId/job-definitions/:definitionId/runs/:runId/payload')
 	async getRunPayload(
 		@Principal() principal: AuthPrincipal,

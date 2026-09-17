@@ -11,6 +11,10 @@ const buildRun = (id: string, startedAt: Date) =>
 	});
 
 class StubRunRepo implements ProviderConnectivity.JobRunRepository {
+	async countExecutions(): Promise<ProviderConnectivity.RunExecutionCounts> {
+		return { billed: 0, fromCache: 0 };
+	}
+
 	readonly store: ProviderConnectivity.ProviderJobRun[] = [];
 	async save(r: ProviderConnectivity.ProviderJobRun): Promise<void> {
 		this.store.push(r);

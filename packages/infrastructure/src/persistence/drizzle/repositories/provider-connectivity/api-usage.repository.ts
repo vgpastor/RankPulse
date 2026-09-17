@@ -32,4 +32,40 @@ export class DrizzleApiUsageRepository implements ProviderConnectivity.ApiUsageR
 		const millicents = row?.total ? BigInt(row.total) : 0n;
 		return fromMillicents(millicents);
 	}
+
+	async breakdown(
+		orgId: IdentityAccess.OrganizationId,
+		from: Date,
+		to: Date,
+		groupBy: ProviderConnectivity.UsageGrouping,
+	): Promise<readonly ProviderConnectivity.UsageBreakdownRow[]> {
+		// `projectId` is nullable — usage recorded outside a project (an
+		// org-wide credential check, say) groups under a sentinel rather than
+		// being dropped, so the rows still sum to `sumCostCents`.
+		const keyColumn =
+			groupBy === 'provider'
+				? apiUsageEntries.providerId
+				: groupBy === 'endpoint'
+					? apiUsageEntries.endpointId
+					: sql<string>`COALESCE(${apiUsageEntries.projectId}::text, '(no project)')`;
+
+		const rows = await this.db
+			.select({
+				key: keyColumn,
+				providerId: apiUsageEntries.providerId,
+				calls: sql<string>`COALESCE(SUM(${apiUsageEntries.calls}), 0)`,
+				costMillicents: sql<string>`COALESCE(SUM(${apiUsageEntries.costMillicents}), 0)`,
+			})
+			.from(apiUsageEntries)
+			.where(and(eq(apiUsageEntries.organizationId, orgId), between(apiUsageEntries.occurredAt, from, to)))
+			.groupBy(keyColumn, apiUsageEntries.providerId)
+			.orderBy(sql`SUM(${apiUsageEntries.costMillicents}) DESC`);
+
+		return rows.map((r) => ({
+			key: r.key,
+			providerId: r.providerId,
+			calls: Number(r.calls),
+			costCents: fromMillicents(BigInt(r.costMillicents)),
+		}));
+	}
 }

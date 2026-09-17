@@ -270,7 +270,7 @@ export class ProviderFetchProcessor {
 					definition,
 					dateBucket,
 				});
-				run.complete(existing.id, this.deps.clock.now());
+				run.completeFromCache(existing.id, this.deps.clock.now());
 				runLog.info({ requestHash }, 'idempotent skip — replayed ingest from cached payload');
 			} catch (err) {
 				if (err instanceof NotFoundError) {
@@ -299,7 +299,7 @@ export class ProviderFetchProcessor {
 					// Transient ingest error on a cache hit — keep the raw
 					// payload, warn, and let the next tick try again. NOT a
 					// reason to disable the def or fail the run.
-					run.complete(existing.id, this.deps.clock.now());
+					run.completeFromCache(existing.id, this.deps.clock.now());
 					runLog.warn(
 						{ requestHash, err: err instanceof Error ? err.message : String(err) },
 						'idempotent skip — ingest replay failed (raw payload preserved)',
