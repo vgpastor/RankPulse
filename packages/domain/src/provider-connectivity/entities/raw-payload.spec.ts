@@ -3,14 +3,20 @@ import { describe, expect, it } from 'vitest';
 import { EndpointId } from '../value-objects/endpoint-id.js';
 import type { RawPayloadId } from '../value-objects/identifiers.js';
 import { ProviderId } from '../value-objects/provider-id.js';
-import { RawPayload, computeRequestHashFor } from './raw-payload.js';
+import { computeRequestHashFor, RawPayload } from './raw-payload.js';
 
 const providerId = ProviderId.create('dataforseo');
 const endpointId = EndpointId.create('serp-google-organic-live');
 const DATE_BUCKET = '2026-09-18';
 
 // What actually travels upstream for a SERP check.
-const identity = { keyword: 'control de rondas', locationCode: 2724, languageCode: 'es', device: 'desktop', depth: 100 };
+const identity = {
+	keyword: 'control de rondas',
+	locationCode: 2724,
+	languageCode: 'es',
+	device: 'desktop',
+	depth: 100,
+};
 
 const store = (params: Record<string, unknown>) =>
 	RawPayload.store({
@@ -47,7 +53,13 @@ describe('RawPayload.store', () => {
 	});
 
 	it('is insensitive to key order', () => {
-		const reordered = { depth: 100, device: 'desktop', languageCode: 'es', locationCode: 2724, keyword: 'control de rondas' };
+		const reordered = {
+			depth: 100,
+			device: 'desktop',
+			languageCode: 'es',
+			locationCode: 2724,
+			keyword: 'control de rondas',
+		};
 		expect(store(reordered).requestHash).toBe(store(identity).requestHash);
 	});
 });
