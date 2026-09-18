@@ -97,7 +97,13 @@ export const buildDomainIntersectionBody = (params: DomainIntersectionParams): u
 		// With `intersection_mode: 'one_intersect'` (default) the API returns
 		// keywords ranked by the primary that are NOT ranked by the secondary
 		// — exactly the competitor-only gap we want to fagocitar.
-		targets: [params.targets[0], params.targets[1]],
+		//
+		// The API takes the pair as two named fields, not an array. Sending
+		// `targets: [...]` is answered with 40501 "Invalid Field: 'target1'",
+		// which the client then filed under QUOTA_EXCEEDED — so every gap
+		// schedule failed quietly for months while the credential was fine.
+		target1: params.targets[0],
+		target2: params.targets[1],
 		location_code: params.locationCode,
 		language_code: params.languageCode,
 		intersection_mode: params.intersectionMode,

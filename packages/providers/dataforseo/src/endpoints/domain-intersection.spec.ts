@@ -23,10 +23,14 @@ const params: DomainIntersectionParams = {
 };
 
 describe('buildDomainIntersectionBody', () => {
+	// The API names the pair `target1`/`target2`; an array under `targets`
+	// is refused with 40501 "Invalid Field: 'target1'". Order still matters:
+	// the first is the competitor whose keywords we want, the second is us.
 	it('serialises params to the DataForSEO snake_case body shape with targets order preserved', () => {
 		expect(buildDomainIntersectionBody(params)).toEqual([
 			{
-				targets: ['rondacontrol.es', 'controlrondas.com'],
+				target1: 'rondacontrol.es',
+				target2: 'controlrondas.com',
 				location_code: 2724,
 				language_code: 'es',
 				intersection_mode: 'one_intersect',
