@@ -84,7 +84,7 @@ export const providerJobRuns = pgTable(
 		status: text('status').notNull(),
 		startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
 		finishedAt: timestamp('finished_at', { withTimezone: true }),
-		rawPayloadId: uuid('raw_payload_id'),
+		rawPayloadId: uuid('raw_payload_id').references(() => rawPayloads.id, { onDelete: 'set null' }),
 		// Succeeded off a payload an earlier run fetched: no upstream call, no
 		// charge. Lets the usage ledger separate billed calls from replays.
 		cacheHit: boolean('cache_hit').notNull().default(false),

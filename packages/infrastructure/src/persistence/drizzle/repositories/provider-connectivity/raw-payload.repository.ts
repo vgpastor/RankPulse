@@ -6,8 +6,8 @@ import { rawPayloads } from '../../schema/index.js';
 export class DrizzleRawPayloadRepository implements ProviderConnectivity.RawPayloadRepository {
 	constructor(private readonly db: DrizzleDatabase) {}
 
-	async save(payload: ProviderConnectivity.RawPayload): Promise<void> {
-		await this.db
+	async save(payload: ProviderConnectivity.RawPayload): Promise<ProviderConnectivity.RawPayloadId> {
+		const inserted = await this.db
 			.insert(rawPayloads)
 			.values({
 				id: payload.id,
@@ -19,7 +19,23 @@ export class DrizzleRawPayloadRepository implements ProviderConnectivity.RawPayl
 				payloadSize: payload.payloadSize,
 				fetchedAt: payload.fetchedAt,
 			})
-			.onConflictDoNothing({ target: rawPayloads.requestHash });
+			.onConflictDoNothing({ target: rawPayloads.requestHash })
+			.returning({ id: rawPayloads.id });
+		if (inserted[0]) return inserted[0].id as ProviderConnectivity.RawPayloadId;
+
+		// Lost the race: another run stored this request first. Its row is the
+		// one that exists, so its id is the one to hand back. Swallowing the
+		// conflict and returning nothing is how 337 runs ended up pointing at
+		// payload ids that were never written.
+		const [existing] = await this.db
+			.select({ id: rawPayloads.id })
+			.from(rawPayloads)
+			.where(eq(rawPayloads.requestHash, payload.requestHash))
+			.limit(1);
+		if (!existing) {
+			throw new Error(`raw payload ${payload.requestHash} neither inserted nor found`);
+		}
+		return existing.id as ProviderConnectivity.RawPayloadId;
 	}
 
 	async findByRequestHash(requestHash: string): Promise<ProviderConnectivity.RawPayload | null> {

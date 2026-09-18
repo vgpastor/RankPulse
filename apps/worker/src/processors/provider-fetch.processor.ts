@@ -336,7 +336,7 @@ export class ProviderFetchProcessor {
 				},
 			);
 
-			const rawPayloadId = this.deps.ids.generate() as ProviderConnectivity.RawPayloadId;
+			const candidatePayloadId = this.deps.ids.generate() as ProviderConnectivity.RawPayloadId;
 			// The stored hash must be the one the lookup above computed, or the
 			// next sibling never finds this payload. `RawPayload.store` derives
 			// the hash from whatever params it is handed, so hand it the same
@@ -344,7 +344,7 @@ export class ProviderFetchProcessor {
 			// `trackedKeywordId`, …) would widen the hash back to one-per-
 			// definition and quietly undo the deduplication.
 			const rawPayload = ProviderConnectivity.RawPayload.store({
-				id: rawPayloadId,
+				id: candidatePayloadId,
 				providerId: definition.providerId,
 				endpointId: definition.endpointId,
 				params: identityParams,
@@ -352,7 +352,17 @@ export class ProviderFetchProcessor {
 				payload: fetchResult,
 				now: this.deps.clock.now(),
 			});
-			await this.deps.rawPayloadRepo.save(rawPayload);
+			// The id that holds the data. Normally our own; when a sibling run
+			// stored the same request a moment earlier, theirs — and everything
+			// downstream (ingest, the run record) must point there, not at an
+			// id that never reached the table.
+			const rawPayloadId = await this.deps.rawPayloadRepo.save(rawPayload);
+			if (rawPayloadId !== candidatePayloadId) {
+				runLog.info(
+					{ candidatePayloadId, storedPayloadId: rawPayloadId },
+					'same request stored concurrently by another run; reusing its payload',
+				);
+			}
 
 			// Endpoints that bill per item (DataForSEO search-volume,
 			// $0.005/keyword) or per consumed unit (OpenAI/Anthropic
