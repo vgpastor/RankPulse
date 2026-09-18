@@ -337,11 +337,17 @@ export class ProviderFetchProcessor {
 			);
 
 			const rawPayloadId = this.deps.ids.generate() as ProviderConnectivity.RawPayloadId;
+			// The stored hash must be the one the lookup above computed, or the
+			// next sibling never finds this payload. `RawPayload.store` derives
+			// the hash from whatever params it is handed, so hand it the same
+			// identity — not `resolvedParams`, whose bookkeeping keys (`domain`,
+			// `trackedKeywordId`, …) would widen the hash back to one-per-
+			// definition and quietly undo the deduplication.
 			const rawPayload = ProviderConnectivity.RawPayload.store({
 				id: rawPayloadId,
 				providerId: definition.providerId,
 				endpointId: definition.endpointId,
-				params: resolvedParams,
+				params: identityParams,
 				dateBucket,
 				payload: fetchResult,
 				now: this.deps.clock.now(),
