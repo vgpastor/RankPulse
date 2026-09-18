@@ -43,7 +43,7 @@ const repos = (
 		listForDefinition: async () => [],
 	} satisfies ProviderConnectivity.JobRunRepository;
 	const payloads = {
-		save: async () => {},
+		save: async (p: ProviderConnectivity.RawPayload) => p.id,
 		findByRequestHash: async () => null,
 		findById: async () => payload,
 	} satisfies ProviderConnectivity.RawPayloadRepository;
