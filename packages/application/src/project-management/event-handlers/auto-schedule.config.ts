@@ -88,9 +88,43 @@ const buildCompetitorAddedSpecs = async (
  * keyword analytics (ranked-keywords, domain-intersection), which is a
  * different bounded context.
  */
+/**
+ * Every project gets one monthly reading of its own link authority. It is
+ * the number that explains why a domain's sitemap gets read and ignored:
+ * nine satellites turned out to have no referring domains at all, and nothing
+ * had been measuring it. $0.02 a project a month.
+ */
+const PROJECT_AUTHORITY = {
+	providerId: 'dataforseo',
+	endpointId: 'dataforseo-project-authority',
+	cron: '0 7 1 * *', // first of the month, 07:00 UTC
+} as const;
+
+const buildProjectCreatedSpecs = async (
+	event: SharedKernel.DomainEvent,
+	_deps: SharedDeps,
+): Promise<readonly AutoScheduleSpec[]> => {
+	if (event.type !== 'project-management.ProjectCreated') return [];
+	const e = event as ProjectManagement.ProjectCreated;
+	return [
+		{
+			providerId: PROJECT_AUTHORITY.providerId,
+			endpointId: PROJECT_AUTHORITY.endpointId,
+			cron: PROJECT_AUTHORITY.cron,
+			systemParamKey: 'projectId',
+			paramsBuilder: () => ({ target: e.primaryDomain, includeSubdomains: true }),
+			systemParamsBuilder: () => ({ projectId: e.projectId }),
+		},
+	];
+};
+
 export const projectManagementAutoScheduleConfigs: readonly AutoScheduleConfig[] = [
 	{
 		event: 'project-management.CompetitorAdded',
 		dynamicSchedules: buildCompetitorAddedSpecs,
+	},
+	{
+		event: 'project-management.ProjectCreated',
+		dynamicSchedules: buildProjectCreatedSpecs,
 	},
 ];

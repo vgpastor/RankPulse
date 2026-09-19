@@ -14,6 +14,7 @@ import {
 	type BacklinksSummaryResponse,
 	backlinksSummaryDescriptor,
 	fetchBacklinksSummary,
+	projectAuthorityDescriptor,
 } from './endpoints/backlinks-summary.js';
 import { competitorsDomainDescriptor, fetchCompetitorsDomain } from './endpoints/competitors-domain.js';
 import {
@@ -254,6 +255,17 @@ const endpoints: readonly EndpointManifest[] = [
 		ingest: {
 			useCaseKey: 'project-management:record-competitor-backlinks-profile',
 			systemParamKey: 'competitorId',
+			acl: (response: BacklinksSummaryResponse) => [summariseBacklinksResponse(response)],
+		} as IngestBinding,
+	},
+	{
+		descriptor: projectAuthorityDescriptor,
+		fetch: adapt(fetchBacklinksSummary),
+		// Same upstream call as above, routed by `projectId` to the project's
+		// own authority record. See `projectAuthorityDescriptor`.
+		ingest: {
+			useCaseKey: 'project-management:record-project-authority-profile',
+			systemParamKey: 'projectId',
 			acl: (response: BacklinksSummaryResponse) => [summariseBacklinksResponse(response)],
 		} as IngestBinding,
 	},

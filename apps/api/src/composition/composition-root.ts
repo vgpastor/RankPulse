@@ -119,6 +119,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 	const competitorActivityRepo = new DrizzlePersistence.DrizzleCompetitorActivityObservationRepository(
 		drizzle.db,
 	);
+	const domainAuthorityRepo = new DrizzlePersistence.DrizzleDomainAuthorityObservationRepository(drizzle.db);
 
 	const credentialRepo = new DrizzlePersistence.DrizzleCredentialRepository(drizzle.db);
 	const jobDefRepo = new DrizzlePersistence.DrizzleJobDefinitionRepository(drizzle.db);
@@ -289,6 +290,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		competitorRepo,
 		competitorSuggestionRepo,
 		competitorActivityRepo,
+		domainAuthorityRepo,
 		// BACKLOG #18 — project-management's `ListCompetitorSuggestions` needs
 		// the project's tracked-keyword count to evaluate the eligibility ratio.
 		// We don't leak the rank-tracking aggregate; we expose a tiny lambda
@@ -564,6 +566,7 @@ export function buildCompositionRoot(env: AppEnv): BootstrapResult {
 		value(Tokens.RecordCompetitorWaybackSnapshot, pm.RecordCompetitorWaybackSnapshot),
 		value(Tokens.RecordCompetitorBacklinksProfile, pm.RecordCompetitorBacklinksProfile),
 		value(Tokens.QueryCompetitorActivity, pm.QueryCompetitorActivity),
+		value(Tokens.QueryProjectAuthority, pm.QueryProjectAuthority),
 		value(Tokens.QueryProjectFreshness, pm.QueryProjectFreshness),
 
 		// provider-connectivity

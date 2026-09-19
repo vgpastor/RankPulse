@@ -31,6 +31,25 @@ export const backlinksSummaryDescriptor: EndpointDescriptor = {
 	rateLimit: { max: 2_000, durationMs: 60_000 },
 };
 
+/**
+ * The same call, scheduled against a project's own primary domain. A
+ * separate descriptor so the IngestRouter can send the row to the project's
+ * authority record instead of a competitor's activity record — the payload
+ * shape is identical, the meaning is not. Monthly is plenty: referring
+ * domains move over weeks, and the reading costs $0.02 a project.
+ */
+export const projectAuthorityDescriptor: EndpointDescriptor = {
+	id: 'dataforseo-project-authority',
+	category: 'backlinks',
+	displayName: 'DataForSEO — project authority',
+	description:
+		"Backlinks summary of the project's own domain: referring domains, total backlinks, rank. The authority Google weighs when deciding whether to crawl what we publish.",
+	paramsSchema: BacklinksSummaryParams,
+	cost: { unit: 'usd_cents', amount: BACKLINKS_SUMMARY_COST_CENTS },
+	defaultCron: '0 7 1 * *',
+	rateLimit: { max: 2_000, durationMs: 60_000 },
+};
+
 const PATH = '/v3/backlinks/summary/live';
 
 export interface BacklinksSummaryItem {

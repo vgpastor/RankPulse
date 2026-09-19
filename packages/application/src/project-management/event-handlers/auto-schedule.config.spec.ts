@@ -20,8 +20,11 @@ const competitorAddedConfig = projectManagementAutoScheduleConfigs.find(
 );
 
 describe('project-management auto-schedule', () => {
-	it('exports a CompetitorAdded config', () => {
-		expect(projectManagementAutoScheduleConfigs).toHaveLength(1);
+	it('exports a CompetitorAdded config and a ProjectCreated config', () => {
+		expect(projectManagementAutoScheduleConfigs.map((c) => c.event).sort()).toEqual([
+			'project-management.CompetitorAdded',
+			'project-management.ProjectCreated',
+		]);
 		expect(competitorAddedConfig).toBeDefined();
 		expect(competitorAddedConfig?.event).toBe('project-management.CompetitorAdded');
 	});
@@ -106,5 +109,45 @@ describe('CompetitorAdded → wayback-only schedule (#179 — dropped DataForSEO
 		} as never;
 		const specs = await competitorAddedConfig?.dynamicSchedules?.(otherEvent, {} as never);
 		expect(specs).toEqual([]);
+	});
+});
+
+describe('ProjectCreated → monthly authority reading of the project domain', () => {
+	const projectCreatedConfig = projectManagementAutoScheduleConfigs.find(
+		(c) => c.event === 'project-management.ProjectCreated',
+	);
+	const event = new ProjectManagement.ProjectCreated({
+		projectId: PROJECT_ID,
+		organizationId: '99999999-9999-9999-9999-999999999999' as Uuid as never,
+		portfolioId: null,
+		primaryDomain: 'rondasoffline.com',
+		kind: ProjectManagement.ProjectKinds.OWN,
+		occurredAt: new Date('2026-09-19T10:00:00Z'),
+	});
+
+	it('schedules exactly one dataforseo-project-authority feeder', async () => {
+		const specs = await projectCreatedConfig?.dynamicSchedules?.(event, {} as never);
+		expect(specs).toHaveLength(1);
+		expect(specs?.[0]?.providerId).toBe('dataforseo');
+		expect(specs?.[0]?.endpointId).toBe('dataforseo-project-authority');
+	});
+
+	it('targets the project domain with the DataForSEO field name, and routes by projectId', async () => {
+		const specs = await projectCreatedConfig?.dynamicSchedules?.(event, {} as never);
+		const spec = specs?.[0];
+		expect(spec?.paramsBuilder(event)).toEqual({ target: 'rondasoffline.com', includeSubdomains: true });
+		expect(spec?.systemParamKey).toBe('projectId');
+		expect(spec?.systemParamsBuilder(event)).toEqual({ projectId: PROJECT_ID });
+	});
+
+	it('ignores every other event', async () => {
+		const other = new ProjectManagement.CompetitorAdded({
+			competitorId: COMPETITOR_ID,
+			projectId: PROJECT_ID,
+			domain: 'x.com',
+			label: 'x',
+			occurredAt: new Date('2026-09-19T10:00:00Z'),
+		});
+		expect(await projectCreatedConfig?.dynamicSchedules?.(other, {} as never)).toEqual([]);
 	});
 });
