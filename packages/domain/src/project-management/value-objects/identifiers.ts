@@ -9,3 +9,4 @@ export type KeywordId = Uuid & { readonly __ctx?: 'KeywordId' };
 export type CompetitorActivityObservationId = Uuid & {
 	readonly __ctx?: 'CompetitorActivityObservationId';
 };
+export type DomainAuthorityObservationId = Uuid & { readonly __ctx?: 'DomainAuthorityObservationId' };

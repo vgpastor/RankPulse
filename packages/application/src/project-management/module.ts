@@ -21,9 +21,11 @@ import {
 	RenamePortfolioUseCase,
 } from './use-cases/manage-portfolios.use-cases.js';
 import { QueryCompetitorActivityUseCase } from './use-cases/query-competitor-activity.use-case.js';
+import { QueryProjectAuthorityUseCase } from './use-cases/query-project-authority.use-case.js';
 import { QueryProjectFreshnessUseCase } from './use-cases/query-project-freshness.use-case.js';
 import { RecordCompetitorBacklinksProfileUseCase } from './use-cases/record-competitor-backlinks-profile.use-case.js';
 import { RecordCompetitorWaybackSnapshotUseCase } from './use-cases/record-competitor-wayback-snapshot.use-case.js';
+import { RecordProjectAuthorityProfileUseCase } from './use-cases/record-project-authority-profile.use-case.js';
 import { RemoveCompetitorUseCase } from './use-cases/remove-competitor.use-case.js';
 
 export interface ProjectManagementDeps {
@@ -36,6 +38,7 @@ export interface ProjectManagementDeps {
 	readonly competitorRepo: PMDomain.CompetitorRepository;
 	readonly competitorSuggestionRepo: PMDomain.CompetitorSuggestionRepository;
 	readonly competitorActivityRepo: PMDomain.CompetitorActivityObservationRepository;
+	readonly domainAuthorityRepo: PMDomain.DomainAuthorityObservationRepository;
 	/**
 	 * BACKLOG #18: project-management's `ListCompetitorSuggestions` needs
 	 * the project's tracked-keyword count to evaluate the eligibility
@@ -155,6 +158,13 @@ export const projectManagementModule: ContextModule = {
 				),
 				RecordCompetitorWaybackSnapshot: recordWaybackSnapshot,
 				RecordCompetitorBacklinksProfile: recordBacklinksProfile,
+				RecordProjectAuthorityProfile: new RecordProjectAuthorityProfileUseCase(
+					d.projectRepo,
+					d.domainAuthorityRepo,
+					d.clock,
+					d.ids,
+				),
+				QueryProjectAuthority: new QueryProjectAuthorityUseCase(d.projectRepo, d.domainAuthorityRepo),
 				QueryCompetitorActivity: new QueryCompetitorActivityUseCase(
 					d.projectRepo,
 					d.competitorRepo,

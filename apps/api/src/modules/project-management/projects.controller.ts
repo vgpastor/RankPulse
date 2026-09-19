@@ -73,6 +73,8 @@ export class ProjectsController {
 		private readonly dismissSuggestion: PMUseCases.DismissCompetitorSuggestionUseCase,
 		@Inject(Tokens.QueryProjectFreshness)
 		private readonly queryFreshness: PMUseCases.QueryProjectFreshnessUseCase,
+		@Inject(Tokens.QueryProjectAuthority)
+		private readonly queryAuthority: PMUseCases.QueryProjectAuthorityUseCase,
 		@Inject(Tokens.ProjectRepository) private readonly projects: ProjectManagement.ProjectRepository,
 		@Inject(Tokens.CompetitorRepository) private readonly competitors: ProjectManagement.CompetitorRepository,
 		@Inject(Tokens.CompetitorSuggestionRepository)
@@ -194,6 +196,22 @@ export class ProjectsController {
 		const project = await this.loadProject(id);
 		await this.orgMembership.require(principal, project.organizationId);
 		return this.addCompetitor.execute({ projectId: id, ...body });
+	}
+
+	/**
+	 * The project's own link authority: latest reading plus history, one
+	 * point per monthly sample. This is the number behind "Google reads our
+	 * sitemap and does not crawl it" — nine satellite domains had no
+	 * referring domains at all and nothing was reporting it.
+	 */
+	@Get(':id/authority')
+	async getAuthority(
+		@Principal() principal: AuthPrincipal,
+		@Param('id') id: string,
+	): Promise<PMUseCases.ProjectAuthorityView> {
+		const project = await this.loadProject(id);
+		await this.orgMembership.require(principal, project.organizationId);
+		return this.queryAuthority.execute({ projectId: id });
 	}
 
 	@Get(':id/competitors')

@@ -196,6 +196,34 @@ export const competitorActivityObservations = pgTable(
 	}),
 );
 
+/**
+ * A project's own link authority over time. One row per project per UTC day;
+ * `raw_payload_id` points at the DataForSEO response it was read from.
+ */
+export const domainAuthorityObservations = pgTable(
+	'domain_authority_observations',
+	{
+		id: uuid('id').primaryKey(),
+		projectId: uuid('project_id')
+			.notNull()
+			.references(() => projects.id, { onDelete: 'cascade' }),
+		domain: text('domain').notNull(),
+		observedAt: timestamp('observed_at', { withTimezone: true }).notNull(),
+		backlinksTotal: bigint('backlinks_total', { mode: 'number' }).notNull(),
+		referringDomains: integer('referring_domains').notNull(),
+		referringMainDomains: integer('referring_main_domains').notNull(),
+		referringPages: bigint('referring_pages', { mode: 'number' }).notNull(),
+		brokenBacklinks: integer('broken_backlinks').notNull(),
+		spamScore: smallint('spam_score'),
+		rank: smallint('rank'),
+		rawPayloadId: uuid('raw_payload_id'),
+	},
+	(t) => ({
+		perDay: uniqueIndex('domain_authority_project_day_unique').on(t.projectId, t.observedAt),
+		projectIdx: index('domain_authority_project_idx').on(t.projectId, t.observedAt),
+	}),
+);
+
 export type PortfolioRow = typeof portfolios.$inferSelect;
 export type ProjectRow = typeof projects.$inferSelect;
 export type ProjectDomainRow = typeof projectDomains.$inferSelect;

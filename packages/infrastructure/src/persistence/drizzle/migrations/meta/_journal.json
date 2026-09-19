@@ -176,6 +176,13 @@
 			"when": 1779300003000,
 			"tag": "0024_provider_job_run_payload_fk",
 			"breakpoints": true
+		},
+		{
+			"idx": 25,
+			"version": "7",
+			"when": 1779300004000,
+			"tag": "0025_domain_authority_observations",
+			"breakpoints": true
 		}
 	]
 }

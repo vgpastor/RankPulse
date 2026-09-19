@@ -14,7 +14,7 @@ import {
 	TrafficAnalytics as TrafficAnalyticsUseCases,
 	WebPerformance as WebPerformanceUseCases,
 } from '@rankpulse/application';
-import { AiSearchInsights as AiSearchInsightsDomain } from '@rankpulse/domain';
+import { AiSearchInsights as AiSearchInsightsDomain, type ProjectManagement } from '@rankpulse/domain';
 import {
 	AiSearchInsights as AiSearchInsightsInfra,
 	Crypto,
@@ -57,6 +57,7 @@ async function bootstrap(): Promise<void> {
 	const competitorActivityRepo = new DrizzlePersistence.DrizzleCompetitorActivityObservationRepository(
 		drizzle.db,
 	);
+	const domainAuthorityRepo = new DrizzlePersistence.DrizzleDomainAuthorityObservationRepository(drizzle.db);
 	const gscPropertyRepo = new DrizzlePersistence.DrizzleGscPropertyRepository(drizzle.db);
 	const gscObservationRepo = new DrizzlePersistence.DrizzleGscPerformanceObservationRepository(drizzle.db);
 	const wikipediaArticleRepo = new DrizzlePersistence.DrizzleWikipediaArticleRepository(drizzle.db);
@@ -165,6 +166,13 @@ async function bootstrap(): Promise<void> {
 		new ProjectManagementUseCases.RecordCompetitorBacklinksProfileUseCase(
 			competitorRepo,
 			competitorActivityRepo,
+			SystemClock,
+			SystemIdGenerator,
+		);
+	const recordProjectAuthorityProfileUseCase =
+		new ProjectManagementUseCases.RecordProjectAuthorityProfileUseCase(
+			projectRepo,
+			domainAuthorityRepo,
 			SystemClock,
 			SystemIdGenerator,
 		);
@@ -293,6 +301,15 @@ async function bootstrap(): Promise<void> {
 					rawPayloadId,
 					summary,
 				});
+			},
+		},
+		'project-management:record-project-authority-profile': {
+			async execute({ rawPayloadId, rows, systemParams }) {
+				const summary = rows[0] as ProjectManagement.BacklinksProfileMetrics | undefined;
+				if (!summary) return;
+				const projectId = systemParams.projectId as string | undefined;
+				if (!projectId) return;
+				await recordProjectAuthorityProfileUseCase.execute({ projectId, rawPayloadId, summary });
 			},
 		},
 		'search-console-insights:ingest-gsc-rows': {
