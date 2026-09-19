@@ -25,100 +25,26 @@ import {
 	type WebPerformance as WebPerformanceDomain,
 } from '@rankpulse/domain';
 import type { ProviderFetchJobData } from '@rankpulse/infrastructure/queue';
-import { AnthropicApiError } from '@rankpulse/provider-anthropic';
-import { BingApiError } from '@rankpulse/provider-bing';
-import { BrevoApiError } from '@rankpulse/provider-brevo';
-import { CloudflareRadarApiError } from '@rankpulse/provider-cloudflare-radar';
-import { type ManifestProviderRegistry, ProviderApiError } from '@rankpulse/provider-core';
 import {
-	DataForSeoApiError,
+	isQuotaExhaustedError,
+	type ManifestProviderRegistry,
+	ProviderApiError,
+} from '@rankpulse/provider-core';
+import {
 	extractTop10Domains,
 	extractTopSerpResults,
 	type SerpLiveResponse,
 } from '@rankpulse/provider-dataforseo';
-import { Ga4ApiError } from '@rankpulse/provider-ga4';
-import { GoogleAiStudioApiError } from '@rankpulse/provider-google-ai-studio';
-import { GscApiError } from '@rankpulse/provider-gsc';
 import {
 	extractPixelEventRows,
-	MetaApiError,
 	type PixelEventsStatsParams,
 	type PixelEventsStatsResponse,
 } from '@rankpulse/provider-meta';
-import { ClarityApiError } from '@rankpulse/provider-microsoft-clarity';
-import { OpenAiApiError } from '@rankpulse/provider-openai';
-import { PageSpeedApiError } from '@rankpulse/provider-pagespeed';
-import { PerplexityApiError } from '@rankpulse/provider-perplexity';
-import { WikipediaApiError } from '@rankpulse/provider-wikipedia';
 import { type Clock, type IdGenerator, NotFoundError, resolveDateTokens } from '@rankpulse/shared';
 import type { Logger } from 'pino';
 import { extractMultiDomainRankings, isMultiDomainSerpJob } from './extract-multi-domain-rankings.js';
 import type { IngestRouter } from './ingest-router.js';
 import { deriveRequestIdentity } from './request-identity.js';
-
-/**
- * BACKLOG #14: detect provider-side "out of quota / payment required" so the
- * processor stops retrying AND the job definition is auto-paused — otherwise
- * BullMQ keeps hammering the upstream and the same error fills the run log.
- *
- * Covers:
- *   - HTTP 402 from any provider (universal "out of credit" code).
- *   - DataForSEO body status_code in the 402xx / 403xx / 405xx ranges.
- *     DataForSEO returns HTTP 200 with body status_code 40402 ("no
- *     balance"), 40501 ("monthly limit reached") and similar — these are
- *     surfaced as DataForSeoApiError by `ensureTaskOk`. Without this
- *     check the worker treats them as transient and retries forever.
- */
-const isQuotaExhaustedError = (err: unknown): boolean => {
-	if (err instanceof DataForSeoApiError) {
-		if (err.status === 402) return true;
-		// Body status codes: 40402, 40403, 40501, 40502 — quota / billing.
-		// 40000-40399 are validation / auth which ARE worth retrying after
-		// the operator fixes them.
-		if (err.status >= 40400 && err.status < 41000) return true;
-		if (err.status >= 40500 && err.status < 41000) return true;
-	}
-	if (err instanceof GscApiError && err.status === 402) return true;
-	// Wikipedia is a public API, no quota; included for symmetry.
-	if (err instanceof WikipediaApiError && err.status === 402) return true;
-	// PSI returns 429 once the API key burns through its 25k/day. Treat as
-	// quota-exhausted so the JobDefinition auto-pauses until next day.
-	if (err instanceof PageSpeedApiError && (err.status === 402 || err.status === 429)) return true;
-	// GA4 Data API returns 429 RESOURCE_EXHAUSTED when the per-property token
-	// budget (200k/day) is spent; auto-pause until reset.
-	if (err instanceof Ga4ApiError && (err.status === 402 || err.status === 429)) return true;
-	// Bing Webmaster Tools is fair-use rate-limited; 429 is the throttle
-	// signal. Treat it as quota-exhausted so the cron auto-pauses rather than
-	// retrying through the budget for the rest of the day.
-	if (err instanceof BingApiError && err.status === 429) return true;
-	// Cloudflare Radar enforces per-account rate limits at the platform edge;
-	// 429 is the throttle signal. Auto-pause until the operator topples up.
-	if (err instanceof CloudflareRadarApiError && (err.status === 402 || err.status === 429)) return true;
-	// Meta Marketing API: 80004 / 17 / 4 = "rate limit reached" surfaced as
-	// HTTP 400 with a specific subcode (not normalised yet); the platform
-	// also returns a hard 429 once the Business Use Case bucket spills.
-	// We auto-pause on 402/429 so the cron stops drilling through quota.
-	if (err instanceof MetaApiError && (err.status === 402 || err.status === 429)) return true;
-	// Microsoft Clarity allows 10 req/day per project on the free tier;
-	// 429 once the budget is spent. Auto-pause until the next day window.
-	if (err instanceof ClarityApiError && (err.status === 402 || err.status === 429)) return true;
-	// Brevo free tier: 300 emails/day. 429 surfaces both the per-second
-	// rate limit and the daily-quota exhaustion. 402 is the over-the-paid-tier
-	// signal. Auto-pause both — operator must top up.
-	if (err instanceof BrevoApiError && (err.status === 402 || err.status === 429)) return true;
-	// OpenAI returns 429 (rate limit) and 401/403 (key revoked/no quota); all
-	// non-recoverable without operator action.
-	if (err instanceof OpenAiApiError && (err.status === 402 || err.status === 429)) return true;
-	// Anthropic returns 429 (rate limit / monthly cap), 402 (over-balance).
-	if (err instanceof AnthropicApiError && (err.status === 402 || err.status === 429)) return true;
-	// Perplexity returns 429 once the requests-per-minute or monthly request
-	// quota is hit. Auto-pause until the operator tops up.
-	if (err instanceof PerplexityApiError && (err.status === 402 || err.status === 429)) return true;
-	// Google AI Studio (Gemini) returns 429 RESOURCE_EXHAUSTED when the
-	// per-project rate or daily-grounding quota is spent. Auto-pause.
-	if (err instanceof GoogleAiStudioApiError && (err.status === 402 || err.status === 429)) return true;
-	return false;
-};
 
 const normalize = (raw: string): string =>
 	raw
@@ -566,7 +492,16 @@ export class ProviderFetchProcessor {
 					? `${baseMessage} | body: ${err.body.slice(0, 1024)}`
 					: baseMessage;
 
-			if (isQuotaExhaustedError(err)) {
+			// Each provider knows its own "out of budget" signal — DataForSEO
+			// reports it inside a 200 body, others as HTTP 402/429. The manifest
+			// hook has carried that knowledge since ADR 0002; asking it here is
+			// what stops one provider's status codes from being read as
+			// another's.
+			const manifest = this.deps.registry.get(definition.providerId.value);
+			const quotaExhausted = manifest.isQuotaExhausted
+				? manifest.isQuotaExhausted(err)
+				: isQuotaExhaustedError(err);
+			if (quotaExhausted) {
 				// Auto-pause the definition so the next cron tick is a no-op
 				// (the `if (!definition.enabled) skip` branch above). The
 				// operator must explicitly re-enable after topping up credit.
