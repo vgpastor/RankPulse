@@ -18,5 +18,6 @@ export * from './endpoints/ranked-keywords.js';
 export * from './endpoints/related-keywords.js';
 export * from './endpoints/serp-google-organic-advanced.js';
 export * from './endpoints/serp-google-organic-live.js';
+export * from './errors.js';
 export * from './http.js';
 export { dataforseoProviderManifest } from './manifest.js';

@@ -52,6 +52,7 @@ import {
 	fetchSerpGoogleOrganicLive,
 	serpGoogleOrganicLiveDescriptor,
 } from './endpoints/serp-google-organic-live.js';
+import { isDataForSeoQuotaExhausted } from './errors.js';
 import { buildLegacyShim, DataForSeoHttpClient } from './http.js';
 
 const auth: AuthStrategy = { kind: 'basic' };
@@ -295,5 +296,8 @@ export const dataforseoProviderManifest: ProviderManifest = {
 		}
 	},
 	endpoints,
+	// DataForSEO reports billing inside a 200 body (40200, 40203, 40210…), so
+	// the core 402/429 default never sees it. See `errors.ts` for the table.
+	isQuotaExhausted: isDataForSeoQuotaExhausted,
 	buildHttpClient: (http) => new DataForSeoHttpClient(http),
 };
