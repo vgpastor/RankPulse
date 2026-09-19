@@ -165,19 +165,22 @@ describe('DomainAdded → authority reading for each main secondary domain', () 
 			occurredAt: new Date('2026-09-19T10:00:00Z'),
 		});
 
-	// The satellites are secondary domains of four projects; this is the
-	// event that gives each of them a reading of its own.
-	it('schedules one feeder for a main domain, keyed by that domain', async () => {
-		const specs = await domainAddedConfig?.dynamicSchedules?.(added('main'), {} as never);
+	// The satellites are secondary domains of four projects, registered as
+	// `alias` (in production every secondary domain is). Each one gets a
+	// reading of its own.
+	it.each([
+		'main',
+		'alias',
+	] as const)('schedules one feeder for a %s domain, keyed by that domain', async (kind) => {
+		const specs = await domainAddedConfig?.dynamicSchedules?.(added(kind), {} as never);
 		expect(specs).toHaveLength(1);
-		expect(specs?.[0]?.systemParamsBuilder(added('main'))).toEqual({
+		expect(specs?.[0]?.systemParamsBuilder(added(kind))).toEqual({
 			projectId: PROJECT_ID,
 			domain: 'softwarerondas.com',
 		});
 	});
 
-	it('skips subdomains and aliases, which share their parent link graph', async () => {
+	it('skips a subdomain, which shares its parent link graph', async () => {
 		expect(await domainAddedConfig?.dynamicSchedules?.(added('subdomain'), {} as never)).toEqual([]);
-		expect(await domainAddedConfig?.dynamicSchedules?.(added('alias'), {} as never)).toEqual([]);
 	});
 });

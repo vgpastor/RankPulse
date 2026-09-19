@@ -120,15 +120,17 @@ const buildProjectCreatedSpecs = async (
 	return [authoritySpec(e.projectId, e.primaryDomain)];
 };
 
-// Secondary domains are where the satellites live; a subdomain or an alias
-// shares its parent's link graph and gets no reading of its own.
+// Secondary domains are where the satellites live, and in practice they are
+// all registered as `alias` — the kind says "another registrable domain of
+// this project", not "a redirect". Each has a link graph of its own. Only a
+// subdomain shares its parent's, so only a subdomain gets no reading.
 const buildDomainAddedSpecs = async (
 	event: SharedKernel.DomainEvent,
 	_deps: SharedDeps,
 ): Promise<readonly AutoScheduleSpec[]> => {
 	if (event.type !== 'project-management.DomainAdded') return [];
 	const e = event as ProjectManagement.DomainAdded;
-	if (e.kind !== 'main') return [];
+	if (e.kind === 'subdomain') return [];
 	return [authoritySpec(e.projectId, e.domain)];
 };
 
