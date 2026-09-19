@@ -183,6 +183,13 @@
 			"when": 1779300004000,
 			"tag": "0025_domain_authority_observations",
 			"breakpoints": true
+		},
+		{
+			"idx": 26,
+			"version": "7",
+			"when": 1779300005000,
+			"tag": "0026_domain_authority_per_domain",
+			"breakpoints": true
 		}
 	]
 }

@@ -1,5 +1,5 @@
 import { ProjectManagement } from '@rankpulse/domain';
-import { FakeClock, FixedIdGenerator, NotFoundError, type Uuid } from '@rankpulse/shared';
+import { FakeClock, FixedIdGenerator, InvalidInputError, NotFoundError, type Uuid } from '@rankpulse/shared';
 import { InMemoryProjectRepository } from '@rankpulse/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RecordProjectAuthorityProfileUseCase } from './record-project-authority-profile.use-case.js';
@@ -57,22 +57,48 @@ describe('RecordProjectAuthorityProfileUseCase', () => {
 	// A satellite with no referring domains is exactly the case this exists to
 	// surface; zeros are a reading, not a missing one.
 	it('records the reading under the project and its own domain', async () => {
-		const { observationId } = await useCase.execute({ projectId: PROJECT_ID, rawPayloadId: null, summary });
+		const { observationId } = await useCase.execute({
+			projectId: PROJECT_ID,
+			domain: 'rondasoffline.com',
+			rawPayloadId: null,
+			summary,
+		});
 		expect(observationId).toBe(OBS_ID);
 		expect(authority.saved).toHaveLength(1);
 		expect(authority.saved[0]?.domain).toBe('rondasoffline.com');
 		expect(authority.saved[0]?.metrics.referringDomains).toBe(0);
 	});
 
-	it('takes the domain from the project, not from the payload', async () => {
-		await useCase.execute({ projectId: PROJECT_ID, rawPayloadId: 'rp-1', summary });
-		expect(authority.saved[0]?.domain).toBe('rondasoffline.com');
+	it('records a secondary domain under the same project', async () => {
+		const project = await projects.findById(PROJECT_ID);
+		project?.addDomain(ProjectManagement.DomainName.create('softwarerondas.com'), 'main', new Date());
+		if (project) await projects.save(project);
+		await useCase.execute({
+			projectId: PROJECT_ID,
+			domain: 'softwarerondas.com',
+			rawPayloadId: 'rp-1',
+			summary,
+		});
+		expect(authority.saved[0]?.domain).toBe('softwarerondas.com');
 		expect(authority.saved[0]?.rawPayloadId).toBe('rp-1');
+	});
+
+	// A schedule pointed at a domain the project does not own must not be
+	// filed as the project's authority.
+	it('refuses a domain that does not belong to the project', async () => {
+		await expect(
+			useCase.execute({ projectId: PROJECT_ID, domain: 'tracktik.com', rawPayloadId: null, summary }),
+		).rejects.toBeInstanceOf(InvalidInputError);
 	});
 
 	it('refuses an unknown project', async () => {
 		await expect(
-			useCase.execute({ projectId: '22222222-2222-2222-2222-222222222222', rawPayloadId: null, summary }),
+			useCase.execute({
+				projectId: '22222222-2222-2222-2222-222222222222',
+				domain: 'rondasoffline.com',
+				rawPayloadId: null,
+				summary,
+			}),
 		).rejects.toBeInstanceOf(NotFoundError);
 	});
 });

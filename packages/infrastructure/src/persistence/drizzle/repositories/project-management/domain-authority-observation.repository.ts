@@ -50,9 +50,12 @@ export class DrizzleDomainAuthorityObservationRepository
 			// A second fetch on the same day replaces the first: the later
 			// reading is the fresher one and there is no reason to keep both.
 			.onConflictDoUpdate({
-				target: [domainAuthorityObservations.projectId, domainAuthorityObservations.observedAt],
+				target: [
+					domainAuthorityObservations.projectId,
+					domainAuthorityObservations.domain,
+					domainAuthorityObservations.observedAt,
+				],
 				set: {
-					domain: sql`excluded.domain`,
 					backlinksTotal: sql`excluded.backlinks_total`,
 					referringDomains: sql`excluded.referring_domains`,
 					referringMainDomains: sql`excluded.referring_main_domains`,
