@@ -308,8 +308,9 @@ async function bootstrap(): Promise<void> {
 				const summary = rows[0] as ProjectManagement.BacklinksProfileMetrics | undefined;
 				if (!summary) return;
 				const projectId = systemParams.projectId as string | undefined;
-				if (!projectId) return;
-				await recordProjectAuthorityProfileUseCase.execute({ projectId, rawPayloadId, summary });
+				const domain = systemParams.domain as string | undefined;
+				if (!projectId || !domain) return;
+				await recordProjectAuthorityProfileUseCase.execute({ projectId, domain, rawPayloadId, summary });
 			},
 		},
 		'search-console-insights:ingest-gsc-rows': {

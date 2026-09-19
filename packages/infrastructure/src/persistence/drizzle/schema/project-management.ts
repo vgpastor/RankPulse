@@ -197,7 +197,8 @@ export const competitorActivityObservations = pgTable(
 );
 
 /**
- * A project's own link authority over time. One row per project per UTC day;
+ * A project's own link authority over time, per domain (a project is a set of
+ * domains). One row per project domain per UTC day;
  * `raw_payload_id` points at the DataForSEO response it was read from.
  */
 export const domainAuthorityObservations = pgTable(
@@ -219,7 +220,7 @@ export const domainAuthorityObservations = pgTable(
 		rawPayloadId: uuid('raw_payload_id'),
 	},
 	(t) => ({
-		perDay: uniqueIndex('domain_authority_project_day_unique').on(t.projectId, t.observedAt),
+		perDay: uniqueIndex('domain_authority_project_domain_day_unique').on(t.projectId, t.domain, t.observedAt),
 		projectIdx: index('domain_authority_project_idx').on(t.projectId, t.observedAt),
 	}),
 );

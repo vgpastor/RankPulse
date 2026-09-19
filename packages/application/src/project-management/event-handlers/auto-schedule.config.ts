@@ -100,22 +100,36 @@ const PROJECT_AUTHORITY = {
 	cron: '0 7 1 * *', // first of the month, 07:00 UTC
 } as const;
 
+const authoritySpec = (projectId: string, domain: string): AutoScheduleSpec => ({
+	providerId: PROJECT_AUTHORITY.providerId,
+	endpointId: PROJECT_AUTHORITY.endpointId,
+	cron: PROJECT_AUTHORITY.cron,
+	// Idempotency is per domain: the same project adds several, and each one
+	// gets its own reading.
+	systemParamKey: 'domain',
+	paramsBuilder: () => ({ target: domain, includeSubdomains: true }),
+	systemParamsBuilder: () => ({ projectId, domain }),
+});
+
 const buildProjectCreatedSpecs = async (
 	event: SharedKernel.DomainEvent,
 	_deps: SharedDeps,
 ): Promise<readonly AutoScheduleSpec[]> => {
 	if (event.type !== 'project-management.ProjectCreated') return [];
 	const e = event as ProjectManagement.ProjectCreated;
-	return [
-		{
-			providerId: PROJECT_AUTHORITY.providerId,
-			endpointId: PROJECT_AUTHORITY.endpointId,
-			cron: PROJECT_AUTHORITY.cron,
-			systemParamKey: 'projectId',
-			paramsBuilder: () => ({ target: e.primaryDomain, includeSubdomains: true }),
-			systemParamsBuilder: () => ({ projectId: e.projectId }),
-		},
-	];
+	return [authoritySpec(e.projectId, e.primaryDomain)];
+};
+
+// Secondary domains are where the satellites live; a subdomain or an alias
+// shares its parent's link graph and gets no reading of its own.
+const buildDomainAddedSpecs = async (
+	event: SharedKernel.DomainEvent,
+	_deps: SharedDeps,
+): Promise<readonly AutoScheduleSpec[]> => {
+	if (event.type !== 'project-management.DomainAdded') return [];
+	const e = event as ProjectManagement.DomainAdded;
+	if (e.kind !== 'main') return [];
+	return [authoritySpec(e.projectId, e.domain)];
 };
 
 export const projectManagementAutoScheduleConfigs: readonly AutoScheduleConfig[] = [
@@ -126,5 +140,9 @@ export const projectManagementAutoScheduleConfigs: readonly AutoScheduleConfig[]
 	{
 		event: 'project-management.ProjectCreated',
 		dynamicSchedules: buildProjectCreatedSpecs,
+	},
+	{
+		event: 'project-management.DomainAdded',
+		dynamicSchedules: buildDomainAddedSpecs,
 	},
 ];

@@ -23,6 +23,7 @@ describe('project-management auto-schedule', () => {
 	it('exports a CompetitorAdded config and a ProjectCreated config', () => {
 		expect(projectManagementAutoScheduleConfigs.map((c) => c.event).sort()).toEqual([
 			'project-management.CompetitorAdded',
+			'project-management.DomainAdded',
 			'project-management.ProjectCreated',
 		]);
 		expect(competitorAddedConfig).toBeDefined();
@@ -132,12 +133,12 @@ describe('ProjectCreated → monthly authority reading of the project domain', (
 		expect(specs?.[0]?.endpointId).toBe('dataforseo-project-authority');
 	});
 
-	it('targets the project domain with the DataForSEO field name, and routes by projectId', async () => {
+	it('targets the project domain with the DataForSEO field name, keyed by domain', async () => {
 		const specs = await projectCreatedConfig?.dynamicSchedules?.(event, {} as never);
 		const spec = specs?.[0];
 		expect(spec?.paramsBuilder(event)).toEqual({ target: 'rondasoffline.com', includeSubdomains: true });
-		expect(spec?.systemParamKey).toBe('projectId');
-		expect(spec?.systemParamsBuilder(event)).toEqual({ projectId: PROJECT_ID });
+		expect(spec?.systemParamKey).toBe('domain');
+		expect(spec?.systemParamsBuilder(event)).toEqual({ projectId: PROJECT_ID, domain: 'rondasoffline.com' });
 	});
 
 	it('ignores every other event', async () => {
@@ -149,5 +150,34 @@ describe('ProjectCreated → monthly authority reading of the project domain', (
 			occurredAt: new Date('2026-09-19T10:00:00Z'),
 		});
 		expect(await projectCreatedConfig?.dynamicSchedules?.(other, {} as never)).toEqual([]);
+	});
+});
+
+describe('DomainAdded → authority reading for each main secondary domain', () => {
+	const domainAddedConfig = projectManagementAutoScheduleConfigs.find(
+		(c) => c.event === 'project-management.DomainAdded',
+	);
+	const added = (kind: 'main' | 'subdomain' | 'alias') =>
+		new ProjectManagement.DomainAdded({
+			projectId: PROJECT_ID,
+			domain: 'softwarerondas.com',
+			kind,
+			occurredAt: new Date('2026-09-19T10:00:00Z'),
+		});
+
+	// The satellites are secondary domains of four projects; this is the
+	// event that gives each of them a reading of its own.
+	it('schedules one feeder for a main domain, keyed by that domain', async () => {
+		const specs = await domainAddedConfig?.dynamicSchedules?.(added('main'), {} as never);
+		expect(specs).toHaveLength(1);
+		expect(specs?.[0]?.systemParamsBuilder(added('main'))).toEqual({
+			projectId: PROJECT_ID,
+			domain: 'softwarerondas.com',
+		});
+	});
+
+	it('skips subdomains and aliases, which share their parent link graph', async () => {
+		expect(await domainAddedConfig?.dynamicSchedules?.(added('subdomain'), {} as never)).toEqual([]);
+		expect(await domainAddedConfig?.dynamicSchedules?.(added('alias'), {} as never)).toEqual([]);
 	});
 });
